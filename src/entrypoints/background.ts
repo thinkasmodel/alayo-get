@@ -24,12 +24,12 @@ import {
   type QuoteCaptureResponse,
   type SwToPanel,
   type ToastActionMessage,
-  type ToastActionResponse,
   type ToastMessage,
 } from '@/shared/messages';
 import type { Capture, PanelState, Preview, SaveOutcome, TagCount } from '@/shared/types';
 import { createBadge } from '@/sw/badge';
 import { createClipBook } from '@/sw/clips';
+import { createPendingEdits, openPanelForNote, type NotePanelDeps } from '@/sw/pendingEdit';
 import { handlePanelPort, type PortLike } from '@/sw/ports';
 import {
   classifyTab,
@@ -46,12 +46,6 @@ import { probeMediaKind } from '@/sw/saveMedia';
 import { blobStreamCapture, captureStreamPage, netdiskStreamCapture, partialStreamCapture } from '@/sw/saveStream';
 
 const CAPTURE_SCRIPT = '/content-scripts/capture.js';
-
-/** 页面提示「加批注…」记下的待编辑剪藏（storage.session，ALAG-16）：tabId → 剪藏 id 与记下的时刻。 */
-const PENDING_EDIT_KEY = 'pendingNoteEdit';
-/** 记下后超过这么久才打开面板的，视为过期，面板照常保存当前页。 */
-const PENDING_EDIT_TTL_MS = 30_000;
-type PendingEdits = Record<string, { clipId: string; at: number }>;
 
 type Tab = Browser.tabs.Tab;
 
@@ -361,32 +355,12 @@ export default defineBackground(() => {
 
   // ---- 页面提示「加批注…」→ 面板编辑态（ALAG-16）
 
-  const readPendingEdits = async (): Promise<PendingEdits> => {
-    const got = await browser.storage.session.get(PENDING_EDIT_KEY);
-    const value = got[PENDING_EDIT_KEY] as PendingEdits | undefined;
-    return value && typeof value === 'object' ? value : {};
-  };
-
-  const setPendingEdit = async (tabId: number, clipId: string): Promise<void> => {
-    const all = await readPendingEdits();
-    all[String(tabId)] = { clipId, at: Date.now() };
-    await browser.storage.session.set({ [PENDING_EDIT_KEY]: all });
-  };
-
-  const clearPendingEdit = async (tabId: number): Promise<void> => {
-    const all = await readPendingEdits();
-    if (!(String(tabId) in all)) return;
-    delete all[String(tabId)];
-    await browser.storage.session.set({ [PENDING_EDIT_KEY]: all });
-  };
-
-  /** 取出并清掉这个标签页的待编辑剪藏；没有或已过期返回 null。 */
-  const takePendingEdit = async (tabId: number): Promise<string | null> => {
-    const all = await readPendingEdits();
-    const entry = all[String(tabId)];
-    if (!entry) return null;
-    await clearPendingEdit(tabId);
-    return Date.now() - entry.at > PENDING_EDIT_TTL_MS ? null : entry.clipId;
+  /** 页面提示「加批注…」记下的待编辑剪藏（storage.session）；增删串行，见 src/sw/pendingEdit.ts。 */
+  const pendingEdits = createPendingEdits(browser.storage.session);
+  const notePanelDeps: NotePanelDeps = {
+    pending: pendingEdits,
+    queryActiveTab: async (windowId) => (await browser.tabs.query({ active: true, windowId }))[0]?.id,
+    openPopup: (windowId) => browser.action.openPopup({ windowId }),
   };
 
   /** 编辑态的标签建议：已保存记录里最常用的标签；读不到时给空列表（不改 saveClip，ALAG-17 在改它）。 */
@@ -396,19 +370,6 @@ export default defineBackground(() => {
     } catch (err) {
       console.warn('[Alayo Get] 读取标签建议失败', err);
       return [];
-    }
-  };
-
-  /** 「加批注…」：记下待编辑剪藏，打开工具栏面板；打不开时清掉记录，回 opened: false，页面提示据此说明。 */
-  const openPanelForNote = async (tab: Tab & { id: number }, clipId: string): Promise<ToastActionResponse> => {
-    try {
-      await setPendingEdit(tab.id, clipId);
-      await browser.action.openPopup({ windowId: tab.windowId });
-      return { opened: true };
-    } catch (err) {
-      console.warn('[Alayo Get] 打开面板失败', err);
-      await clearPendingEdit(tab.id).catch((e: unknown) => console.warn('[Alayo Get] 清除待编辑记录失败', e));
-      return { opened: false };
     }
   };
 
@@ -486,7 +447,7 @@ export default defineBackground(() => {
         saveSnapshot: (capture, onState) => saveCapture(capture, true, onState),
         applyEdits: clips.editClip,
         findClip: clips.findClip,
-        takePendingEdit,
+        takePendingEdit: pendingEdits.take,
         tagSuggestions: panelTagSuggestions,
       });
     }
@@ -510,7 +471,7 @@ export default defineBackground(() => {
         // 「加批注…」：网页里不放输入框（ADR-0008），批注在面板里写；返回 true 表示会异步调用 sendResponse
         const tabId = tab?.id;
         if (!tab || tabId === undefined || typeof clipId !== 'string' || clipId === '') return;
-        void openPanelForNote({ ...tab, id: tabId }, clipId).then(sendResponse);
+        void openPanelForNote(notePanelDeps, { id: tabId, windowId: tab.windowId }, clipId).then(sendResponse);
         return true;
       }
       if (!tab || (action !== 'snapshot' && action !== 'retry')) return;
