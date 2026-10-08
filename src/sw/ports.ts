@@ -70,10 +70,19 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       console.debug('[Alayo Get] 面板已断开', err);
     }
   };
-  /** 编辑态基线号：每推一次 saved / fallback 加一；带旧基线的 draft 来自旧表单，丢弃（codex review ALAG-20 第 2 轮）。 */
+  /** 编辑态基线号：每推一次 saved / fallback 加一；带旧基线的 draft 来自旧表单（codex review ALAG-20 第 2 轮）。 */
   let baseline = 0;
+  /** 最后一次推送的编辑态里的剪藏，即当前基线号对应的面板表单所依据的内容。 */
+  let postedClip: ClipSummary | null = null;
+  /**
+   * 上一个基线号和它所依据的剪藏（第 6 轮）：面板还没收到新状态时发来的 draft 带的是它，
+   * 只合入相对它真正改过的字段。只在同一条剪藏切换基线时记；首次进编辑态、保存流程、断线重连后为 null。
+   */
+  let prevBaseline: { n: number; clip: ClipSummary } | null = null;
   const post = (state: PanelState) => {
     if (state.state === 'saved' || state.state === 'fallback') {
+      prevBaseline = baseline > 0 && postedClip && postedClip.id === state.clip.id ? { n: baseline, clip: postedClip } : null;
+      postedClip = state.clip;
       baseline += 1;
       send({ type: 'state', state, baseline });
     } else {
@@ -175,7 +184,9 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
             const userEdits = changedFields(current, draft);
             clip = next;
             draft = userEdits;
-            post({ state: editState(next), clip: { ...next, ...userEdits }, tagSuggestions });
+            // 推送纯基线（写回后的内容），不叠 userEdits：面板按上一基线把本地改动叠回去并按新基线重发（第 6 轮）。
+            // SW 这边的 draft 仍留着 userEdits，面板重发没到就关闭时照样写回
+            post({ state: editState(next), clip: next, tagSuggestions });
           }
         }
         // ③ 删草稿、记通知；删不掉只记日志，草稿留在列表里，用户可以再丢弃
@@ -269,11 +280,14 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         return;
       }
       case 'draft': {
-        if (message.baseline !== undefined && baseline > 0 && message.baseline !== baseline) {
+        if (message.baseline === undefined || baseline === 0 || message.baseline === baseline) {
+          draft = { ...draft, ...message.fields };
+        } else if (prevBaseline && message.baseline === prevBaseline.n) {
+          // 面板还没收到新状态时发出的全量表单：只合入相对旧基线真正改过的字段（codex review ALAG-20 第 6 轮）
+          draft = { ...draft, ...changedFields(prevBaseline.clip, message.fields) };
+        } else {
           console.debug('[Alayo Get] 忽略旧表单的修改', message.baseline, baseline);
-          return;
         }
-        draft = { ...draft, ...message.fields };
         return;
       }
       case 'lost-edit': {
