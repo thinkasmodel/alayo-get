@@ -569,3 +569,46 @@ describe('媒体剪藏：同站才带 cookie', () => {
     expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: '服务器返回的是网页，不是文件（可能需要登录）' } });
   });
 });
+
+// ALAG-18 续修：音视频探测就拿到网页时，不能降级成直链流媒体剪藏
+describe('媒体剪藏：探测拿到网页', () => {
+  const BLOG = 'https://blog.example.com/post';
+  const CROSS_SITE_HTML = '服务器返回的是网页，不是文件。这个文件在另一个站点，可能需要登录；扩展不会把你的登录态发给别的站点';
+  const loginPage = { headers: { 'content-type': 'text/html; charset=utf-8' }, body: bytes('<html>login</html>') };
+
+  it('跨站音频 HEAD 回 200 + text/html、没有 content-length → failed（跨站文案），不下载、不写文件、不写记录', async () => {
+    const AUDIO = 'https://files.other.com/ep.mp3';
+    const { fn, calls } = fakeFetch({ [AUDIO]: loginPage });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', AUDIO), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: CROSS_SITE_HTML } });
+    // 只有探测（HEAD，没有大小再 GET 读响应头），没有下载
+    expect(calls.map((c) => [c.method, c.init?.credentials])).toEqual([
+      ['HEAD', 'omit'],
+      ['GET', 'omit'],
+    ]);
+    expect(calls[1]?.res?.bodyUsed).toBe(false);
+    expect(library.ops).toEqual([]);
+    expect(await index.get(AUDIO)).toBeUndefined();
+  });
+
+  it('跨站视频 HEAD 回 200 + text/html、没有 content-length → failed（跨站文案），不存直链流媒体剪藏', async () => {
+    const VIDEO = 'https://files.other.com/v.mp4';
+    const { fn, calls } = fakeFetch({ [VIDEO]: loginPage });
+    const outcome = await save(mediaCapture(BLOG, '视频', 'video', VIDEO), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: CROSS_SITE_HTML } });
+    expect(calls.map((c) => c.method)).toEqual(['HEAD', 'GET']);
+    expect(calls[1]?.res?.bodyUsed).toBe(false);
+    expect(library.ops).toEqual([]);
+    expect(await index.get(VIDEO)).toBeUndefined();
+  });
+
+  it('同站音频 HEAD 回网页 → failed，仍是原来的“可能需要登录”提示', async () => {
+    const AUDIO = 'https://cdn.example.com/ep.mp3';
+    const { fn, calls } = fakeFetch({ [AUDIO]: loginPage });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', AUDIO), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: '服务器返回的是网页，不是文件（可能需要登录）' } });
+    expect(calls.map((c) => c.method)).toEqual(['HEAD', 'GET']);
+    expect(library.ops).toEqual([]);
+    expect(await index.get(AUDIO)).toBeUndefined();
+  });
+});

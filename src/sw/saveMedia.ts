@@ -226,6 +226,16 @@ export function directStreamCapture(capture: Capture, probe: Pick<ProbeResult, '
   };
 }
 
+/**
+ * 响应是网页（登录页、错误页）而不是文件时抛 DownloadError。跨站请求没带 cookie，提示里说明原因；
+ * data: 地址不是网络请求，没有“另一个站点”可言，用原来的提示。
+ */
+function rejectHtmlResponse(contentType: string | null, credentials: RequestCredentials, url: string): void {
+  const mime = mimeOf(contentType);
+  if (mime !== 'text/html' && mime !== 'application/xhtml+xml') return;
+  throw downloadError(t(credentials === 'omit' && !isDataUrl(url) ? 'error_notAFileCrossSite' : 'error_notAFile'));
+}
+
 export type MediaOutcome = { kind: 'saved'; result: ClipResult } | { kind: 'stream'; capture: Capture } | { kind: 'bookmark' };
 
 /**
@@ -242,6 +252,8 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
 
   if ((kind === 'video' || kind === 'audio') && !isDataUrl(url)) {
     const probe = await probeMedia(ctx.deps.fetch, url, requestOptions);
+    // 探测就拿到网页（如不带 cookie 时的登录页）：不能当成拿不到大小的直链流媒体存下（ALAG-18）
+    rejectHtmlResponse(probe.contentType, credentials, url);
     if (classifyDirect(probe.contentType, probe.bytes, kind) === 'stream') {
       return { kind: 'stream', capture: directStreamCapture(capture, probe) };
     }
@@ -260,12 +272,8 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
     return { kind: 'bookmark' };
   }
 
-  // 服务器回了网页（登录页、错误页）而不是文件：不写文件、不写记录。跨站请求没带 cookie，提示里说明原因
-  const gotMime = mimeOf(got.contentType);
-  if (gotMime === 'text/html' || gotMime === 'application/xhtml+xml') {
-    // data: 地址不是网络请求，没有“另一个站点”可言
-    throw downloadError(t(credentials === 'omit' && !isDataUrl(url) ? 'error_notAFileCrossSite' : 'error_notAFile'));
-  }
+  // 服务器回了网页（登录页、错误页）而不是文件：不写文件、不写记录
+  rejectHtmlResponse(got.contentType, credentials, url);
 
   const name = got.fileName || media.fileName || fileNameFromUrl(url);
   // 扩展名由 content-type 定；服务器文件名只贡献主干，后缀只在白名单内才用（ALAG-17）
