@@ -11,7 +11,7 @@ export interface LostEditStore {
   list(): Promise<LostEdit[]>;
   /** 追加一条；超过 10 条丢最早的。 */
   add(edit: LostEdit): Promise<void>;
-  /** 按 id 原位替换；没有这条就追加。 */
+  /** 按 id 原位替换；没有这条（已被删掉）就不做任何事，不复活。 */
   update(edit: LostEdit): Promise<void>;
   remove(id: string): Promise<void>;
 }
@@ -36,8 +36,8 @@ export function createLostEdits(area: StorageArea = browser.storage.local): Lost
       serial(async () => {
         const edits = await read();
         const at = edits.findIndex((e) => e.id === edit.id);
-        if (at === -1) edits.push(edit);
-        else edits[at] = edit;
+        if (at === -1) return;
+        edits[at] = edit;
         await write(edits);
       }),
     remove: (id) => serial(async () => write((await read()).filter((e) => e.id !== id))),

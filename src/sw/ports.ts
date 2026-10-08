@@ -85,6 +85,15 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
     busy = busy.then(() => task);
     task.catch((err) => console.error('[Alayo Get] 面板保存流程出错', err));
   };
+  /**
+   * 排进同一条链、轮到时才开始执行（恢复块的动作、连接时推送草稿；codex review ALAG-20 第 1 轮）：
+   * 连点两次不会并发执行同一条草稿。前一个任务失败也继续；本任务失败只记日志，不让链停在失败上。
+   */
+  const serial = (task: () => Promise<void>) => {
+    busy = busy.then(task, task).catch((err) => console.error('[Alayo Get] 处理没写入的修改出错', err));
+  };
+  /** 编辑态推送的状态：书签剪藏为 fallback，其余为 saved。 */
+  const editState = (c: ClipSummary): 'saved' | 'fallback' => (c.extract === 'fallback' && c.medium === 'link' ? 'fallback' : 'saved');
 
   /**
    * 页面提示记下的待编辑剪藏。没有记录、找不到剪藏或读取出错时返回 undefined，回到保存流程。
@@ -137,6 +146,14 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         const next = await deps.applyEdits(edit.clip, edit.fields);
         await store.remove(id);
         notices.push({ id, kind: 'written', file: next.file });
+        if (clip && clip.id === edit.clip.id) {
+          // 面板正开着同一条剪藏：以写回后的内容为新基线，保留本次会话里用户还没提交的修改，
+          // 否则关闭面板时会把刚恢复的内容覆盖回旧值（codex review ALAG-20 第 1 轮）
+          const userEdits = changedFields(clip, draft);
+          clip = next;
+          draft = userEdits;
+          post({ state: editState(next), clip: { ...next, ...userEdits }, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
+        }
       } catch (err) {
         console.warn('[Alayo Get] 重试写入没写进去的修改失败', err);
         await store.update({ ...edit, error: errorInfo(err) });
@@ -178,8 +195,7 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
               // 编辑态：不重新保存，capture 保持 null（没有“另存新快照”）
               const found = pending.clip;
               clip = found;
-              const state = found.extract === 'fallback' && found.medium === 'link' ? 'fallback' : 'saved';
-              post({ state, clip: found, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
+              post({ state: editState(found), clip: found, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
               return;
             }
             await deps.savePage(tabId, post).then((result) => {
@@ -220,8 +236,9 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       case 'lost-edit': {
         const store = deps.lostEdits;
         if (!store) return;
-        // 与保存、写回同一条链串行，不交错
-        track(handleLostEdit(store, message.action, message.id));
+        // 与保存、写回同一条链串行，轮到时才执行并重新读草稿
+        const { action, id } = message;
+        serial(() => handleLostEdit(store, action, id));
         return;
       }
     }
@@ -230,7 +247,9 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   // 连接后立刻（不等 start）推送写回失败留下的草稿
   if (deps.lostEdits) {
     const store = deps.lostEdits;
-    track(postLostEdits(store).then(() => undefined));
+    serial(async () => {
+      await postLostEdits(store);
+    });
   }
 
   port.onDisconnect.addListener(() => {

@@ -80,7 +80,12 @@ async function main() {
       if (message?.type === 'state') {
         const state = message.state;
         // clip-unavailable 不设 clipId：断线后没有可以接着编辑的剪藏
-        if (state.state === 'saved' || state.state === 'fallback') clipId = state.clip.id;
+        if (state.state === 'saved' || state.state === 'fallback') {
+          clipId = state.clip.id;
+          // 以 service worker 推来的内容为准（如重试写回后的新基线），之后因草稿列表重渲染时不叠回旧输入
+          lastFields = { title: state.clip.title, tags: [...state.clip.tags], note: state.clip.note };
+          lastFieldsClipId = state.clip.id;
+        }
         lastState = state;
         rerender(false);
       } else if (message?.type === 'lost-edits') {

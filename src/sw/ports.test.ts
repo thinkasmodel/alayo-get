@@ -432,6 +432,85 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(lostMessages(port).at(-1)?.notices).toEqual([{ id: 'L1', kind: 'filed', file: '批注草稿 - 文章.md' }]);
   });
 
+  it('编辑态里重试同一条剪藏成功：推送以写回内容为基线的 state，保留用户只改了的标签；关闭时不把恢复的批注覆盖回旧值（codex review 第 1 轮）', async () => {
+    const lostEdits = memoryLostEdits([{ ...stored, fields: { note: '恢复的批注 B' } }]);
+    const deps = {
+      ...panelDeps(),
+      lostEdits,
+      takePendingEdit: vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => clip.id),
+      findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => clip),
+    };
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    // 输入组件每次都发三个字段全量：只改了标签，批注仍是旧值（空）
+    port.send({ type: 'draft', fields: { title: clip.title, tags: ['新标签'], note: '' } });
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+    const pushed = states(port).at(-1);
+    expect(pushed?.state).toBe('saved');
+    if (pushed?.state !== 'saved') return;
+    expect(pushed.clip.note).toBe('恢复的批注 B');
+    expect(pushed.clip.tags).toEqual(['新标签']);
+    port.disconnect();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(2);
+    const [base, fields] = deps.applyEdits.mock.calls[1] ?? [];
+    expect(base?.note).toBe('恢复的批注 B');
+    expect(fields?.tags).toEqual(['新标签']);
+    expect(fields?.note === undefined || fields.note === '恢复的批注 B').toBe(true);
+  });
+
+  it('重试的不是面板正开着的剪藏：不推送 state', async () => {
+    const lostEdits = memoryLostEdits([{ ...stored, clip: { ...clip, id: 'OTHER' } }]);
+    const port = open({ ...panelDeps(), lostEdits });
+    port.send({ type: 'start', tabId: 1 });
+    await flush();
+    const before = states(port).length;
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    expect(states(port)).toHaveLength(before);
+  });
+
+  it('连点两次「存为草稿文件」：只写一个文件，列表清空，只有一条通知（codex review 第 1 轮）', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    const fileLostEdit = vi.fn(async () => {
+      await flush();
+      return '批注草稿 - 文章.md';
+    });
+    const port = open({ ...panelDeps(), lostEdits, fileLostEdit });
+    port.send({ type: 'lost-edit', action: 'file', id: 'L1' });
+    port.send({ type: 'lost-edit', action: 'file', id: 'L1' });
+    await flush();
+    await flush();
+    expect(fileLostEdit).toHaveBeenCalledTimes(1);
+    expect(await lostEdits.list()).toEqual([]);
+    expect(lostMessages(port).at(-1)).toEqual({ type: 'lost-edits', edits: [], notices: [{ id: 'L1', kind: 'filed', file: '批注草稿 - 文章.md' }] });
+  });
+
+  it('含标题修改的草稿连点两次重试：只写一次，不复活草稿，只有一条通知（codex review 第 1 轮）', async () => {
+    const lostEdits = memoryLostEdits([{ ...stored, fields: { title: '新标题' } }]);
+    const deps = { ...panelDeps(), lostEdits };
+    let renamed = false;
+    // 第一次改名成功；若第二次并发执行，会因旧文件已不在而失败
+    deps.applyEdits.mockImplementation(async (c, fields) => {
+      await flush();
+      if (renamed) throw notFound();
+      renamed = true;
+      return { ...c, ...fields, file: '新标题.md' };
+    });
+    const port = open(deps);
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+    expect(await lostEdits.list()).toEqual([]);
+    expect(lostEdits.update).not.toHaveBeenCalled();
+    expect(lostMessages(port).at(-1)).toEqual({ type: 'lost-edits', edits: [], notices: [{ id: 'L1', kind: 'written', file: '新标题.md' }] });
+  });
+
   it('lost-edit discard：删掉这条，onLostEditsChanged(0)；找不到的 id 忽略', async () => {
     const lostEdits = memoryLostEdits([stored]);
     const onLostEditsChanged = vi.fn();

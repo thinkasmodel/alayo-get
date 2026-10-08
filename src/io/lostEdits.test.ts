@@ -58,7 +58,7 @@ describe('写回失败的草稿（storage.local）', () => {
     expect(await createLostEdits(memoryArea().area).list()).toEqual([]);
   });
 
-  it('update 按 id 原位替换；没有这条就追加', async () => {
+  it('update 按 id 原位替换；没有这条（已删掉）时不做任何事，不复活', async () => {
     const store = createLostEdits(memoryArea().area);
     await store.add(edit('1'));
     await store.add(edit('2'));
@@ -68,7 +68,10 @@ describe('写回失败的草稿（storage.local）', () => {
     expect(list.map((e) => e.id)).toEqual(['1', '2', '3']);
     expect(list[1]?.error.name).toBe('NotAllowedError');
     await store.update(edit('4'));
-    expect((await store.list()).map((e) => e.id)).toEqual(['1', '2', '3', '4']);
+    expect((await store.list()).map((e) => e.id)).toEqual(['1', '2', '3']);
+    await store.remove('1');
+    await store.update({ ...edit('1'), error: { name: 'NotAllowedError', message: 'late' } });
+    expect((await store.list()).map((e) => e.id)).toEqual(['2', '3']);
   });
 
   it('remove 删掉这一条，其余不动；不存在的 id 不报错', async () => {
