@@ -612,3 +612,46 @@ describe('媒体剪藏：探测拿到网页', () => {
     expect(await index.get(AUDIO)).toBeUndefined();
   });
 });
+
+// ALAG-18 续修：音视频 GET 探测回 401/403 时报错，不降级为直链流媒体剪藏
+describe('媒体剪藏：探测要求登录', () => {
+  const BLOG = 'https://blog.example.com/post';
+  const denied = (status: number) => ({ status, headers: { 'content-type': 'text/html' }, body: bytes('<html>sign in</html>') });
+
+  it('跨站音频 HEAD 403 + GET 403 → failed（跨站需要登录文案），不写文件、不写记录', async () => {
+    const AUDIO = 'https://files.other.com/ep.mp3';
+    const { fn, calls } = fakeFetch({ [AUDIO]: denied(403) });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', AUDIO), fn);
+    expect(outcome).toMatchObject({
+      state: 'failed',
+      error: { name: 'DownloadError', message: '这个文件在另一个站点，需要登录才能下载；扩展不会把你的登录态发给别的站点，没有下载' },
+    });
+    expect(calls.map((c) => [c.method, c.init?.credentials])).toEqual([
+      ['HEAD', 'omit'],
+      ['GET', 'omit'],
+    ]);
+    expect(library.ops).toEqual([]);
+    expect(await index.all()).toEqual({});
+  });
+
+  it('跨站音频 HEAD 403 + GET 200 带 content-length → 照常下载保存', async () => {
+    const AUDIO = 'https://files.other.com/ep.mp3';
+    const mp3 = bytes('ID3-audio');
+    const { fn, calls } = fakeFetch({
+      [AUDIO]: { head: { status: 403 }, headers: { 'content-type': 'audio/mpeg', 'content-length': String(mp3.byteLength) }, body: mp3 },
+    });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', AUDIO), fn);
+    expect(outcome.state).toBe('saved');
+    expect(calls.map((c) => c.method)).toEqual(['HEAD', 'GET', 'GET']);
+    expect(library.files.get('播客 - ep.mp3')).toEqual(mp3);
+  });
+
+  it('同站音频 HEAD 401 + GET 401 → failed（HTTP 401 文案），不写文件、不写记录', async () => {
+    const AUDIO = 'https://cdn.example.com/ep.mp3';
+    const { fn } = fakeFetch({ [AUDIO]: denied(401) });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', AUDIO), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: '下载失败（HTTP 401）' } });
+    expect(library.ops).toEqual([]);
+    expect(await index.all()).toEqual({});
+  });
+});

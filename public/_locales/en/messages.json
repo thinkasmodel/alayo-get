@@ -455,6 +455,9 @@
   "error_mediaRedirectedCrossSite": {
     "message": "The file address redirected to another site. Not saved"
   },
+  "error_authRequiredCrossSite": {
+    "message": "This file is on another site and needs you to be signed in there; the extension doesn't send your sign-in to other sites. Not saved"
+  },
   "error_mediaInfoMissing": {
     "message": "Media clip is missing its media info"
   },

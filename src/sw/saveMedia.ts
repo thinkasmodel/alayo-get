@@ -63,7 +63,8 @@ function contentLength(res: Response): number | null {
 
 /**
  * 探测媒体地址的大小与类型，不下载内容：先 HEAD；HEAD 失败或没给 content-length 时 GET，读到响应头就中止。
- * 都失败时 bytes 为 null。带 cookie 的探测跳转到跨站地址时抛 DownloadError，不再发任何请求。
+ * 都失败时 bytes 为 null。带 cookie 的探测跳转到跨站地址时抛 DownloadError，不再发任何请求；
+ * 最后那次 GET 探测回 401/403 时也抛 DownloadError（需要登录），不降级为直链流媒体剪藏。HEAD 的 401/403 只触发回退到 GET。
  */
 export async function probeMedia(fetchFn: FetchLike, url: string, options: MediaRequestOptions): Promise<ProbeResult> {
   const attempt = async (method: 'HEAD' | 'GET'): Promise<ProbeResult | null> => {
@@ -75,6 +76,11 @@ export async function probeMedia(fetchFn: FetchLike, url: string, options: Media
         console.info(`[Alayo Get] ${method} 探测媒体时跳转到了跨站地址，中止保存：${url} → ${res.url}`);
         throw downloadError(t('error_mediaRedirectedCrossSite'));
       }
+      if (method === 'GET' && (res.status === 401 || res.status === 403)) {
+        throw downloadError(
+          options.credentials === 'omit' && !isDataUrl(url) ? t('error_authRequiredCrossSite') : t('error_httpStatus', String(res.status)),
+        );
+      }
       if (!res.ok) return null;
       return {
         bytes: contentLength(res),
@@ -82,7 +88,7 @@ export async function probeMedia(fetchFn: FetchLike, url: string, options: Media
         fileName: fileNameFromContentDisposition(res.headers.get('content-disposition')),
       };
     } catch (err) {
-      // 跨站跳转不是普通的探测失败：让它穿透，不再试 GET（ALAG-18）
+      // 跨站跳转、GET 探测要求登录都不是普通的探测失败：让它穿透（ALAG-18）
       if (err instanceof Error && err.name === 'DownloadError') throw err;
       console.info(`[Alayo Get] ${method} 探测媒体大小失败`, url, err);
       return null;
