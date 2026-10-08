@@ -5,6 +5,11 @@ node_modules/
 stats.html
 .claude/worktrees/
 
+# 本地凭据，永不入库（ALAG-19）
+.env
+.env.*
+!.env.example
+
 # 本地过程文件，不入库（ADR-0007）
 handoffs/
 logs/
