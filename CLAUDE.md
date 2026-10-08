@@ -5,7 +5,7 @@
 ## 0. 坐标
 
 - **Linear**：team「Alayo Get」（key **ALAG**），project「Alayo Get」（[P-ALAG-18](https://linear.app/thinkasmodel/project/alayo-get-70b77c7349ca)）。
-- **Git**：默认分支 `main`；GitHub `thinkasmodel/alayo-get`（ALAG-13 首推后生效）。
+- **Git**：默认分支 `main`；远端 GitHub `thinkasmodel/alayo-get`，开源仓（ADR-0007）。分支按票号，收尾开 PR；约定见 `docs/agents/issue-tracker.md`。
 
 ## Agent skills
 
