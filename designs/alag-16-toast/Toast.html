@@ -1,0 +1,239 @@
+<title>Alayo Get 页面提示改版</title>
+<style>
+/* 布局：一列画板，每块是一个浏览器视口角落的页面提示；令牌照抄 DESIGN.md §2 */
+:root{
+  --accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--pill:rgba(66,87,181,.08);
+  --canvas:#F1F2F4;--panel:#FFFFFF;--island:rgba(255,255,255,.86);
+  --hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);
+  --t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;
+  --shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);
+  --page:#FFFFFF;--sk:#E9EAEE;--sk2:#F2F3F5;--bar:#FFFFFF;--tabs:#DEE1E6;
+  --font:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);
+  --canvas:#212228;--panel:#2B2D34;--island:rgba(43,45,52,.88);
+  --hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);
+  --t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;
+  --shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);
+  --page:#1C1C1F;--sk:#2C2D31;--sk2:#26272B;--bar:#35363A;--tabs:#202124;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);
+  --canvas:#212228;--panel:#2B2D34;--island:rgba(43,45,52,.88);
+  --hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);
+  --t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;
+  --shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);
+  --page:#1C1C1F;--sk:#2C2D31;--sk2:#26272B;--bar:#35363A;--tabs:#202124;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--t1);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:0 16px;padding-block:24px 48px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:18px;font-weight:600;margin:0;text-wrap:balance}
+.sub{font-size:12.5px;color:var(--t2);margin:4px 0 0;max-width:62ch;line-height:18px}
+.ctl{display:flex;gap:8px}
+.ctl button{font:inherit;font-size:12px;font-weight:600;height:28px;padding:0 10px;border-radius:9px;border:.5px solid var(--hair);background:var(--panel);color:var(--t1);cursor:pointer}
+.ctl button[aria-pressed="true"]{background:var(--accent);color:var(--onAccent);border-color:transparent}
+.ctl button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+section{display:flex;flex-direction:column;gap:12px}
+.sh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sh h2{font-size:13px;font-weight:600;margin:0}
+.sh .tag{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+.sh .rec{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);background:var(--accentSoft);padding:2px 7px;border-radius:6px}
+.note{font-size:12px;color:var(--t2);line-height:17px;margin:0;max-width:72ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+.view{position:relative;height:300px;background:var(--page);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+.view .cap{position:absolute;left:12px;top:10px;font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+.art{width:min(420px,70%);margin:40px auto 0;display:flex;flex-direction:column;gap:11px}
+.h{height:20px;border-radius:6px;background:var(--sk)}
+.l{height:10px;border-radius:4px;background:var(--sk2)}
+/* 页面提示：照搬 src/ui/toast/toast.css */
+.toast{position:absolute;right:16px;bottom:16px;width:340px;max-width:calc(100% - 32px);border-radius:14px;background:var(--island);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:var(--shadow);padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px}
+.row svg{flex:none}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tt{font-size:13px;font-weight:600;line-height:18px}
+.ts{font-size:11px;line-height:15px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{flex:none;height:28px;border:0;border-radius:9px;padding:0 10px;background:transparent;color:var(--accent);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.tbtn:hover{background:var(--accentSoft)}
+.xbtn{flex:none;width:28px;height:28px;border:0;border-radius:9px;background:transparent;color:var(--t3);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.noteerr{margin:0;font-size:11px;line-height:16px;color:var(--t2)}
+/* 工具栏面板：现有面板的示意，本票不改它 */
+.chrome{position:absolute;inset:0;display:flex;flex-direction:column}
+.bar{height:40px;background:var(--bar);display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:.5px solid var(--hair)}
+.omni{flex:1;height:26px;border-radius:13px;background:var(--region);display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--t2);min-width:0;overflow:hidden;white-space:nowrap}
+.ext{position:relative;width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:var(--accent);background:var(--accentSoft)}
+.panel{position:absolute;right:12px;top:44px;width:300px;max-width:calc(100% - 24px);border-radius:12px;background:var(--panel);box-shadow:var(--shadow);padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.ph{display:flex;align-items:center;gap:8px}
+.ph .tt{flex:1;min-width:0}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);margin-bottom:4px}
+.inp{width:100%;border-radius:9px;background:var(--region);border:.5px solid transparent;padding:6px 9px;font:inherit;font-size:12.5px;line-height:18px;color:var(--t1)}
+.inp.focus{background:var(--panel);border-color:var(--accent);box-shadow:0 0 0 3px var(--accentSoft);min-height:56px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--pill);color:var(--accent);font-weight:600}
+.caret{display:inline-block;width:1.5px;height:14px;background:var(--accent);vertical-align:-2px;margin-left:1px}
+.ph .mono{font-family:var(--mono);font-size:10.5px;color:var(--t2)}
+.arrow{position:absolute;left:0;right:0;bottom:116px;display:flex;justify-content:center;pointer-events:none}
+.arrow span{font-size:11px;color:var(--t3);background:var(--canvas);padding:3px 8px;border-radius:6px}
+table{border-collapse:collapse;font-size:12px;width:100%;max-width:720px}
+th,td{text-align:left;padding:6px 10px 6px 0;border-bottom:.5px solid var(--hairSoft);vertical-align:top;line-height:17px}
+th{font-weight:600;color:var(--t2);font-size:11px}
+.tw{overflow-x:auto}
+[lang-en]{display:none}
+html[data-lang="en"] [lang-zh]{display:none}
+html[data-lang="en"] [lang-en]{display:revert}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>页面提示改版：批注不再在网页里输入</h1>
+    <p class="sub" lang-zh>安全审计 S1：网页脚本能从键盘事件里读到页面提示里输入的批注。方案是去掉页内输入框，「加批注」改为打开工具栏面板，在扩展自己的文档里输入。下面两版只差按钮文案，面板本身不改。</p>
+    <p class="sub" lang-en>Security audit S1: page scripts can read notes typed inside the on-page toast. The textarea moves out of the page; "Add note" now opens the toolbar popup. The two versions differ only in the button label; the popup itself is unchanged.</p>
+  </div>
+  <div class="ctl" role="group" aria-label="预览开关">
+    <button id="lang-zh" aria-pressed="true" type="button">中文</button>
+    <button id="lang-en" aria-pressed="false" type="button">English</button>
+    <button id="th-light" aria-pressed="false" type="button">浅色</button>
+    <button id="th-dark" aria-pressed="false" type="button">深色</button>
+    <button id="th-sys" aria-pressed="true" type="button">跟随系统</button>
+  </div>
+</header>
+
+<section>
+  <div class="sh"><h2>A 版：按钮文案不变</h2><span class="tag">已存入 · 3 秒后消失</span></div>
+  <p class="note" lang-zh>与今天完全一样的提示。点「加批注」时提示立即收起，工具栏面板打开并聚焦批注框。代价：用户按过去的经验以为会在原地展开。</p>
+  <p class="note" lang-en>Identical to today. Clicking "Add note" dismisses the toast and opens the popup with the note field focused. Risk: returning users expect it to expand in place.</p>
+  <div class="grid">
+    <div class="view">
+      <span class="cap">A · 文章剪藏</span>
+      <div class="art"><div class="h" style="width:88%"></div><div class="h" style="width:54%"></div><div class="l" style="width:36%;margin-bottom:8px"></div><div class="l"></div><div class="l" style="width:97%"></div><div class="l" style="width:64%"></div><div class="l" style="margin-top:8px"></div><div class="l" style="width:92%"></div></div>
+      <div class="toast">
+        <div class="row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+          <div class="tx"><div class="tt" lang-zh>已存入剪藏库</div><div class="tt" lang-en>Saved to library</div><div class="ts">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示</div></div>
+          <button class="tbtn" type="button"><span lang-zh>加批注</span><span lang-en>Add note</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <span class="cap">A · 媒体剪藏（长文件名）</span>
+      <div class="art"><div class="h" style="width:60%"></div><div class="l" style="width:40%"></div><div class="h" style="height:120px;width:100%;margin-top:8px"></div></div>
+      <div class="toast">
+        <div class="row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+          <div class="tx"><div class="tt" lang-zh>已存入剪藏库</div><div class="tt" lang-en>Saved to library</div><div class="ts"><span lang-zh>PDF · </span><span lang-en>PDF · </span>Attention Is All You Need (arXiv 1706.03762v7, NeurIPS 2017 camera-ready).pdf</div></div>
+          <button class="tbtn" type="button"><span lang-zh>加批注</span><span lang-en>Add note</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2>B 版：按钮加省略号「加批注…」</h2><span class="rec">推荐</span><span class="tag">已存入 · 3 秒后消失</span></div>
+  <p class="note" lang-zh>按钮文案改为「加批注…」。省略号是 macOS 和本项目已有的约定（「去授权…」也这样写），表示点了会打开别的界面，不在原地完成。其余与 A 版相同。</p>
+  <p class="note" lang-en>The label becomes "Add note…". The ellipsis is the macOS convention this project already uses ("Grant access…"): the action continues elsewhere. Everything else matches A.</p>
+  <div class="grid">
+    <div class="view">
+      <span class="cap">B · 文章剪藏</span>
+      <div class="art"><div class="h" style="width:88%"></div><div class="h" style="width:54%"></div><div class="l" style="width:36%;margin-bottom:8px"></div><div class="l"></div><div class="l" style="width:97%"></div><div class="l" style="width:64%"></div><div class="l" style="margin-top:8px"></div><div class="l" style="width:92%"></div></div>
+      <div class="toast">
+        <div class="row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+          <div class="tx"><div class="tt" lang-zh>已存入剪藏库</div><div class="tt" lang-en>Saved to library</div><div class="ts">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示</div></div>
+          <button class="tbtn" type="button"><span lang-zh>加批注…</span><span lang-en>Add note…</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="view">
+      <span class="cap">B · 已摘录（第 3 条）</span>
+      <div class="art"><div class="h" style="width:70%"></div><div class="l"></div><div class="l" style="width:95%;background:var(--accentSoft)"></div><div class="l" style="width:88%;background:var(--accentSoft)"></div><div class="l" style="width:60%"></div><div class="l" style="margin-top:8px"></div></div>
+      <div class="toast">
+        <div class="row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+          <div class="tx"><div class="tt" lang-zh>已摘录</div><div class="tt" lang-en>Quote saved</div><div class="ts"><span lang-zh>第 3 条 · 摘录 - 为什么“安静”的界面更难做.md</span><span lang-en>#3 · Quotes - Why quiet interfaces are harder.md</span></div></div>
+          <button class="tbtn" type="button"><span lang-zh>加批注…</span><span lang-en>Add note…</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2>点击之后：工具栏面板打开，批注框已聚焦</h2><span class="tag">两版相同 · 面板不改</span></div>
+  <p class="note" lang-zh>提示收起，面板以当前剪藏的编辑态打开，光标在批注框里。批注、标题、标签都在扩展自己的文档里输入，网页读不到。面板是现有组件，这里只是示意。</p>
+  <p class="note" lang-en>The toast closes and the popup opens in edit mode for this clip with the cursor in the note field. Everything is typed inside the extension's own document, out of the page's reach. The popup is the existing component, shown here for context.</p>
+  <div class="grid">
+    <div class="view" style="height:340px">
+      <div class="chrome">
+        <div class="bar">
+          <div class="omni">sspai.com/post/98214</div>
+          <div class="ext" aria-label="Alayo Get"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></div>
+        </div>
+        <div style="flex:1;position:relative"><div class="art" style="margin-top:28px"><div class="h" style="width:88%"></div><div class="l" style="width:36%"></div><div class="l"></div><div class="l" style="width:97%"></div></div></div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+          <div class="tt"><span lang-zh>已存入剪藏库</span><span lang-en>Saved to library</span></div>
+        </div>
+        <div><div class="fl"><span lang-zh>标题</span><span lang-en>Title</span></div><div class="inp">为什么“安静”的界面更难做：从 Things 3 到 Linear</div></div>
+        <div><div class="fl"><span lang-zh>标签</span><span lang-en>Tags</span></div><div class="inp chips"><span class="chip">设计</span><span class="chip">工具</span><span style="color:var(--t3);font-size:12px" lang-zh>添加标签</span><span style="color:var(--t3);font-size:12px" lang-en>Add tag</span></div></div>
+        <div><div class="fl"><span lang-zh>批注</span><span lang-en>Note</span></div><div class="inp focus"><span style="color:var(--t3)" lang-zh>添加批注（可选）</span><span style="color:var(--t3)" lang-en>Add a note (optional)</span><span class="caret"></span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2>边界：面板没能打开</h2><span class="tag">不自动消失 · 带关闭</span></div>
+  <p class="note" lang-zh>Chrome 只允许在当前活动窗口打开面板；窗口失焦或 Chrome 版本太旧时调用会失败。此时提示不收起，下面加一行 11 号 <code>--t2</code> 小字说明怎么办，不用 danger 色（与「没能写入批注」的处理一致）。按钮保留，可以再点。注意：工具栏图标是「打开即保存」，对刚存过的页面会落到「已存过」态而不是编辑态，所以这里不引导去点图标。</p>
+  <p class="note" lang-en>Chrome only opens the popup in the active window; the call fails when the window is unfocused or Chrome is too old. The toast stays, with one 11px line in <code>--t2</code> telling the user what to do, no danger color.</p>
+  <div class="grid">
+    <div class="view">
+      <span class="cap">B · 面板打开失败</span>
+      <div class="art"><div class="h" style="width:88%"></div><div class="h" style="width:54%"></div><div class="l" style="width:36%;margin-bottom:8px"></div><div class="l"></div><div class="l" style="width:97%"></div><div class="l" style="width:64%"></div></div>
+      <div class="toast">
+        <div class="row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+          <div class="tx"><div class="tt" lang-zh>已存入剪藏库</div><div class="tt" lang-en>Saved to library</div><div class="ts">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示</div></div>
+          <button class="tbtn" type="button"><span lang-zh>加批注…</span><span lang-en>Add note…</span></button>
+          <button class="xbtn" type="button" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <p class="noteerr" lang-zh>没能打开面板。把这个浏览器窗口点到前台，再点一次「加批注…」。</p>
+        <p class="noteerr" lang-en>Couldn't open the panel. Bring this browser window to the front and click "Add note…" again.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2>改动清单</h2></div>
+  <div class="tw"><table>
+    <tr><th lang-zh>项</th><th lang-en>Item</th><th lang-zh>现状</th><th lang-en>Today</th><th lang-zh>改后</th><th lang-en>After</th></tr>
+    <tr><td lang-zh>「加批注」点击</td><td lang-en>"Add note" click</td><td lang-zh>原地展开 textarea，回车/Esc 写入</td><td lang-en>Expands a textarea in place; Return/Esc saves</td><td lang-zh>提示收起，打开工具栏面板并聚焦批注框</td><td lang-en>Toast closes; popup opens with note focused</td></tr>
+    <tr><td lang-zh>页内输入控件</td><td lang-en>In-page inputs</td><td lang-zh>有（closed shadow 里）</td><td lang-en>Yes (inside closed shadow)</td><td lang-zh>无</td><td lang-en>None</td></tr>
+    <tr><td lang-zh>批注写入通道</td><td lang-en>Note write path</td><td lang-zh>toast 专用 Port（draft/commit）</td><td lang-en>Toast-only Port (draft/commit)</td><td lang-zh>复用面板现有通道；toast Port 下线</td><td lang-en>Reuses the popup's channel; toast Port removed</td></tr>
+    <tr><td lang-zh>面板打开失败</td><td lang-en>Popup fails to open</td><td lang-zh>不存在此态</td><td lang-en>n/a</td><td lang-zh>提示常驻，一行说明 + 关闭</td><td lang-en>Toast stays with one hint line + close</td></tr>
+    <tr><td lang-zh>DESIGN.md §3.3</td><td lang-en>DESIGN.md §3.3</td><td lang-zh>「加批注（展开）」一行</td><td lang-en>"Add note (expanded)" row</td><td lang-zh>删该行，补「面板没能打开」一行</td><td lang-en>Remove it; add "popup failed" row</td></tr>
+  </table></div>
+</section>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function press(ids,on){ids.forEach(function(id){var b=document.getElementById(id);if(b)b.setAttribute('aria-pressed',id===on?'true':'false');});}
+  function setLang(l){if(l==='en')root.setAttribute('data-lang','en');else root.removeAttribute('data-lang');press(['lang-zh','lang-en'],'lang-'+l);try{localStorage.setItem('alag16-lang',l);}catch(e){}}
+  function setTheme(t){if(t==='sys')root.removeAttribute('data-theme');else root.setAttribute('data-theme',t);press(['th-light','th-dark','th-sys'],'th-'+t);try{localStorage.setItem('alag16-theme',t);}catch(e){}}
+  document.getElementById('lang-zh').onclick=function(){setLang('zh');};
+  document.getElementById('lang-en').onclick=function(){setLang('en');};
+  document.getElementById('th-light').onclick=function(){setTheme('light');};
+  document.getElementById('th-dark').onclick=function(){setTheme('dark');};
+  document.getElementById('th-sys').onclick=function(){setTheme('sys');};
+  var l='zh',t='sys';try{l=localStorage.getItem('alag16-lang')||'zh';t=localStorage.getItem('alag16-theme')||'sys';}catch(e){}
+  setLang(l);setTheme(t);
+})();
+</script>
