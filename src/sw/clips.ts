@@ -1,4 +1,4 @@
-// 最近保存的剪藏：按 id 找回（页面提示写批注、面板断线重连）并写回修改。原在 background.ts，
+// 最近保存的剪藏：按 id 找回（面板从页面提示进入编辑态、面板断线重连）并写回修改。原在 background.ts，
 // 摘录剪藏（ALAG-4）要多查一层 storage.session 的摘录记录，抽到这里以便在 node 环境里测试。
 import { readEditableFields, siteFromUrl } from '@/core/frontmatter';
 import { isMediaKind, mediaMetaPath, parseMediaMeta } from '@/core/media';
@@ -35,7 +35,7 @@ export interface ClipBook {
 }
 
 export function createClipBook(deps: ClipBookDeps): ClipBook {
-  /** 最近保存的剪藏和它所在的剪藏库（页面提示写批注、面板关闭写回时按 id 找回）。 */
+  /** 最近保存的剪藏和它所在的剪藏库（面板编辑态、面板关闭写回时按 id 找回）。 */
   const recent = new Map<string, { clip: ClipSummary; library: Library }>();
 
   const remember = async (clip: ClipSummary, library: Library): Promise<void> => {
