@@ -4,7 +4,9 @@ import { LIBRARY_HANDLE_KEY } from '@/io/library';
 import { createSavedIndex } from '@/io/savedIndex';
 import { currentLang } from '@/shared/i18n';
 import { PANEL_PORT, type OpenOptionsMessage, type PanelToSw, type SwToPanel } from '@/shared/messages';
-import type { LostEdit, LostEditNotice, PanelState } from '@/shared/types';
+import type { EditFields, LostEdit, LostEditNotice, PanelState } from '@/shared/types';
+import { changedFields } from '@/core/editFields';
+import { mergeIncoming, type FormFields } from '@/ui/panel/merge';
 import { renderPanel, type PanelActions } from '@/ui/panel/render';
 import '@/ui/tokens.css';
 import './style.css';
@@ -22,12 +24,14 @@ async function main() {
   let port: Port | null = null;
   /** 已存下的剪藏 id 和最后一次完整草稿：service worker 被终止导致断线时，用它们重连并接着编辑（codex review 第 8 轮）。 */
   let clipId: string | null = null;
-  let lastFields: Parameters<PanelActions['postDraft']>[0] | null = null;
+  let lastFields: FormFields | null = null;
   /** lastFields 属于哪条剪藏。 */
   let lastFieldsClipId: string | null = null;
+  /** 最后一条 saved / fallback 状态里剪藏的三个字段（不含本地叠加）：本地改动按它算（codex review 第 5 轮）。 */
+  let baselineFields: FormFields | null = null;
   /** 最后一条 state 消息的基线号；每条 draft 都带上，service worker 据此丢弃旧表单的修改（ALAG-20）。 */
   let lastBaseline: number | undefined;
-  const draftMessage = (fields: NonNullable<typeof lastFields>): PanelToSw =>
+  const draftMessage = (fields: EditFields): PanelToSw =>
     lastBaseline === undefined ? { type: 'draft', fields } : { type: 'draft', fields, baseline: lastBaseline };
   /** 最后一次收到的面板状态，和写回失败留下的草稿（ALAG-20）；两者任一变化都整体重渲染。 */
   let lastState: PanelState | null = null;
@@ -87,8 +91,20 @@ async function main() {
         // clip-unavailable 不设 clipId：断线后没有可以接着编辑的剪藏
         if (state.state === 'saved' || state.state === 'fallback') {
           clipId = state.clip.id;
-          // 以 service worker 推来的内容为准（如重试写回后的新基线），之后因草稿列表重渲染时不叠回旧输入
-          lastFields = { title: state.clip.title, tags: [...state.clip.tags], note: state.clip.note };
+          const clipFields: FormFields = { title: state.clip.title, tags: [...state.clip.tags], note: state.clip.note };
+          if (lastFieldsClipId === state.clip.id) {
+            // 同一条剪藏的新基线（如重试写回后）：用户相对上一基线改过的字段叠回去，
+            // 有本地改动就按新基线重发（带旧基线号的那条已被 service worker 丢弃，codex review 第 5 轮）
+            const { merged, localEdits } = mergeIncoming(baselineFields, lastFields, clipFields);
+            baselineFields = clipFields;
+            lastFields = merged;
+            lastState = { ...state, clip: { ...state.clip, ...merged } };
+            rerender(false);
+            if (Object.keys(localEdits).length > 0) send(draftMessage(merged));
+            return;
+          }
+          baselineFields = clipFields;
+          lastFields = clipFields;
           lastFieldsClipId = state.clip.id;
         }
         lastState = state;
@@ -98,7 +114,7 @@ async function main() {
         rerender(true);
       }
     });
-    // 面板还开着时断线（service worker 被终止）：重连，接着编辑同一条剪藏，并补发最后一次完整草稿。
+    // 面板还开着时断线（service worker 被终止）：重连，接着编辑同一条剪藏，并补发用户相对基线改过的字段。
     // 面板自己关闭或主动换 Port 时不会触发这里。
     next.onDisconnect.addListener(() => {
       if (next !== port) return;
@@ -106,7 +122,9 @@ async function main() {
       if (clipId === null) return;
       connect();
       send(lastBaseline === undefined ? { type: 'resume', clipId } : { type: 'resume', clipId, baseline: lastBaseline });
-      if (lastFields) send(draftMessage(lastFields));
+      // 只补发改过的字段：没改的不发，后台被终止期间文件在别处被改过也不会被面板的旧值覆盖（codex review 第 5 轮）
+      const diff = baselineFields && lastFields ? changedFields(baselineFields, lastFields) : {};
+      if (Object.keys(diff).length > 0) send(draftMessage(diff));
     });
     port = next;
   }
