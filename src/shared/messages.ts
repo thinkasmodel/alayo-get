@@ -31,12 +31,22 @@ export interface OpenOptionsMessage {
   section: 'reauth' | 'library';
 }
 
-/** 页面提示 → SW：提示上的按钮，按 sender.tab.id 重跑保存（ALAG-2B 追加）。 */
+/**
+ * 页面提示 → SW：提示上的按钮。snapshot / retry 按 sender.tab.id 重跑保存（ALAG-2B 追加）；
+ * note 记下这个标签页要编辑 clipId 这条剪藏，并打开工具栏面板（ALAG-16，ADR-0008）。
+ */
 export interface ToastActionMessage {
   type: 'toast-action';
-  action: 'snapshot' | 'retry';
+  action: 'snapshot' | 'retry' | 'note';
   /** 由采集脚本按所属提示附上。 */
   requestId?: string;
+  /** action 为 'note' 时必带：要编辑的剪藏。 */
+  clipId?: string;
+}
+
+/** SW → 页面提示：只有 action 'note' 有响应；opened 为面板是否打开了。 */
+export interface ToastActionResponse {
+  opened: boolean;
 }
 
 /** SW → 页面：采集 X 帖子里的视频，存成流媒体剪藏（ALAG-4）。页面回 Capture（kind 'stream'），或 CaptureError。 */
@@ -74,18 +84,6 @@ export type PanelToSw =
   | { type: 'resume'; clipId: string };
 
 export type SwToPanel = { type: 'state'; state: PanelState };
-
-// ---- Port 'toast-note'（页面提示里的批注框）
-
-export const TOAST_NOTE_PORT = 'toast-note';
-
-export type ToastNoteToSw =
-  | { type: 'draft'; clipId: string; note: string }
-  | { type: 'commit' };
-
-/** SW → 页面：commit 的结果。页面收到 committed 才收起批注框；失败时保留输入（codex review 第 7 轮）。 */
-/** committed 带上实际已落盘的批注；页面只在它等于当前输入时才收起（codex review 第 8 轮）。 */
-export type SwToToastNote = { type: 'committed'; note: string } | { type: 'commit-failed'; message: string };
 
 export function isCaptureError(r: CaptureResponse): r is CaptureError {
   return typeof (r as CaptureError).error === 'string';

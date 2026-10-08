@@ -913,7 +913,11 @@
     "message": "Not saved yet. It will be saved once you allow access."
   },
   "toast_addNote": {
-    "message": "Add note"
+    "message": "Add note…"
+  },
+  "toast_panelFailed": {
+    "message": "Couldn't open the panel. Bring this browser window to the front and click \"Add note…\" again.",
+    "description": "ALAG-16: shown under the toast when chrome.action.openPopup fails"
   },
   "toast_saveSnapshot": {
     "message": "Save new snapshot"
@@ -924,37 +928,6 @@
   "toast_close": {
     "message": "Close",
     "description": "Close button aria-label"
-  },
-  "toast_noteHint": {
-    "message": "Saved when you press Return or Esc"
-  },
-  "toast_noteSave": {
-    "message": "Save"
-  },
-  "toast_noteFailed": {
-    "message": "Couldn’t save the note: $reason$. Press Return to try again.",
-    "placeholders": {
-      "reason": {
-        "content": "$1"
-      }
-    }
-  },
-  "toast_noteFailedFromWorker": {
-    "message": "Couldn’t save the note. $reason$. Press Return to try again.",
-    "description": "ALAG-8: reason is a full sentence from the service worker; its trailing period is stripped before substitution",
-    "placeholders": {
-      "reason": {
-        "content": "$1"
-      }
-    }
-  },
-  "toast_noteLostConnection": {
-    "message": "lost connection to the extension",
-    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
-  },
-  "toast_noteNoAck": {
-    "message": "the extension didn’t respond",
-    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
   },
   "tag_placeholder": {
     "message": "Type and press Return"

@@ -1,7 +1,6 @@
-// 'panel' 与 'toast-note' 两个 Port 的 service worker 一侧。协议字面量见 src/shared/messages.ts。
-import { t } from '@/shared/i18n';
-import type { PanelToSw, SwToPanel, SwToToastNote, ToastNoteToSw } from '@/shared/messages';
-import type { Capture, ClipSummary, EditFields, PanelState, SaveOutcome } from '@/shared/types';
+// 'panel' Port 的 service worker 一侧。协议字面量见 src/shared/messages.ts。
+import type { PanelToSw, SwToPanel } from '@/shared/messages';
+import type { Capture, ClipSummary, EditFields, PanelState, SaveOutcome, TagCount } from '@/shared/types';
 import { hasChanges } from './applyEdits';
 
 /** Port 的最小接口（便于用假 Port 测试）。 */
@@ -18,12 +17,17 @@ export interface PanelDeps {
   /** 另存一份新快照。 */
   saveSnapshot(capture: Capture, onState: (state: PanelState) => void): Promise<SaveOutcome>;
   applyEdits(clip: ClipSummary, fields: EditFields): Promise<ClipSummary>;
-  /** 断线重连（resume）时按 id 找回剪藏。 */
+  /** 断线重连（resume）、从页面提示进入编辑态时按 id 找回剪藏。 */
   findClip?(clipId: string): Promise<ClipSummary | undefined>;
+  /** 页面提示「加批注…」为这个标签页记下的待编辑剪藏 id；取一次即清（ALAG-16）。 */
+  takePendingEdit?(tabId: number): Promise<string | null>;
+  /** 编辑态推送 state 时附带的标签建议。 */
+  tagSuggestions?(): Promise<TagCount[]>;
 }
 
 /**
- * 工具栏面板：start → 走保存流程并推送 state；snapshot → 另存新快照；draft → 记下最后的修改。
+ * 工具栏面板：start → 有页面提示记下的待编辑剪藏时直接进入它的编辑态（不重新保存，ALAG-16），
+ * 否则走保存流程并推送 state；snapshot → 另存新快照；draft → 记下最后的修改。
  * 面板关闭（onDisconnect）时，若最后的 draft 与已存内容不同，调一次 applyEdits；
  * 关闭时保存还没结束的，等它结束再判断。
  */
@@ -54,6 +58,18 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
     task.catch((err) => console.error('[Alayo Get] 面板保存流程出错', err));
   };
 
+  /** 页面提示记下的待编辑剪藏；没有记录、找不到剪藏或读取出错时返回 undefined，回到保存流程。 */
+  const pendingClip = async (tabId: number): Promise<ClipSummary | undefined> => {
+    if (!deps.takePendingEdit || !deps.findClip) return undefined;
+    try {
+      const clipId = await deps.takePendingEdit(tabId);
+      return clipId ? await deps.findClip(clipId) : undefined;
+    } catch (err) {
+      console.warn('[Alayo Get] 读取待编辑的剪藏失败，改为保存当前页', err);
+      return undefined;
+    }
+  };
+
   port.onMessage.addListener((message) => {
     if (!connected) return;
     switch (message.type) {
@@ -61,15 +77,26 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         // 进行中或已经存成功的，忽略重复的 start；失败或需要授权结束后允许重试（codex review 第 5 轮）。
         if (started) return;
         started = true;
+        const { tabId } = message;
         track(
-          deps.savePage(message.tabId, post).then((result) => {
-            capture = result.capture;
-            settle(result.outcome);
-            if (result.outcome.state === 'failed' || result.outcome.state === 'needs-permission') started = false;
-          }, (err) => {
-            started = false;
-            throw err;
-          }),
+          (async () => {
+            const found = await pendingClip(tabId);
+            if (found) {
+              // 编辑态：不重新保存，capture 保持 null（没有“另存新快照”）
+              clip = found;
+              const state = found.extract === 'fallback' && found.medium === 'link' ? 'fallback' : 'saved';
+              post({ state, clip: found, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
+              return;
+            }
+            await deps.savePage(tabId, post).then((result) => {
+              capture = result.capture;
+              settle(result.outcome);
+              if (result.outcome.state === 'failed' || result.outcome.state === 'needs-permission') started = false;
+            }, (err) => {
+              started = false;
+              throw err;
+            });
+          })(),
         );
         return;
       }
@@ -110,65 +137,5 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         if (clip && hasChanges(clip, draft)) await deps.applyEdits(clip, draft);
       })
       .catch((err) => console.error('[Alayo Get] 面板修改写回失败', err));
-  });
-}
-
-export interface ToastNoteDeps {
-  findClip(clipId: string): Promise<ClipSummary | undefined>;
-  applyEdits(clip: ClipSummary, fields: EditFields): Promise<ClipSummary>;
-}
-
-/**
- * 页面提示里的批注框：draft 记下最后一次批注；收到 commit 或断开（含页面跳走）时写入，同一次只写一次。
- */
-export function handleToastNotePort(port: PortLike<ToastNoteToSw, SwToToastNote>, deps: ToastNoteDeps): void {
-  let last: { clipId: string; note: string } | null = null;
-  /** 本 Port 上已落盘的批注；同一段文字不重复写。 */
-  let lastWritten: string | null = null;
-  let connected = true;
-  // 写入串行：重复的 commit 等前一次写完再判断，不会在写入还没落盘时就回复成功（codex review 第 8 轮）。
-  let chain: Promise<string | null> = Promise.resolve(null);
-
-  /** 把当前最新的 draft 写下去；返回已落盘的批注。 */
-  const writeLatest = (): Promise<string | null> => {
-    chain = chain
-      .catch(() => null)
-      .then(async () => {
-        if (!last) return lastWritten;
-        const { clipId, note } = last;
-        if (note === lastWritten) return note;
-        const clip = await deps.findClip(clipId);
-        if (!clip) throw new Error(t('error_clipNotFound'));
-        if (hasChanges(clip, { note })) await deps.applyEdits(clip, { note });
-        lastWritten = note;
-        return note;
-      });
-    return chain;
-  };
-  const reply = (message: SwToToastNote) => {
-    if (!connected) return;
-    try {
-      port.postMessage(message);
-    } catch (err) {
-      console.debug('[Alayo Get] 批注 Port 已断开', err);
-    }
-  };
-
-  port.onMessage.addListener((message) => {
-    if (message.type === 'draft') {
-      last = { clipId: message.clipId, note: message.note };
-    } else if (message.type === 'commit') {
-      writeLatest().then(
-        (note) => reply({ type: 'committed', note: note ?? '' }),
-        (err: unknown) => {
-          console.error('[Alayo Get] 批注写回失败', err);
-          reply({ type: 'commit-failed', message: err instanceof Error ? err.message : String(err) });
-        },
-      );
-    }
-  });
-  port.onDisconnect.addListener(() => {
-    connected = false;
-    void writeLatest().catch((err) => console.error('[Alayo Get] 批注写回失败', err));
   });
 }

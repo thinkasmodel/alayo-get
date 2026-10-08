@@ -1,9 +1,11 @@
-// service worker 接线：快捷键、右键菜单、面板与页面提示的 Port、授权后补写、角标（ADR-0004）；
-// 打开选项页、页面提示上的按钮、首次安装打开引导页（ALAG-2B）；媒体剪藏、流媒体剪藏与摘录剪藏的入口与路由（ALAG-4）。
+// service worker 接线：快捷键、右键菜单、面板的 Port、授权后补写、角标（ADR-0004）；
+// 打开选项页、页面提示上的按钮、首次安装打开引导页（ALAG-2B）；媒体剪藏、流媒体剪藏与摘录剪藏的入口与路由（ALAG-4）；
+// 页面提示的「加批注…」记下待编辑剪藏并打开面板（ALAG-16，ADR-0008）。
 import { ulid } from 'ulid';
 import { canonicalizeUrl } from '@/core/canonical';
 import { siteFromUrl } from '@/core/frontmatter';
 import type { ParsedStream } from '@/core/stream';
+import { tagSuggestions } from '@/core/tags';
 import { pinnedLibrary, type Library } from '@/io/library';
 import { createPendingQueue } from '@/io/pending';
 import { createQuoteEntries } from '@/io/quoteEntries';
@@ -16,7 +18,6 @@ import { t } from '@/shared/i18n';
 import {
   isCaptureError,
   PANEL_PORT,
-  TOAST_NOTE_PORT,
   type CaptureResponse,
   type OpenOptionsMessage,
   type PanelToSw,
@@ -24,13 +25,12 @@ import {
   type SwToPanel,
   type ToastActionMessage,
   type ToastMessage,
-  type SwToToastNote,
-  type ToastNoteToSw,
 } from '@/shared/messages';
-import type { Capture, PanelState, Preview, SaveOutcome } from '@/shared/types';
+import type { Capture, PanelState, Preview, SaveOutcome, TagCount } from '@/shared/types';
 import { createBadge } from '@/sw/badge';
 import { createClipBook } from '@/sw/clips';
-import { handlePanelPort, handleToastNotePort, type PortLike } from '@/sw/ports';
+import { createPendingEdits, openPanelForNote, type NotePanelDeps } from '@/sw/pendingEdit';
+import { handlePanelPort, type PortLike } from '@/sw/ports';
 import {
   classifyTab,
   mediaCapture,
@@ -53,7 +53,7 @@ export default defineBackground(() => {
   const index = createSavedIndex();
   const pending = createPendingQueue();
   const badge = createBadge();
-  /** 最近保存的剪藏（页面提示写批注、面板关闭写回时按 id 找回）；摘录另记在 storage.session（ALAG-4）。 */
+  /** 最近保存的剪藏（面板从页面提示进入编辑态、面板关闭写回时按 id 找回）；摘录另记在 storage.session（ALAG-4）。 */
   const clips = createClipBook({ index, quotes: createQuoteEntries(), quoteOps: createQuoteOps(), library: pinnedLibrary });
   /** 页面提示对应的采集结果（存 storage.session，后台重启后仍在）。提示上的“重试”“另存新快照”按它重放。 */
   const toastRequests = createToastRequests();
@@ -353,6 +353,26 @@ export default defineBackground(() => {
     await sendToast(tab.id, outcome, capture);
   };
 
+  // ---- 页面提示「加批注…」→ 面板编辑态（ALAG-16）
+
+  /** 页面提示「加批注…」记下的待编辑剪藏（storage.session）；增删串行，见 src/sw/pendingEdit.ts。 */
+  const pendingEdits = createPendingEdits(browser.storage.session);
+  const notePanelDeps: NotePanelDeps = {
+    pending: pendingEdits,
+    queryActiveTab: async (windowId) => (await browser.tabs.query({ active: true, windowId }))[0]?.id,
+    openPopup: (windowId) => browser.action.openPopup({ windowId }),
+  };
+
+  /** 编辑态的标签建议：已保存记录里最常用的标签；读不到时给空列表（不改 saveClip，ALAG-17 在改它）。 */
+  const panelTagSuggestions = async (): Promise<TagCount[]> => {
+    try {
+      return tagSuggestions(await index.all(), '');
+    } catch (err) {
+      console.warn('[Alayo Get] 读取标签建议失败', err);
+      return [];
+    }
+  };
+
   // 补写同一时间只跑一次；结果是本轮补存成功（saved / fallback）的条数，回给选项页。
   let flushing: Promise<number> | null = null;
   const flush = (): Promise<number> => {
@@ -427,9 +447,9 @@ export default defineBackground(() => {
         saveSnapshot: (capture, onState) => saveCapture(capture, true, onState),
         applyEdits: clips.editClip,
         findClip: clips.findClip,
+        takePendingEdit: pendingEdits.take,
+        tagSuggestions: panelTagSuggestions,
       });
-    } else if (port.name === TOAST_NOTE_PORT) {
-      handleToastNotePort(port as unknown as PortLike<ToastNoteToSw, SwToToastNote>, { findClip: clips.findClip, applyEdits: clips.editClip });
     }
   });
 
@@ -445,8 +465,15 @@ export default defineBackground(() => {
       const url = browser.runtime.getURL(`/options.html#${section}` as '/options.html');
       browser.tabs.create({ url }).catch(logError('打开选项页失败'));
     } else if (type === 'toast-action') {
-      const { action, requestId } = message as ToastActionMessage;
+      const { action, requestId, clipId } = message as ToastActionMessage;
       const tab = sender.tab;
+      if (action === 'note') {
+        // 「加批注…」：网页里不放输入框（ADR-0008），批注在面板里写；返回 true 表示会异步调用 sendResponse
+        const tabId = tab?.id;
+        if (!tab || tabId === undefined || typeof clipId !== 'string' || clipId === '') return;
+        void openPanelForNote(notePanelDeps, { id: tabId, windowId: tab.windowId }, clipId).then(sendResponse);
+        return true;
+      }
       if (!tab || (action !== 'snapshot' && action !== 'retry')) return;
       rerunFromToast(tab, action, typeof requestId === 'string' ? requestId : undefined).catch(logError('页面提示上的操作失败'));
     }

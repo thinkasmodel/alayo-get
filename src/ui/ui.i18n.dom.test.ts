@@ -3,14 +3,13 @@
 // 英文逐条取自 designs/alag-6-7/Strings.dc.html 与 OnboardingEn / SettingsEn / PanelEn 三张英文稿。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setMessageSourceForTest } from '@/shared/i18n';
-import type { ToastNoteToSw } from '@/shared/messages';
 import type { Capture, ClipSummary, PanelState, PendingSave, Preview, SavedEntry, SavedIndexData, SaveOutcome } from '@/shared/types';
-import { CJK, useLocale } from '../../tests/setup/i18n';
+import { CJK, loadMessages, useLocale } from '../../tests/setup/i18n';
 import { richT } from './dom';
 import { renderOptions, type LibraryHandle, type OptionsDeps } from './options/render';
 import { renderPanel, type PanelActions } from './panel/render';
 import { createTagInput } from './panel/tagInput';
-import { mountToast, NOTE_ACK_MS, type NotePort, type ToastDeps } from './toast/toast';
+import { mountToast, type ToastDeps } from './toast/toast';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -261,30 +260,17 @@ describe('英文：页面右下角提示', () => {
     quote: { fileId: 'F', entry: 3, anchor: '', fragment: true, recreated: false },
   };
 
-  /** 批注 Port：`broken` 时每次发送都抛错（扩展已失效）。 */
-  function makeDeps(broken = false) {
-    const notes: ToastNoteToSw[] = [];
-    const connectNote = vi.fn(
-      (): NotePort => ({
-        postMessage: (m) => {
-          if (broken) throw new Error('Attempting to use a disconnected port object');
-          notes.push(m);
-        },
-        disconnect: () => undefined,
-        onMessage: { addListener: () => undefined },
-        onDisconnect: { addListener: () => undefined },
-      }),
-    );
-    return { sendMessage: vi.fn(), connectNote } satisfies ToastDeps;
+  function makeDeps() {
+    return { sendMessage: vi.fn<ToastDeps['sendMessage']>() } satisfies ToastDeps;
   }
 
   const cases: Array<[string, SaveOutcome, string[]]> = [
-    ['成功', { state: 'saved', clip, tagSuggestions: [] }, ['Saved to library', clip.title, 'Add note']],
-    ['摘录', { state: 'saved', clip: quoteClip, tagSuggestions: [] }, ['Quote saved', 'Quote 3 · Quotes - Thinking, Fast and Slow notes.md', 'Add note']],
+    ['成功', { state: 'saved', clip, tagSuggestions: [] }, ['Saved to library', clip.title, 'Add note…']],
+    ['摘录', { state: 'saved', clip: quoteClip, tagSuggestions: [] }, ['Quote saved', 'Quote 3 · Quotes - Thinking, Fast and Slow notes.md', 'Add note…']],
     [
       '书签',
       { state: 'fallback', clip: { ...clip, extract: 'fallback' }, tagSuggestions: [] },
-      ['Saved as a bookmark', 'Couldn’t extract the article. Saved the title, description and cover.', 'Add note'],
+      ['Saved as a bookmark', 'Couldn’t extract the article. Saved the title, description and cover.', 'Add note…'],
     ],
     [
       '重复保存',
@@ -314,73 +300,14 @@ describe('英文：页面右下角提示', () => {
     expect(toast.root.querySelector('.tt')?.textContent).toBe('Already saved on Sep 28');
   });
 
-  it('展开批注', () => {
-    const toast = mountToast({ state: 'saved', clip, tagSuggestions: [] }, makeDeps());
-    buttonIn(toast.root, 'Add note')?.click();
-    expect(toast.root.querySelector('textarea')?.getAttribute('placeholder')).toBe('Add a note (optional)');
-    const text = expectNoCjk(toast.root);
-    for (const s of ['Note', 'Saved when you press Return or Esc']) expect(text).toContain(s);
-    expect(buttonLabels(toast.root)).toContain('Save');
-  });
-
-  it('批注失败：没有收到扩展的确认', () => {
-    const toast = mountToast({ state: 'saved', clip, tagSuggestions: [] }, makeDeps());
-    buttonIn(toast.root, 'Add note')?.click();
-    buttonIn(toast.root, 'Save')?.click();
-    vi.advanceTimersByTime(NOTE_ACK_MS);
-    expect(toast.root.querySelector('.noteerr')?.textContent).toBe('Couldn’t save the note: the extension didn’t respond. Press Return to try again.');
+  it('面板没能打开：说明行是 en 的 toast_panelFailed，不含中日韩字符（ALAG-16）', async () => {
+    const deps = makeDeps();
+    deps.sendMessage.mockResolvedValue({ opened: false });
+    const toast = mountToast({ state: 'saved', clip, tagSuggestions: [] }, deps);
+    buttonIn(toast.root, 'Add note…')?.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(toast.root.querySelector('.noteerr')?.textContent).toBe(loadMessages('en').toast_panelFailed?.message);
     expectNoCjk(toast.root);
-  });
-
-  it('批注失败：和扩展的连接断开了', () => {
-    const toast = mountToast({ state: 'saved', clip, tagSuggestions: [] }, makeDeps(true));
-    buttonIn(toast.root, 'Add note')?.click();
-    buttonIn(toast.root, 'Save')?.click();
-    expect(toast.root.querySelector('.noteerr')?.textContent).toBe('Couldn’t save the note: lost connection to the extension. Press Return to try again.');
-    expectNoCjk(toast.root);
-  });
-
-  // ALAG-8：service worker 回的失败原因是整句（可能自带句号），不能接在冒号后面
-  describe('批注失败：原因来自 service worker', () => {
-    function mountWithReply(locale: 'en' | 'zh_CN') {
-      useLocale(locale);
-      let listener: ((m: unknown) => void) | undefined;
-      const deps = {
-        sendMessage: vi.fn(),
-        connectNote: vi.fn(
-          (): NotePort => ({
-            postMessage: () => undefined,
-            disconnect: () => undefined,
-            onMessage: { addListener: (fn) => void (listener = fn as (m: unknown) => void) },
-            onDisconnect: { addListener: () => undefined },
-          }),
-        ),
-      } satisfies ToastDeps;
-      const toast = mountToast({ state: 'saved', clip, tagSuggestions: [] }, deps);
-      buttonIn(toast.root, locale === 'en' ? 'Add note' : '加批注')?.click();
-      buttonIn(toast.root, locale === 'en' ? 'Save' : '写入')?.click();
-      return { toast, reply: (message: string) => listener?.({ type: 'commit-failed', message }) };
-    }
-
-    it('英文：原因自成一句', () => {
-      const { toast, reply } = mountWithReply('en');
-      reply('Can’t find this clip');
-      expect(toast.root.querySelector('.noteerr')?.textContent).toBe('Couldn’t save the note. Can’t find this clip. Press Return to try again.');
-    });
-
-    it('英文：原因自带句号时只留一个', () => {
-      const { toast, reply } = mountWithReply('en');
-      reply('A requested file or directory could not be found. ');
-      expect(toast.root.querySelector('.noteerr')?.textContent).toBe(
-        'Couldn’t save the note. A requested file or directory could not be found. Press Return to try again.',
-      );
-    });
-
-    it('中文：句式不变，原因自带句号时只留一个', () => {
-      const { toast, reply } = mountWithReply('zh_CN');
-      reply('找不到这条剪藏。');
-      expect(toast.root.querySelector('.noteerr')?.textContent).toBe('没能写入批注：找不到这条剪藏。可以再按回车试一次。');
-    });
   });
 });
 

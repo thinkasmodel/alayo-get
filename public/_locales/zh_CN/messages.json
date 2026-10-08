@@ -913,7 +913,11 @@
     "message": "本次没有保存，授权后会自动补存"
   },
   "toast_addNote": {
-    "message": "加批注"
+    "message": "加批注…"
+  },
+  "toast_panelFailed": {
+    "message": "没能打开面板。把这个浏览器窗口点到前台，再点一次「加批注…」。",
+    "description": "ALAG-16: shown under the toast when chrome.action.openPopup fails"
   },
   "toast_saveSnapshot": {
     "message": "另存新快照"
@@ -924,37 +928,6 @@
   "toast_close": {
     "message": "关闭",
     "description": "Close button aria-label"
-  },
-  "toast_noteHint": {
-    "message": "回车或 Esc 收起时都会写入"
-  },
-  "toast_noteSave": {
-    "message": "写入"
-  },
-  "toast_noteFailed": {
-    "message": "没能写入批注：$reason$。可以再按回车试一次。",
-    "placeholders": {
-      "reason": {
-        "content": "$1"
-      }
-    }
-  },
-  "toast_noteFailedFromWorker": {
-    "message": "没能写入批注：$reason$。可以再按回车试一次。",
-    "description": "ALAG-8: reason is a full sentence from the service worker; its trailing period is stripped before substitution",
-    "placeholders": {
-      "reason": {
-        "content": "$1"
-      }
-    }
-  },
-  "toast_noteLostConnection": {
-    "message": "和扩展的连接断开了",
-    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
-  },
-  "toast_noteNoAck": {
-    "message": "没有收到扩展的确认",
-    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
   },
   "tag_placeholder": {
     "message": "输入后回车"

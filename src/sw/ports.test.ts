@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PanelToSw, SwToPanel, SwToToastNote, ToastNoteToSw } from '@/shared/messages';
+import type { PanelToSw, SwToPanel } from '@/shared/messages';
 import type { Capture, ClipSummary, EditFields, SaveOutcome } from '@/shared/types';
-import { handlePanelPort, handleToastNotePort, type PanelDeps, type PortLike, type ToastNoteDeps } from './ports';
+import { handlePanelPort, type PanelDeps, type PortLike } from './ports';
 
 /** 假 Port：记录 postMessage，可以手动发消息、断开。 */
 class FakePort<In, Out> implements PortLike<In, Out> {
@@ -210,93 +210,73 @@ describe("Port 'panel'", () => {
   });
 });
 
-describe("Port 'toast-note'", () => {
-  function toastDeps() {
-    const applyEdits = vi.fn<ToastNoteDeps['applyEdits']>(async (c, fields) => ({ ...c, ...fields }));
-    const findClip = vi.fn<ToastNoteDeps['findClip']>(async (id) => (id === clip.id ? clip : undefined));
-    return { applyEdits, findClip };
+describe("Port 'panel'：从页面提示「加批注…」进入编辑态（ALAG-16）", () => {
+  function editDeps(found: ClipSummary | undefined, pending: string | null = clip.id) {
+    return {
+      ...panelDeps(),
+      takePendingEdit: vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => pending),
+      findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async (id) => (found && id === found.id ? found : undefined)),
+      tagSuggestions: vi.fn<NonNullable<PanelDeps['tagSuggestions']>>(async () => [{ tag: '设计', count: 3 }]),
+    };
   }
-  type ToastPort = FakePort<ToastNoteToSw, never>;
 
-  it('收到 commit 后再断开，只写一次，写的是最后一次 draft', async () => {
-    const deps = toastDeps();
-    const port: ToastPort = new FakePort('toast-note');
-    handleToastNotePort(port, deps);
-    port.send({ type: 'draft', clipId: clip.id, note: '第一' });
-    port.send({ type: 'draft', clipId: clip.id, note: '第一版批注' });
-    port.send({ type: 'commit' });
+  it('有待编辑剪藏：不重新保存，推送 saved（clip.id 一致）；draft 批注后断开，applyEdits 恰好一次', async () => {
+    const deps = editDeps(clip);
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    expect(deps.takePendingEdit).toHaveBeenCalledWith(7);
+    expect(deps.savePage).not.toHaveBeenCalled();
+    expect(port.sent).toEqual([{ type: 'state', state: { state: 'saved', clip, tagSuggestions: [{ tag: '设计', count: 3 }] } }]);
+    // 编辑态没有采集结果，snapshot 不另存
+    port.send({ type: 'snapshot' });
+    port.send({ type: 'start', tabId: 7 });
+    port.send({ type: 'draft', fields: { title: clip.title, tags: [], note: '面板里写的批注' } });
     port.disconnect();
     await flush();
+    expect(deps.saveSnapshot).not.toHaveBeenCalled();
+    expect(deps.savePage).not.toHaveBeenCalled();
     expect(deps.applyEdits).toHaveBeenCalledTimes(1);
-    expect(deps.applyEdits.mock.calls[0]).toEqual([clip, { note: '第一版批注' }]);
+    expect(deps.applyEdits.mock.calls[0]?.[0].id).toBe(clip.id);
+    expect(deps.applyEdits.mock.calls[0]?.[1]).toMatchObject({ note: '面板里写的批注' });
   });
 
-  it('没有 commit 直接断开（页面跳走）也写入', async () => {
-    const deps = toastDeps();
-    const port: ToastPort = new FakePort('toast-note');
-    handleToastNotePort(port, deps);
-    port.send({ type: 'draft', clipId: clip.id, note: '跳走前' });
-    port.disconnect();
+  it('待编辑剪藏找不到（findClip 返回 undefined）：照常保存当前页', async () => {
+    const deps = editDeps(undefined);
+    const port = openPanel(deps);
+    port.send({ type: 'start', tabId: 7 });
     await flush();
-    expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+    expect(deps.findClip).toHaveBeenCalledWith(clip.id);
+    expect(deps.savePage).toHaveBeenCalledTimes(1);
+    expect(port.sent.map((m) => m.state.state)).toEqual(['saving', 'saved']);
   });
 
-  it('commit 写入成功后回复 committed；写入失败回复 commit-failed，且允许再提交（codex review 第 7 轮）', async () => {
-    const deps = toastDeps();
-    let failOnce = true;
-    deps.applyEdits.mockImplementation(async (c, fields) => {
-      if (failOnce) {
-        failOnce = false;
-        throw new Error('剪藏库没有写入权限（prompt）');
-      }
-      return { ...c, ...fields };
-    });
-    const port = new FakePort<ToastNoteToSw, SwToToastNote>('toast-note');
-    handleToastNotePort(port, deps);
-    port.send({ type: 'draft', clipId: clip.id, note: '批注' });
-    port.send({ type: 'commit' });
+  it('没有待编辑剪藏：照常保存当前页', async () => {
+    const deps = editDeps(clip, null);
+    const port = openPanel(deps);
+    port.send({ type: 'start', tabId: 7 });
     await flush();
-    expect(port.sent).toEqual([{ type: 'commit-failed', message: '剪藏库没有写入权限（prompt）' }]);
-    port.send({ type: 'commit' });
-    await flush();
-    expect(port.sent.at(-1)).toEqual({ type: 'committed', note: '批注' });
-    expect(deps.applyEdits).toHaveBeenCalledTimes(2);
+    expect(deps.findClip).not.toHaveBeenCalled();
+    expect(deps.savePage).toHaveBeenCalledTimes(1);
   });
 
-  it('写入还在进行时重复 commit：等前一次写完再判断，写入失败时不会先回复成功（codex review 第 8 轮）', async () => {
-    const deps = toastDeps();
-    let release: () => void = () => {};
-    deps.applyEdits.mockImplementation(
-      () =>
-        new Promise((_, reject) => {
-          release = () => reject(new Error('被锁挡住后失败'));
-        }),
-    );
-    const port = new FakePort<ToastNoteToSw, SwToToastNote>('toast-note');
-    handleToastNotePort(port, deps);
-    port.send({ type: 'draft', clipId: clip.id, note: '慢批注' });
-    port.send({ type: 'commit' });
+  it('读取待编辑记录出错：照常保存当前页，不卡在已开始', async () => {
+    const deps = editDeps(clip);
+    deps.takePendingEdit.mockRejectedValue(new Error('storage.session 不可用'));
+    const port = openPanel(deps);
+    port.send({ type: 'start', tabId: 7 });
     await flush();
-    port.send({ type: 'commit' });
-    await flush();
-    expect(port.sent).toEqual([]);
-    release();
-    await flush();
-    await flush();
-    expect(port.sent.every((m) => m.type === 'commit-failed')).toBe(true);
+    expect(deps.savePage).toHaveBeenCalledTimes(1);
   });
 
-  it('没有 draft 或批注没变时不写', async () => {
-    const deps = toastDeps();
-    const a: ToastPort = new FakePort('toast-note');
-    handleToastNotePort(a, deps);
-    a.send({ type: 'commit' });
-    a.disconnect();
-    const b: ToastPort = new FakePort('toast-note');
-    handleToastNotePort(b, deps);
-    b.send({ type: 'draft', clipId: clip.id, note: '' });
-    b.disconnect();
+  it('书签剪藏（extract: fallback、medium: link）：推送 fallback', async () => {
+    const bookmark: ClipSummary = { ...clip, medium: 'link', extract: 'fallback' };
+    const deps = editDeps(bookmark);
+    const port = openPanel(deps);
+    port.send({ type: 'start', tabId: 7 });
     await flush();
-    expect(deps.applyEdits).not.toHaveBeenCalled();
+    expect(deps.savePage).not.toHaveBeenCalled();
+    expect(port.sent.map((m) => m.state.state)).toEqual(['fallback']);
   });
 });

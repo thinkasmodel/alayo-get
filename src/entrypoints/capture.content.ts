@@ -9,7 +9,7 @@ import { extractX } from '@/page/x/extract';
 import { sharedCapture } from '@/page/sharedCapture';
 import { parseXStatusUrl } from '@/page/x/url';
 import { captureXVideo } from '@/page/x/video';
-import { TOAST_NOTE_PORT, type CaptureResponse, type PageMessage, type QuoteCaptureResponse } from '@/shared/messages';
+import type { CaptureResponse, PageMessage, QuoteCaptureResponse } from '@/shared/messages';
 import { mountToast } from '@/ui/toast/toast';
 
 const DETACH_KEY = '__alayoGetCaptureDetach';
@@ -93,11 +93,13 @@ export default defineContentScript({
         const requestId = message.requestId;
         mountToast(message.outcome, {
           sendMessage: (m) => {
-            // 提示上的按钮带上所属请求，后台按它找回这条提示对应的采集结果
+            // 提示上的按钮带上所属请求，后台按它找回这条提示对应的采集结果；后台的回应（「加批注…」是否打开了面板）交回提示
             const out = m.type === 'toast-action' ? { ...m, requestId } : m;
-            browser.runtime.sendMessage(out).catch((err) => console.warn('[Alayo Get] 发送提示动作失败', err));
+            return browser.runtime.sendMessage(out).catch((err: unknown) => {
+              console.warn('[Alayo Get] 发送提示动作失败', err);
+              return undefined;
+            });
           },
-          connectNote: () => browser.runtime.connect({ name: TOAST_NOTE_PORT }),
         });
       }
     };

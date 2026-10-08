@@ -3,7 +3,7 @@
 import { t } from '@/shared/i18n';
 import type { ClipSummary, EditFields, PanelState, Preview, SavedIndexData } from '@/shared/types';
 import { h, iconEl, richT, type Child } from '../dom';
-import { failureDetail, failureReason, formatDate, oversizeNote, partialNote, savedDescription, savingPercent, savingText } from '../format';
+import { failureDetail, failureReason, formatDate, oversizeNote, partialNote, quoteToastText, savedDescription, savingPercent, savingText } from '../format';
 import type { IconName } from '../icons';
 import { createTagInput } from './tagInput';
 
@@ -75,13 +75,17 @@ function folderPath(folderName: string | null): HTMLElement {
   return h('div', { class: 'path' }, folderName ? [iconEl('folder', 12), h('span', { class: 'pathname' }, folderName)] : []);
 }
 
-/** 已保存 / 退化为书签：标题（仅 saved）、标签、批注。返回批注框，供自动聚焦。 */
+/**
+ * 已保存 / 退化为书签：标题（仅 saved）、标签、批注。返回批注框，供自动聚焦。
+ * 摘录剪藏（从页面提示「加批注…」进入的编辑态，ALAG-16）只有批注框；draft 照常发三个字段，applyEdits 对摘录只处理 note。
+ */
 function editFields(clip: ClipSummary, withTitle: boolean, actions: PanelActions): { nodes: HTMLElement[]; note: HTMLTextAreaElement } {
   const fields = { title: clip.title, tags: [...clip.tags], note: clip.note };
   const post = () => actions.postDraft({ title: fields.title, tags: [...fields.tags], note: fields.note });
+  const quote = clip.quote !== undefined;
 
   const nodes: HTMLElement[] = [];
-  if (withTitle) {
+  if (withTitle && !quote) {
     const title = h('input', { id: 'f-title', class: 'inp', type: 'text', value: clip.title, autocomplete: 'off' });
     title.value = clip.title;
     title.addEventListener('input', () => {
@@ -91,16 +95,18 @@ function editFields(clip: ClipSummary, withTitle: boolean, actions: PanelActions
     nodes.push(h('div', { class: 'field' }, [h('label', { class: 'fl', for: 'f-title' }, t('panel_title')), title]));
   }
 
-  const tagInput = createTagInput({
-    id: 'f-tags',
-    initial: clip.tags,
-    loadIndex: actions.loadIndex,
-    onChange: (tags) => {
-      fields.tags = tags;
-      post();
-    },
-  });
-  nodes.push(h('div', { class: 'field' }, [h('label', { class: 'fl', for: 'f-tags' }, t('panel_tags')), tagInput.el]));
+  if (!quote) {
+    const tagInput = createTagInput({
+      id: 'f-tags',
+      initial: clip.tags,
+      loadIndex: actions.loadIndex,
+      onChange: (tags) => {
+        fields.tags = tags;
+        post();
+      },
+    });
+    nodes.push(h('div', { class: 'field' }, [h('label', { class: 'fl', for: 'f-tags' }, t('panel_tags')), tagInput.el]));
+  }
 
   const note = h('textarea', { id: 'f-note', class: 'inp note-input', rows: 3, placeholder: t('ui_notePlaceholder') });
   note.value = clip.note;
@@ -143,7 +149,11 @@ export function renderPanel(root: HTMLElement, view: PanelView, actions: PanelAc
     case 'saved':
     case 'fallback': {
       const { clip } = state;
-      if (state.state === 'saved') {
+      if (state.state === 'saved' && clip.quote) {
+        // 摘录剪藏的编辑态（ALAG-16）：状态行同页面提示的“已摘录”，主体只有文件名和批注框
+        body.push(statusRow('check', 'success', t('toast_quoteSaved'), quoteToastText({ file: clip.file, quote: clip.quote })));
+        body.push(h('div', { class: 'fn' }, clip.file));
+      } else if (state.state === 'saved') {
         body.push(statusRow('check', 'success', t('ui_savedTitle'), savedDescription(clip)));
         if (clip.extract === 'partial' && clip.x?.partial) {
           // X 剪藏只存了一部分（ALAG-3，设计稿 designs/alag-3-partial 方案 A）：文件名行右侧加 chip，下一行写原因。
