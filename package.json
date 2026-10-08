@@ -21,6 +21,7 @@
     "defuddle": "0.19.4",
     "idb-keyval": "6.3.0",
     "text-fragments-polyfill": "6.7.0",
+    "tldts": "7.4.16",
     "turndown": "7.2.4",
     "ulid": "3.0.2"
   },

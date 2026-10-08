@@ -388,3 +388,127 @@ describe('媒体剪藏：服务器给的文件名后缀', () => {
     expect(library.files.size).toBe(0);
   });
 });
+
+// ALAG-18 S4：媒体请求只对与被保存页面同站的地址带 cookie（ADR-0009）
+describe('媒体剪藏：同站才带 cookie', () => {
+  const BLOG = 'https://blog.example.com/post';
+  const SAME_PDF = 'https://cdn.example.com/a.pdf';
+  const CROSS_PDF = 'https://files.other.com/a.pdf';
+  const SAME_AUDIO = 'https://cdn.example.com/ep.mp3';
+  const CROSS_AUDIO = 'https://files.other.com/ep.mp3';
+  const pdf = bytes('%PDF-1.7');
+  const mp3 = bytes('ID3-audio');
+
+  /** 给假 fetch 返回的 Response 设上最终地址（模拟跟随重定向后的 res.url）；finalUrl 返回 undefined 时不设。 */
+  function withFinalUrl(fn: FetchLike, finalUrl: (url: string, method: string) => string | undefined): FetchLike {
+    return async (url, init) => {
+      const res = await fn(url, init);
+      const landed = finalUrl(url, init?.method ?? 'GET');
+      if (landed !== undefined) Object.defineProperty(res, 'url', { value: landed });
+      return res;
+    };
+  }
+
+  it('跨站 PDF：下载不带 cookie，文件照常保存', async () => {
+    const { fn, calls } = fakeFetch({ [CROSS_PDF]: { headers: { 'content-type': 'application/pdf' }, body: pdf } });
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', CROSS_PDF), fn);
+    expect(outcome.state).toBe('saved');
+    expect(calls.map((c) => c.init?.credentials)).toEqual(['omit']);
+    expect(library.files.get('附件 - a.pdf')).toEqual(pdf);
+  });
+
+  it('同站 PDF：下载带 cookie', async () => {
+    const { fn, calls } = fakeFetch({ [SAME_PDF]: { headers: { 'content-type': 'application/pdf' }, body: pdf } });
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', SAME_PDF), fn);
+    expect(outcome.state).toBe('saved');
+    expect(calls.map((c) => c.init?.credentials)).toEqual(['include']);
+  });
+
+  it('跨站音频：探测（HEAD、GET）与下载都不带 cookie，文件照常保存', async () => {
+    const { fn, calls } = fakeFetch({ [CROSS_AUDIO]: { head: { headers: { 'content-type': 'audio/mpeg' } }, headers: { 'content-type': 'audio/mpeg', 'content-length': String(mp3.byteLength) }, body: mp3 } });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', CROSS_AUDIO), fn);
+    expect(outcome.state).toBe('saved');
+    expect(calls.map((c) => [c.method, c.init?.credentials])).toEqual([
+      ['HEAD', 'omit'],
+      ['GET', 'omit'],
+      ['GET', 'omit'],
+    ]);
+    expect(library.files.get('播客 - ep.mp3')).toEqual(mp3);
+  });
+
+  it('同站音频：探测与下载都带 cookie', async () => {
+    const { fn, calls } = fakeFetch({ [SAME_AUDIO]: { headers: { 'content-type': 'audio/mpeg', 'content-length': String(mp3.byteLength) }, body: mp3 } });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', SAME_AUDIO), fn);
+    expect(outcome.state).toBe('saved');
+    expect(calls.map((c) => [c.method, c.init?.credentials])).toEqual([
+      ['HEAD', 'include'],
+      ['GET', 'include'],
+    ]);
+  });
+
+  it('同站媒体的下载跳转到跨站地址 → failed（DownloadError），不写任何文件、不写记录', async () => {
+    const base = fakeFetch({ [SAME_PDF]: { headers: { 'content-type': 'application/pdf' }, body: pdf } });
+    const fn = withFinalUrl(base.fn, () => 'https://evil.com/a.pdf');
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', SAME_PDF), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: '文件地址跳转到了另一个站点，没有下载' } });
+    expect(library.files.size).toBe(0);
+    expect(library.ops).toEqual([]);
+    expect(await index.get(SAME_PDF)).toBeUndefined();
+  });
+
+  it('同站内的跳转不拦', async () => {
+    const base = fakeFetch({ [SAME_PDF]: { headers: { 'content-type': 'application/pdf' }, body: pdf } });
+    const fn = withFinalUrl(base.fn, () => 'https://static.example.com/files/a.pdf');
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', SAME_PDF), fn);
+    expect(outcome.state).toBe('saved');
+  });
+
+  it('跨站请求本就不带 cookie：跳转到哪里都照常保存', async () => {
+    const base = fakeFetch({ [CROSS_PDF]: { headers: { 'content-type': 'application/pdf' }, body: pdf } });
+    const fn = withFinalUrl(base.fn, () => 'https://evil.com/a.pdf');
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', CROSS_PDF), fn);
+    expect(outcome.state).toBe('saved');
+  });
+
+  it('同站音频的 HEAD 探测跳转到跨站地址 → 该次探测作废（不采信它的 150MB），改用 GET 探测，照常下载保存', async () => {
+    const base = fakeFetch({
+      [SAME_AUDIO]: {
+        head: { headers: { 'content-type': 'audio/mpeg', 'content-length': String(150 * MB) } },
+        headers: { 'content-type': 'audio/mpeg', 'content-length': String(mp3.byteLength) },
+        body: mp3,
+      },
+    });
+    const fn = withFinalUrl(base.fn, (_url, method) => (method === 'HEAD' ? 'https://evil.com/ep.mp3' : undefined));
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', SAME_AUDIO), fn);
+    expect(base.calls.map((c) => c.method)).toEqual(['HEAD', 'GET', 'GET']);
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    expect(outcome.clip).toMatchObject({ file: '播客 - ep.mp3', medium: 'audio' });
+    expect(library.files.get('播客 - ep.mp3')).toEqual(mp3);
+  });
+
+  it('同站视频的 HEAD、GET 探测都跳转到跨站地址 → 探测失败，按拿不到大小存直链流媒体剪藏，不下载', async () => {
+    const VIDEO = 'https://cdn.example.com/v.mp4';
+    const base = fakeFetch({ [VIDEO]: { headers: { 'content-type': 'video/mp4', 'content-length': String(MB) }, body: bytes('never') } });
+    const fn = withFinalUrl(base.fn, () => 'https://evil.com/v.mp4');
+    const outcome = await save(mediaCapture(BLOG, '视频', 'video', VIDEO), fn);
+    expect(base.calls.map((c) => c.method)).toEqual(['HEAD', 'GET']);
+    expect(outcome.state === 'saved' && outcome.clip.stream).toEqual({ platform: 'other', duration: null, medium: 'video', oversize: { bytes: null } });
+  });
+
+  it('跨站媒体回网页 → failed，提示文件在另一站点、扩展不发登录态', async () => {
+    const { fn } = fakeFetch({ [CROSS_PDF]: { headers: { 'content-type': 'text/html; charset=utf-8' }, body: bytes('<html>login</html>') } });
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', CROSS_PDF), fn);
+    expect(outcome).toMatchObject({
+      state: 'failed',
+      error: { name: 'DownloadError', message: '服务器返回的是网页，不是文件。这个文件在另一个站点，可能需要登录；扩展不会把你的登录态发给别的站点' },
+    });
+    expect(library.files.size).toBe(0);
+  });
+
+  it('同站媒体回网页 → 仍是原来的“可能需要登录”提示', async () => {
+    const { fn } = fakeFetch({ [SAME_PDF]: { headers: { 'content-type': 'text/html' }, body: bytes('<html>login</html>') } });
+    const outcome = await save(mediaCapture(BLOG, '附件', 'pdf', SAME_PDF), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: '服务器返回的是网页，不是文件（可能需要登录）' } });
+  });
+});

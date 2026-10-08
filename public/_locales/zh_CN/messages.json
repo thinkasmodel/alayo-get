@@ -449,6 +449,12 @@
   "error_notAFile": {
     "message": "服务器返回的是网页，不是文件（可能需要登录）"
   },
+  "error_notAFileCrossSite": {
+    "message": "服务器返回的是网页，不是文件。这个文件在另一个站点，可能需要登录；扩展不会把你的登录态发给别的站点"
+  },
+  "error_mediaRedirectedCrossSite": {
+    "message": "文件地址跳转到了另一个站点，没有下载"
+  },
   "error_mediaInfoMissing": {
     "message": "媒体剪藏缺少 media 信息"
   },

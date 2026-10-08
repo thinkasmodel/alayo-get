@@ -449,6 +449,12 @@
   "error_notAFile": {
     "message": "The server returned a web page, not a file (you may need to sign in)"
   },
+  "error_notAFileCrossSite": {
+    "message": "The server returned a web page, not a file. This file is on another site and may need you to be signed in there; the extension doesn't send your sign-in to other sites"
+  },
+  "error_mediaRedirectedCrossSite": {
+    "message": "The file address redirected to another site. Not saved"
+  },
   "error_mediaInfoMissing": {
     "message": "Media clip is missing its media info"
   },

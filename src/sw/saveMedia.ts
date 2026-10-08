@@ -1,4 +1,4 @@
-// 媒体剪藏（ALAG-4）：探测大小、下载（带 cookie，60 秒，边读边计数）、写媒体文件与 `.meta/<id>.json`。
+// 媒体剪藏（ALAG-4）：探测大小、下载（同站才带 cookie，60 秒，边读边计数）、写媒体文件与 `.meta/<id>.json`。
 // 音视频超过 100MB 或拿不到大小时转成直链流媒体剪藏；图片、PDF 超过 100MB 退回书签剪藏——这两种转向由 saveClip 接着写。
 import { readBodyCapped } from './fetchBody';
 import type { ClipResult, FetchLike, WriteCtx } from './saveClip';
@@ -21,6 +21,7 @@ import {
   serializeMediaMeta,
   splitExt,
 } from '@/core/media';
+import { mediaCredentials, sameSite } from '@/core/site';
 import { classifyDirect } from '@/core/stream';
 import { t } from '@/shared/i18n';
 import type { Capture, MediaKind } from '@/shared/types';
@@ -39,6 +40,20 @@ export interface ProbeResult {
   fileName: string;
 }
 
+/** 媒体请求的 cookie 策略（ALAG-18，ADR-0009）：pageUrl 是被保存页面，缺省时取请求地址本身。 */
+export interface MediaRequestOptions {
+  credentials: RequestCredentials;
+  pageUrl?: string;
+}
+
+/**
+ * 带 cookie 的请求跟随重定向落到了与页面跨站的地址：cookie 已经发出，只能在响应侧丢弃结果。
+ * 不带 cookie 或没有重定向信息（res.url 为空）时不拦。
+ */
+function redirectedCrossSite(res: Response, url: string, options: MediaRequestOptions): boolean {
+  return options.credentials === 'include' && res.url !== '' && !sameSite(options.pageUrl ?? url, res.url);
+}
+
 function contentLength(res: Response): number | null {
   const raw = res.headers.get('content-length');
   if (raw === null || raw.trim() === '') return null;
@@ -48,14 +63,18 @@ function contentLength(res: Response): number | null {
 
 /**
  * 探测媒体地址的大小与类型，不下载内容：先 HEAD；HEAD 失败或没给 content-length 时 GET，读到响应头就中止。
- * 都失败时 bytes 为 null。
+ * 都失败时 bytes 为 null。带 cookie 的探测跳转到跨站地址时，该次探测视为失败。
  */
-export async function probeMedia(fetchFn: FetchLike, url: string): Promise<ProbeResult> {
+export async function probeMedia(fetchFn: FetchLike, url: string, options: MediaRequestOptions): Promise<ProbeResult> {
   const attempt = async (method: 'HEAD' | 'GET'): Promise<ProbeResult | null> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
     try {
-      const res = await fetchFn(url, { method, credentials: 'include', signal: controller.signal });
+      const res = await fetchFn(url, { method, credentials: options.credentials, signal: controller.signal });
+      if (redirectedCrossSite(res, url, options)) {
+        console.info(`[Alayo Get] ${method} 探测媒体时跳转到了跨站地址，丢弃结果：${url} → ${res.url}`);
+        return null;
+      }
       if (!res.ok) return null;
       return {
         bytes: contentLength(res),
@@ -82,13 +101,15 @@ export type DownloadResult =
   | { kind: 'too-large'; bytes: number | null };
 
 /**
- * 下载媒体文件：带 cookie（登录后才能下的 PDF），60 秒超时；有 content-length 且超过上限时不读；
- * 没有时边读边计数，超过上限就中止（内存里的半截内容丢弃，不写任何文件）。HTTP 错误、超时抛错。
+ * 下载媒体文件：credentials 由调用方按同站规则给（同站带 cookie，登录后才能下的 PDF），60 秒超时；
+ * 有 content-length 且超过上限时不读；没有时边读边计数，超过上限就中止（内存里的半截内容丢弃，不写任何文件）。
+ * HTTP 错误、超时、带 cookie 的请求跳转到跨站地址时抛错。
  */
 export async function downloadMedia(
   fetchFn: FetchLike,
   url: string,
   onProgress: (done: number, total?: number) => void,
+  options: MediaRequestOptions,
   maxBytes = MEDIA_MAX_BYTES,
 ): Promise<DownloadResult> {
   if (isDataUrl(url)) {
@@ -112,7 +133,11 @@ export async function downloadMedia(
     controller.abort();
   }, MEDIA_TIMEOUT_MS);
   try {
-    const res = await fetchFn(url, { credentials: 'include', signal: controller.signal });
+    const res = await fetchFn(url, { credentials: options.credentials, signal: controller.signal });
+    if (redirectedCrossSite(res, url, options)) {
+      controller.abort();
+      throw downloadError(t('error_mediaRedirectedCrossSite'));
+    }
     if (!res.ok) throw downloadError(t('error_httpStatus', String(res.status)));
     const declared = contentLength(res);
     if (declared !== null && declared > maxBytes) {
@@ -209,16 +234,22 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
   const media = capture.media;
   if (!media) throw new Error(t('error_mediaInfoMissing'));
   const { kind, url } = media;
+  // 同站才带 cookie（ALAG-18，ADR-0009）
+  const credentials = mediaCredentials(capture.url, url);
+  const requestOptions: MediaRequestOptions = { credentials, pageUrl: capture.url };
 
   if ((kind === 'video' || kind === 'audio') && !isDataUrl(url)) {
-    const probe = await probeMedia(ctx.deps.fetch, url);
+    const probe = await probeMedia(ctx.deps.fetch, url, requestOptions);
     if (classifyDirect(probe.contentType, probe.bytes, kind) === 'stream') {
       return { kind: 'stream', capture: directStreamCapture(capture, probe) };
     }
   }
 
-  const got = await downloadMedia(ctx.deps.fetch, url, (done, total) =>
-    ctx.progress(total === undefined ? { phase: 'download', done, kind } : { phase: 'download', done, total, kind }),
+  const got = await downloadMedia(
+    ctx.deps.fetch,
+    url,
+    (done, total) => ctx.progress(total === undefined ? { phase: 'download', done, kind } : { phase: 'download', done, total, kind }),
+    requestOptions,
   );
   if (got.kind === 'too-large') {
     if (kind === 'video' || kind === 'audio') {
@@ -227,10 +258,10 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
     return { kind: 'bookmark' };
   }
 
-  // 服务器回了网页（登录页、错误页）而不是文件：不写文件、不写记录
+  // 服务器回了网页（登录页、错误页）而不是文件：不写文件、不写记录。跨站请求没带 cookie，提示里说明原因
   const gotMime = mimeOf(got.contentType);
   if (gotMime === 'text/html' || gotMime === 'application/xhtml+xml') {
-    throw downloadError(t('error_notAFile'));
+    throw downloadError(t(credentials === 'omit' ? 'error_notAFileCrossSite' : 'error_notAFile'));
   }
 
   const name = got.fileName || media.fileName || fileNameFromUrl(url);
@@ -281,6 +312,7 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
 /** 判断媒体类别用：标签页地址的 content-type（PDF 查看器不能注入时，SW 用 HEAD 探一次）。 */
 export async function probeMediaKind(fetchFn: FetchLike, url: string): Promise<MediaKind | null> {
   if (!/^https?:\/\//i.test(url)) return null;
-  const probe = await probeMedia(fetchFn, url);
+  // 探的是标签页自身地址，与页面必然同站：mediaCredentials(url, url) 恒为 include
+  const probe = await probeMedia(fetchFn, url, { credentials: mediaCredentials(url, url), pageUrl: url });
   return mediaKindFromContentType(probe.contentType);
 }
