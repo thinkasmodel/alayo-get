@@ -83,9 +83,10 @@ export type PanelToSw =
   | { type: 'draft'; fields: EditFields; baseline?: number }
   /**
    * 面板仍开着、service worker 被终止导致断线后，面板重连并接着编辑同一条剪藏（不重新保存）。
-   * baseline：面板记下的基线号，service worker 从它接着数，旧表单的 draft 不会撞上新基线（ALAG-20）。
+   * baseline：面板记下的基线号，service worker 从它接着数；baselineFields：这个号对应的表单基线（三个字段），
+   * service worker 登记下来，按它从这个号的 draft 里提取用户改过的字段（ALAG-20）。
    */
-  | { type: 'resume'; clipId: string; baseline?: number }
+  | { type: 'resume'; clipId: string; baseline?: number; baselineFields?: Required<EditFields> }
   /** 恢复块上的按钮：对 id 这条写回失败的草稿重试、存为草稿文件或丢弃（ALAG-20）。 */
   | { type: 'lost-edit'; action: 'retry' | 'file' | 'discard'; id: string };
 

@@ -1,8 +1,8 @@
 // 面板表单与 service worker 推来的新状态合并（ALAG-20 codex review 第 5 轮）。纯函数，node 环境测试。
-import { changedFields } from '@/core/editFields';
+import { changedFields, type FormFields } from '@/core/editFields';
 import type { EditFields } from '@/shared/types';
 
-export type FormFields = Required<EditFields>;
+export type { FormFields };
 
 /**
  * 新 state 到达时：用户相对上一基线改过的字段叠到新 clip 上；返回合并后的表单值与是否有本地改动。

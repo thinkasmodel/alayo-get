@@ -4,6 +4,14 @@ import type { EditFields } from '@/shared/types';
 /** 比较的基准：剪藏信息或面板表单里的三个字段。 */
 export type FieldsBase = { title: string; tags: string[]; note: string };
 
+/** 面板表单的三个字段（全量）。面板合并（src/ui/panel/merge.ts）与 service worker 的基线登记共用。 */
+export type FormFields = Required<EditFields>;
+
+/** 剪藏信息里的三个字段（复制标签数组）。 */
+export function fieldsOf(clip: FieldsBase): FormFields {
+  return { title: clip.title, tags: [...clip.tags], note: clip.note };
+}
+
 /** 两组标签是否相同（顺序也要相同）。 */
 export function sameTags(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((tag, i) => tag === b[i]);

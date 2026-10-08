@@ -557,18 +557,18 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(fields?.note ?? '恢复的批注 B').toBe('恢复的批注 B');
   });
 
-  it('断线重连 resume 带基线号 3：之后推送的编辑态带 4，带旧号 3 的 draft 被丢弃（重连接着数基线号）', async () => {
+  it('断线重连 resume 带基线号 3 和它的基线：之后推送的编辑态带 4，带旧号 3 的 draft 按号 3 的基线提取意图（重连接着数基线号，第 7 轮）', async () => {
     const lostEdits = memoryLostEdits([{ ...stored, fields: { note: '恢复的批注 B' } }]);
     const deps = { ...panelDeps(), lostEdits, findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => clip) };
     const port = open(deps);
-    port.send({ type: 'resume', clipId: clip.id, baseline: 3 });
+    port.send({ type: 'resume', clipId: clip.id, baseline: 3, baselineFields: { title: clip.title, tags: [], note: '' } });
     port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
     await flush();
     const pushed = port.sent.filter((m) => m.type === 'state').at(-1);
     if (pushed?.type !== 'state' || pushed.state.state !== 'saved') throw new Error('没有推送新的编辑态');
     expect(pushed.baseline).toBe(4);
     expect(pushed.state.clip.note).toBe('恢复的批注 B');
-    // 重连前的旧表单（基线 3）发来的全量 draft 被丢弃，关闭时不把恢复的批注覆盖回去
+    // 重连前的旧表单（基线 3）发来的全量 draft 与号 3 的基线相同，没有改动，关闭时不把恢复的批注覆盖回去
     port.send({ type: 'draft', fields: { title: clip.title, tags: [], note: '' }, baseline: 3 });
     port.disconnect();
     await flush();
@@ -734,7 +734,7 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(fields).toEqual({ tags: ['x'] });
   });
 
-  it('比上一个基线号还旧的 draft 仍被丢弃（codex review 第 6 轮）', async () => {
+  it('基线号不在登记表里（更旧或未知）：不丢弃，按当前剪藏提取意图（codex review 第 6、7 轮）', async () => {
     const fileClip: ClipSummary = { ...clip, note: '旧批注 A' };
     const lostEdits = memoryLostEdits([{ ...stored, clip: fileClip, fields: { note: '恢复的批注 B' } }]);
     const deps = {
@@ -748,10 +748,69 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     await flush();
     port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
     await flush();
-    port.send({ type: 'draft', fields: { title: clip.title, tags: ['y'], note: '旧批注 A' }, baseline: 0 });
+    port.send({ type: 'draft', fields: { title: clip.title, tags: ['y'], note: '恢复的批注 B' }, baseline: 0 });
+    port.disconnect();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(2);
+    expect(deps.applyEdits.mock.calls[1]?.[1]).toEqual({ tags: ['y'] });
+  });
+
+  it('撤销：用户改了批注、重试恢复了别的内容后，旧表单又把批注改回基线值 → 关闭时不写批注，文件保留恢复的内容（codex review 第 7 轮）', async () => {
+    const fileClip: ClipSummary = { ...clip, note: 'A' };
+    const lostEdits = memoryLostEdits([{ ...stored, clip: fileClip, fields: { note: 'R' } }]);
+    const deps = {
+      ...panelDeps(),
+      lostEdits,
+      takePendingEdit: vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => fileClip.id),
+      findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => fileClip),
+    };
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.send({ type: 'draft', fields: { title: clip.title, tags: [], note: 'B' }, baseline: 1 });
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    const pushed = port.sent.filter((m) => m.type === 'state').at(-1);
+    if (pushed?.type !== 'state' || pushed.state.state !== 'saved') throw new Error('没有推送新的编辑态');
+    expect(pushed.baseline).toBe(2);
+    expect(pushed.state.clip.note).toBe('R');
+    // 面板还在旧表单上，把批注改回 A（号 1 的基线值）
+    port.send({ type: 'draft', fields: { title: clip.title, tags: [], note: 'A' }, baseline: 1 });
     port.disconnect();
     await flush();
     expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+    expect(deps.applyEdits.mock.calls.slice(1).every(([, fields]) => fields.note === undefined)).toBe(true);
+  });
+
+  it('重连带来号 3 的基线、重试切到号 4 后，带号 3 的全量 draft 只提取出改过的标签（codex review 第 7 轮）', async () => {
+    const fileNow: ClipSummary = { ...clip, note: 'B', tags: [] };
+    const lostEdits = memoryLostEdits([{ ...stored, clip: fileNow, fields: { note: '恢复的批注 R' } }]);
+    const deps = { ...panelDeps(), lostEdits, findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => fileNow) };
+    const port = open(deps);
+    port.send({ type: 'resume', clipId: clip.id, baseline: 3, baselineFields: { title: clip.title, tags: [], note: 'A' } });
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    const pushed = port.sent.filter((m) => m.type === 'state').at(-1);
+    expect(pushed?.type === 'state' ? pushed.baseline : undefined).toBe(4);
+    port.send({ type: 'draft', fields: { title: clip.title, tags: ['x'], note: 'A' }, baseline: 3 });
+    port.disconnect();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(2);
+    expect(deps.applyEdits.mock.calls[1]?.[0].note).toBe('恢复的批注 R');
+    expect(deps.applyEdits.mock.calls[1]?.[1]).toEqual({ tags: ['x'] });
+  });
+
+  it('不带基线号的 draft：等于当前剪藏的字段从 draft 里删掉，不等的写入（codex review 第 7 轮）', async () => {
+    const deps = panelDeps();
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 1 });
+    await flush();
+    port.send({ type: 'draft', fields: { title: '新标题', tags: ['x'], note: '' } });
+    port.send({ type: 'draft', fields: { title: clip.title, tags: ['x'], note: '' } });
+    port.disconnect();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+    expect(deps.applyEdits.mock.calls[0]?.[1]).toEqual({ tags: ['x'] });
   });
 
   it('不带 baseline 的 draft 照旧接受（codex review 第 2 轮）', async () => {

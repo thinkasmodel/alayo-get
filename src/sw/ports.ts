@@ -4,6 +4,7 @@ import type { LostEditStore } from '@/io/lostEdits';
 import type { PanelToSw, SwToPanel } from '@/shared/messages';
 import type { Capture, ClipSummary, ClipUnavailableState, EditFields, LostEdit, LostEditNotice, PanelState, SaveOutcome, TagCount } from '@/shared/types';
 import { changedFields } from './applyEdits';
+import { fieldsOf, sameTags, type FormFields } from '@/core/editFields';
 import type { ClipBook } from './clips';
 
 /** Port 的最小接口（便于用假 Port 测试）。 */
@@ -70,25 +71,50 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       console.debug('[Alayo Get] 面板已断开', err);
     }
   };
-  /** 编辑态基线号：每推一次 saved / fallback 加一；带旧基线的 draft 来自旧表单（codex review ALAG-20 第 2 轮）。 */
+  /** 编辑态基线号：每推一次 saved / fallback 加一，面板的 draft 带回它（codex review ALAG-20 第 2 轮）。 */
   let baseline = 0;
-  /** 最后一次推送的编辑态里的剪藏，即当前基线号对应的面板表单所依据的内容。 */
-  let postedClip: ClipSummary | null = null;
   /**
-   * 上一个基线号和它所依据的剪藏（第 6 轮）：面板还没收到新状态时发来的 draft 带的是它，
-   * 只合入相对它真正改过的字段。只在同一条剪藏切换基线时记；首次进编辑态、保存流程、断线重连后为 null。
+   * 基线号 → 那次推送给面板的三个字段（只留最近 2 个号）。draft 按它提取用户意图：
+   * 与这个号的基线相同的字段不算改动，不同的才是用户改的（第 7 轮）。
    */
-  let prevBaseline: { n: number; clip: ClipSummary } | null = null;
+  const baselines = new Map<number, FormFields>();
+  const registerBaseline = (n: number, fields: FormFields) => {
+    baselines.set(n, fields);
+    for (const key of baselines.keys()) if (key <= n - 2) baselines.delete(key);
+  };
   const post = (state: PanelState) => {
     if (state.state === 'saved' || state.state === 'fallback') {
-      prevBaseline = baseline > 0 && postedClip && postedClip.id === state.clip.id ? { n: baseline, clip: postedClip } : null;
-      postedClip = state.clip;
       baseline += 1;
+      registerBaseline(baseline, fieldsOf(state.clip));
       send({ type: 'state', state, baseline });
     } else {
       send({ type: 'state', state });
     }
   };
+  /**
+   * 意图提取（codex review ALAG-20 第 7 轮）：面板发的是全量表单，按这份表单所依据的基线（draft 带的号登记的字段，
+   * 没有就用当前剪藏）判断每个字段：等于基线 → 用户没改（或改回去了），从 draft 里删掉；不等 → 用户的修改，写入。
+   * 不按号丢弃任何 draft。还没有剪藏（保存还没结束）时原样合入。
+   */
+  const extractIntent = (current: EditFields, fields: EditFields, n: number | undefined): EditFields => {
+    const base = (n !== undefined ? baselines.get(n) : undefined) ?? (clip ? fieldsOf(clip) : null);
+    if (!base) return { ...current, ...fields };
+    const next: EditFields = { ...current };
+    if (fields.title !== undefined) {
+      if (fields.title === base.title) delete next.title;
+      else next.title = fields.title;
+    }
+    if (fields.tags !== undefined) {
+      if (sameTags(fields.tags, base.tags)) delete next.tags;
+      else next.tags = [...fields.tags];
+    }
+    if (fields.note !== undefined) {
+      if (fields.note === base.note) delete next.note;
+      else next.note = fields.note;
+    }
+    return next;
+  };
+
   /** 推送草稿全量和本次会话的通知。 */
   const postLostEdits = async (store: LostEditStore): Promise<LostEdit[]> => {
     const edits = await store.list();
@@ -175,17 +201,12 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       if (next) {
         // ② 先切换基线：文件已写成，后面删草稿失败也不能让面板停在旧值上（codex review ALAG-20 第 3 轮）
         if (clip && clip.id === edit.clip.id) {
-          // 面板正开着同一条剪藏：以写回后的内容为新基线，保留本次会话里用户还没提交的修改，
-          // 否则关闭面板时会把刚恢复的内容覆盖回旧值（codex review ALAG-20 第 1 轮）。
-          // 先等标签建议，再按等待结束时最新的 draft 算用户的修改、切换基线（第 2 轮）
+          // 面板正开着同一条剪藏：以写回后的内容为新基线，关闭时不把刚恢复的内容覆盖回旧值（第 1 轮）。
+          // draft 不动：它只含用户真正改过的字段（意图提取，第 7 轮）。推送纯基线，面板把本地改动叠回去（第 6 轮）
           const tagSuggestions = (await deps.tagSuggestions?.()) ?? [];
           const current = clip;
           if (current && current.id === edit.clip.id) {
-            const userEdits = changedFields(current, draft);
             clip = next;
-            draft = userEdits;
-            // 推送纯基线（写回后的内容），不叠 userEdits：面板按上一基线把本地改动叠回去并按新基线重发（第 6 轮）。
-            // SW 这边的 draft 仍留着 userEdits，面板重发没到就关闭时照样写回
             post({ state: editState(next), clip: next, tagSuggestions });
           }
         }
@@ -262,8 +283,10 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         // 面板断线重连：接着编辑同一条剪藏，不重新保存（codex review 第 8 轮）
         if (started || !deps.findClip) return;
         started = true;
-        // 基线号接着面板记下的数，之后推送的编辑态不会与旧表单的号相同（ALAG-20）
+        // 基线号接着面板记下的数，之后推送的编辑态不会与旧表单的号相同；面板带来的基线登记下来，
+        // 之后带这个号的 draft 按它提取意图（ALAG-20）
         baseline = message.baseline ?? 0;
+        if (message.baselineFields) registerBaseline(baseline, fieldsOf(message.baselineFields));
         track(
           deps.findClip(message.clipId).then((found) => {
             clip = found ?? null;
@@ -280,14 +303,7 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         return;
       }
       case 'draft': {
-        if (message.baseline === undefined || baseline === 0 || message.baseline === baseline) {
-          draft = { ...draft, ...message.fields };
-        } else if (prevBaseline && message.baseline === prevBaseline.n) {
-          // 面板还没收到新状态时发出的全量表单：只合入相对旧基线真正改过的字段（codex review ALAG-20 第 6 轮）
-          draft = { ...draft, ...changedFields(prevBaseline.clip, message.fields) };
-        } else {
-          console.debug('[Alayo Get] 忽略旧表单的修改', message.baseline, baseline);
-        }
+        draft = extractIntent(draft, message.fields, message.baseline);
         return;
       }
       case 'lost-edit': {

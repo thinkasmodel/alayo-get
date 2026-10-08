@@ -121,7 +121,13 @@ async function main() {
       port = null;
       if (clipId === null) return;
       connect();
-      send(lastBaseline === undefined ? { type: 'resume', clipId } : { type: 'resume', clipId, baseline: lastBaseline });
+      // 带上基线号和它对应的表单基线，service worker 按它从之后的 draft 里提取改过的字段（第 7 轮）
+      send({
+        type: 'resume',
+        clipId,
+        ...(lastBaseline === undefined ? {} : { baseline: lastBaseline }),
+        ...(baselineFields ? { baselineFields } : {}),
+      });
       // 只补发改过的字段：没改的不发，后台被终止期间文件在别处被改过也不会被面板的旧值覆盖（codex review 第 5 轮）
       const diff = baselineFields && lastFields ? changedFields(baselineFields, lastFields) : {};
       if (Object.keys(diff).length > 0) send(draftMessage(diff));
