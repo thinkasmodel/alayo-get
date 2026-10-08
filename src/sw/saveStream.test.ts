@@ -323,3 +323,12 @@ describe('流媒体剪藏：只有 og 元数据（平台 JSON 取不到）', () 
     expect(await captureStreamPage(parsed(BV), '链接文字', bili.fn)).toMatchObject({ fetched: false, title: '链接文字' });
   });
 });
+
+// ALAG-17：视频页 HTML 超过 4MB 按抓取失败处理
+describe('流媒体剪藏：视频页太大', () => {
+  it('B 站视频页超过 4MB → partial（fetched: false），不抛错', async () => {
+    const { fn } = fakeFetch({ [BV]: { type: 'text/html', body: bilibiliHtml + ' '.repeat(4 * 1024 * 1024) } });
+    const capture = await captureStreamPage(parsed(BV), '标签页标题', fn);
+    expect(capture).toMatchObject({ url: BV, title: '标签页标题', fetched: false, stream: { platform: 'bilibili', videoId: 'BV1GJ411x7h7' } });
+  });
+});

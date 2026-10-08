@@ -495,3 +495,92 @@ describe('captureLink', () => {
     expect(md.slice(md.indexOf('\n---\n') + 5)).toBe('\n[链接文字](https://target.example.com/gone)\n');
   });
 });
+
+// ALAG-17 S3：图片边读边计数、单次剪藏附件总预算、链接页 HTML 字节上限
+describe('saveClip：附件大小上限与总预算', () => {
+  const MB = 1024 * 1024;
+  const ID = '01JID000000000000000000001';
+
+  /** 一个地址的流式假响应：count 块、每块 chunkBytes 字节；记录是否被取消。 */
+  interface StreamRoute {
+    type: string;
+    chunkBytes: number;
+    count: number;
+    /** 带 content-length（= chunkBytes × count）。 */
+    withLength?: boolean;
+  }
+
+  /** 假 fetch：响应体是按需拉取的流（highWaterMark 0），记录请求、返回的 Response 与流的取消状态。 */
+  function streamFetch(routes: Record<string, StreamRoute>) {
+    const calls: Array<{ url: string; res?: Response; state: { pulled: number; cancelled: boolean } }> = [];
+    const fn: FetchLike = async (url) => {
+      const route = routes[url];
+      const state = { pulled: 0, cancelled: false };
+      const call: (typeof calls)[number] = { url, state };
+      calls.push(call);
+      if (!route) throw new TypeError('Failed to fetch');
+      const chunk = new Uint8Array(route.chunkBytes);
+      const body = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            if (state.pulled >= route.count) {
+              controller.close();
+              return;
+            }
+            state.pulled++;
+            controller.enqueue(chunk);
+          },
+          cancel() {
+            state.cancelled = true;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const headers = new Headers({ 'content-type': route.type });
+      if (route.withLength) headers.set('content-length', String(route.chunkBytes * route.count));
+      call.res = new Response(body, { headers });
+      return call.res;
+    };
+    return { fn, calls };
+  }
+
+  it('一张没有 content-length 的 24MB 图片：边读边计数，超过 20MB 取消读取；文章照常保存，该图保留远程地址', async () => {
+    const BIG = 'https://img.example.com/big.jpg';
+    const { fn, calls } = streamFetch({ [BIG]: { type: 'image/jpeg', chunkBytes: MB, count: 24 } });
+    const capture = articleCapture({ markdown: `第一段。\n\n![大图](${BIG})` });
+    const outcome = await saveClip({ capture, snapshot: false }, makeDeps(fn));
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    expect(outcome.clip.imageCount).toBe(0);
+    expect(outcome.clip.imageFailures).toBe(1);
+    expect(library.text(outcome.clip.file) ?? '').toContain(`![大图](${BIG})`);
+    expect([...library.files.keys()].filter((p) => p.startsWith('.assets/'))).toEqual([]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.state.cancelled).toBe(true);
+    expect(calls[0]?.state.pulled).toBeLessThanOrEqual(21);
+  });
+
+  it('附件总预算 3MB、4 张各 1MB（带 content-length）：存 3 张，跳过的一张保留远程地址、没有读响应体', async () => {
+    const urls = [1, 2, 3, 4].map((n) => `https://img.example.com/${n}.png`);
+    const { fn, calls } = streamFetch(Object.fromEntries(urls.map((u) => [u, { type: 'image/png', chunkBytes: MB, count: 1, withLength: true }])));
+    const capture = articleCapture({ markdown: urls.map((u, i) => `![图${i + 1}](${u})`).join('\n\n') });
+    const outcome = await saveClip({ capture, snapshot: false }, makeDeps(fn, { imageTotalMaxBytes: 3 * MB }));
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    expect(outcome.clip.imageCount).toBe(3);
+    expect(outcome.clip.imageFailures).toBe(1);
+    const md = library.text(outcome.clip.file) ?? '';
+    const skipped = urls.filter((u) => md.includes(`](${u})`));
+    expect(skipped).toHaveLength(1);
+    expect([...library.files.keys()].filter((p) => p.startsWith(`.assets/${ID}/`))).toHaveLength(3);
+    // 被跳过的图片：没发请求，或发了但没读响应体
+    const skippedCalls = calls.filter((c) => c.url === skipped[0]);
+    expect(skippedCalls.every((c) => c.res?.bodyUsed === false && c.state.pulled === 0)).toBe(true);
+  });
+
+  it('链接目标页超过 4MB：按抓取失败处理，返回 partial（fetched: false），不抛错', async () => {
+    const { fn } = fakeFetch({ 'https://target.example.com/huge': { type: 'text/html; charset=utf-8', body: `<title>大页</title>${'x'.repeat(4 * MB)}` } });
+    const capture = await captureLink('https://target.example.com/huge', '链接文字', fn);
+    expect(capture).toMatchObject({ kind: 'link', fetched: false, title: '链接文字', description: '' });
+  });
+});

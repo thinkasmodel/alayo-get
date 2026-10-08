@@ -1,5 +1,6 @@
 // 流媒体剪藏（ALAG-4）：采集（service worker 抓 YouTube、B 站视频页的服务端 HTML；网盘、X 视频、直链的 Capture 拼装）
 // 与写入（封面下载、`.md`）。查重、加锁、清理、提交已保存记录由 saveClip 负责。
+import { HTML_MAX_BYTES, readTextCapped } from './fetchBody';
 import type { ClipResult, FetchLike, WriteCtx } from './saveClip';
 import { canonicalizeUrl } from '@/core/canonical';
 import { buildStreamMarkdown } from '@/core/document';
@@ -56,7 +57,12 @@ export async function captureStreamPage(parsed: ParsedStream, fallbackTitle: str
     }
     const type = (res.headers.get('content-type') ?? '').toLowerCase();
     if (type !== '' && !type.includes('html')) return partialStreamCapture(target, fallbackTitle);
-    const html = await res.text();
+    const html = await readTextCapped(res, HTML_MAX_BYTES);
+    if (html === null) {
+      controller.abort();
+      console.warn('[Alayo Get] 视频页超过 4MB，按抓取失败处理，只记地址和标题', target.canonical);
+      return partialStreamCapture(target, fallbackTitle);
+    }
     const meta = parseStreamHtml(parsed.platform, html, res.url || target.canonical);
     // 同意页、登录页、重定向到别的视频时，页面里的 ID 与要存的不一致：按抓取失败处理
     if (!meta.videoIds.includes(target.videoId)) return partialStreamCapture(target, fallbackTitle);

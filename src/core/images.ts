@@ -192,12 +192,23 @@ const TYPE_EXT: Record<string, string> = {
 const NOT_IMAGE = /^(text\/|application\/(xhtml\+xml|json)$)/;
 
 /**
- * 扩展名三级回退：content-type 映射 → URL 路径里的扩展名 → null（判为下载失败）。
+ * 按 URL 后缀回退时接受的图片扩展名（ALAG-17）：不含 svg——SVG 是主动内容，只有服务器明确声明 image/svg+xml 才认。
+ * jpeg 先归一为 jpg 再查。
+ */
+const IMAGE_URL_EXTS: ReadonlySet<string> = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp']);
+
+/** 图片 mime（已去参数、小写）对应的扩展名；不认识返回 null。只做映射，不看 URL。 */
+export function extFromImageMime(mime: string): string | null {
+  return TYPE_EXT[mime] ?? null;
+}
+
+/**
+ * 扩展名三级回退：content-type 映射 → URL 路径里的扩展名（只认图片白名单 IMAGE_URL_EXTS）→ null（判为下载失败）。
  * content-type 明确不是图片（网页、文本、JSON）时直接返回 null。
  */
 export function extFromContentType(contentType: string | null, url: string): string | null {
   const mime = (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-  const mapped = TYPE_EXT[mime];
+  const mapped = extFromImageMime(mime);
   if (mapped) return mapped;
   // 服务器明确说是网页、文本或 JSON 时不是图片，不按 URL 后缀回退（ALAG-8：维基百科 /wiki/File:X.png 说明页被存成了 .png）
   if (NOT_IMAGE.test(mime)) return null;
@@ -210,5 +221,7 @@ export function extFromContentType(contentType: string | null, url: string): str
   const m = /\.([a-z0-9]{1,5})$/i.exec(pathname);
   if (!m?.[1]) return null;
   const ext = m[1].toLowerCase();
+  // 服务器没说清类型时，URL 后缀只决定白名单内的图片扩展名（ALAG-17：/x.bat、/x.svg 不认）
+  if (!IMAGE_URL_EXTS.has(ext)) return null;
   return ext === 'jpeg' ? 'jpg' : ext;
 }
