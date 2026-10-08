@@ -339,3 +339,34 @@ describe('面向通用用户（ALAG-6）', () => {
     expect(render(state, null).text).not.toContain('Workbench');
   });
 });
+
+describe('从页面提示「加批注…」进入的编辑态（ALAG-16）', () => {
+  it('摘录剪藏已保存：状态行“已摘录”＋摘录说明行，文件名，只有批注框并自动聚焦；draft 仍发三个字段', () => {
+    const quoteClip: ClipSummary = {
+      ...clip,
+      id: '01JQUOTE',
+      medium: 'quote',
+      file: '摘录 - 为什么我们需要慢思考.md',
+      title: '为什么我们需要慢思考',
+      tags: [],
+      note: '旧批注',
+      quote: { fileId: 'F', entry: 3, anchor: 'a', fragment: true, recreated: false },
+    };
+    const { root, actions } = render({ state: 'saved', clip: quoteClip, tagSuggestions: [] });
+    expect(root.querySelector('.st')?.textContent).toBe('已摘录');
+    expect(root.querySelector('.sm')?.textContent).toBe('第 3 条 · 摘录 - 为什么我们需要慢思考.md');
+    expect(root.querySelector('.fn')?.textContent).toBe('摘录 - 为什么我们需要慢思考.md');
+    expect([...root.querySelectorAll('label')].map((l) => l.textContent)).toEqual(['批注']);
+    expect(root.querySelector('#f-title')).toBeNull();
+    expect(root.querySelector('#f-tags')).toBeNull();
+    expect(root.querySelectorAll('input')).toHaveLength(0);
+    const note = root.querySelector('textarea');
+    expect(note?.value).toBe('旧批注');
+    expect(document.activeElement).toBe(note);
+    expect(root.querySelector('.foot')?.textContent).toContain('关闭面板时自动写入');
+    if (!note) return;
+    note.value = '面板里写的批注';
+    note.dispatchEvent(new Event('input'));
+    expect(actions.postDraft).toHaveBeenLastCalledWith({ title: quoteClip.title, tags: [], note: '面板里写的批注' });
+  });
+});

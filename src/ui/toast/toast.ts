@@ -1,5 +1,6 @@
 // 页面右下角提示（DESIGN.md §3.3，设计稿 Toast.dc.html）：挂在页面上的 closed shadow root 里，同时只有一个。
-import type { OpenOptionsMessage, SwToToastNote, ToastActionMessage, ToastNoteToSw } from '@/shared/messages';
+// 网页里不放任何输入控件（ADR-0008，ALAG-16）：「加批注…」请后台打开工具栏面板，批注在面板里写。
+import type { OpenOptionsMessage, ToastActionMessage, ToastActionResponse } from '@/shared/messages';
 import { t } from '@/shared/i18n';
 import type { SaveOutcome } from '@/shared/types';
 import { h, iconEl, type Child } from '../dom';
@@ -8,25 +9,14 @@ import tokensCss from '../tokens.css?inline';
 import toastCss from './toast.css?inline';
 
 export const TOAST_HOST_ATTR = 'data-alayo-get-toast';
-/** 新提示替换旧提示时发给旧宿主元素的事件：旧提示据此清计时器、断开批注 Port。 */
+/** 新提示替换旧提示时发给旧宿主元素的事件：旧提示据此清计时器。 */
 const DISPOSE_EVENT = 'alayo-get-toast-dispose';
 export const TOAST_AUTO_MS = 3000;
 export const TOAST_FADE_MS = 150;
 
-export interface NotePort {
-  postMessage(message: ToastNoteToSw): void;
-  disconnect(): void;
-  onMessage: { addListener(fn: (message: SwToToastNote) => void): void };
-  onDisconnect: { addListener(fn: () => void): void };
-}
-
-/** 提交批注后等后台确认的时限；超时按失败处理，保留输入。 */
-export const NOTE_ACK_MS = 8000;
-
 export interface ToastDeps {
-  sendMessage(message: OpenOptionsMessage | ToastActionMessage): void;
-  /** 连上 'toast-note' Port。 */
-  connectNote(): NotePort;
+  /** 发给后台；「加批注…」等它的回应（ToastActionResponse），其余不看返回值。 */
+  sendMessage(message: OpenOptionsMessage | ToastActionMessage): Promise<unknown> | void;
 }
 
 export interface ToastHandle {
@@ -110,13 +100,12 @@ export function mountToast(outcome: SaveOutcome, deps: ToastDeps, doc: Document 
   root.appendChild(h('style', {}, `${tokensCss}\n${toastCss}`));
 
   const content = contentFor(outcome);
-  const clipId = outcome.state === 'saved' || outcome.state === 'fallback' ? outcome.clip.id : null;
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let hovering = false;
-  let expanded = false;
   let gone = false;
-  let port: NotePort | null = null;
+  /** 「加批注…」在等后台回应：这期间不计时（移开鼠标也不），免得回应慢时把失败态一起收掉。 */
+  let notePending = false;
 
   const clearTimer = () => {
     if (timer !== null) clearTimeout(timer);
@@ -124,23 +113,12 @@ export function mountToast(outcome: SaveOutcome, deps: ToastDeps, doc: Document 
   };
   const startTimer = () => {
     clearTimer();
-    if (gone || !content.autoDismiss || expanded || hovering) return;
+    if (gone || !content.autoDismiss || hovering || notePending) return;
     timer = setTimeout(dismiss, TOAST_AUTO_MS);
-  };
-  const disconnectPort = () => {
-    if (!port) return;
-    try {
-      port.disconnect();
-    } catch {
-      // 扩展已重载，Port 早已失效
-    }
-    port = null;
   };
   const teardown = () => {
     gone = true;
     clearTimer();
-    clearAck();
-    disconnectPort();
   };
 
   function dismiss() {
@@ -152,189 +130,79 @@ export function mountToast(outcome: SaveOutcome, deps: ToastDeps, doc: Document 
     else setTimeout(remove, TOAST_FADE_MS);
   }
 
-  // 批注：后台空闲约 30 秒会被 Chrome 终止，Port 随之断开。断开后下次发送时重连并重发完整草稿；
-  // 提交后等后台回复 committed 才收起，失败或超时保留输入（codex review 第 7 轮）。
-  let currentNote = '';
-  /** 用户动过批注框：清空成 '' 也算草稿，断线后要补发（codex review 合并前复审）。 */
-  let hasDraft = false;
-  let awaitingAck = false;
-  let ackTimer: ReturnType<typeof setTimeout> | null = null;
-  let noteError: HTMLElement | null = null;
-  /** 一条提示内自动重连的上限，避免扩展已失效时反复重连。 */
-  const MAX_RECONNECTS = 3;
-  let reconnects = 0;
-
-  const connect = (): NotePort => {
-    const p = deps.connectNote();
-    port = p;
-    p.onDisconnect.addListener(() => {
-      if (port !== p) return;
-      port = null;
-      if (gone) return;
-      // 后台被终止：立刻重连并补发草稿，不等下一次输入——否则用户直接离开页面时批注会丢（codex review 加审轮）。
-      if (reconnects >= MAX_RECONNECTS) {
-        if (awaitingAck) failCommit(t('toast_noteLostConnection'));
-        return;
-      }
-      reconnects++;
-      if (awaitingAck) {
-        sendCommit();
-      } else if (clipId !== null && hasDraft) {
-        deliver({ type: 'draft', clipId, note: currentNote });
-      }
-    });
-    p.onMessage.addListener((message) => {
-      if (port !== p || !awaitingAck) return;
-      if (message.type === 'commit-failed') failCommit(message.message, true);
-      else if (message.note === currentNote) finishCommit();
-      else resendCommit();
-    });
-    return p;
-  };
-
-  const tryPost = (p: NotePort, message: ToastNoteToSw): boolean => {
-    try {
-      p.postMessage(message);
-      return true;
-    } catch (err) {
-      console.debug('[Alayo Get] 批注 Port 已断开，重连', err);
-      return false;
-    }
-  };
-
-  /** 发一条消息；Port 已断开时重连，先补发完整草稿再发这一条。 */
-  const deliver = (message: ToastNoteToSw): boolean => {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      let p = port;
-      if (!p) {
-        p = connect();
-        if (message.type === 'commit' && clipId !== null && !tryPost(p, { type: 'draft', clipId, note: currentNote })) {
-          port = null;
-          continue;
-        }
-      }
-      if (tryPost(p, message)) return true;
-      port = null;
-    }
-    return false;
-  };
-
-  const clearAck = () => {
-    if (ackTimer !== null) clearTimeout(ackTimer);
-    ackTimer = null;
-  };
-
-  function finishCommit() {
-    awaitingAck = false;
-    clearAck();
-    expanded = false;
-    noteArea?.remove();
-    noteArea = null;
-    dismiss();
-  }
-
-  /**
-   * 批注写回失败。本地的两个原因是小写短语，接在冒号后；service worker 回的原因是整句（可能自带句号），
-   * 换用整句的句式，并去掉原因末尾的句号，避免出现两个句号（ALAG-8）。
-   */
-  function failCommit(reason: string, fromWorker = false) {
-    awaitingAck = false;
-    clearAck();
-    if (!noteArea) return;
-    noteError?.remove();
-    const text = fromWorker ? t('toast_noteFailedFromWorker', reason.trim().replace(/[.。]+$/, '')) : t('toast_noteFailed', reason);
-    noteError = h('p', { class: 'noteerr', role: 'status' }, text);
-    noteArea.append(noteError);
-  }
-
-  /** 发出当前完整草稿和 commit，并重新计时等待确认。 */
-  function sendCommit() {
-    clearAck();
-    if (clipId === null || !deliver({ type: 'draft', clipId, note: currentNote }) || !deliver({ type: 'commit' })) {
-      failCommit(t('toast_noteLostConnection'));
-      return;
-    }
-    ackTimer = setTimeout(() => failCommit(t('toast_noteNoAck')), NOTE_ACK_MS);
-  }
-
-  /** 确认的是旧版本（提交后又改了字）：接着提交新版本，不收起。 */
-  function resendCommit() {
-    sendCommit();
-  }
-
-  const commit = () => {
-    if (clipId === null) return;
-    awaitingAck = true;
-    noteError?.remove();
-    noteError = null;
-    sendCommit();
-  };
-
-  let noteArea: HTMLElement | null = null;
-  const expandNote = () => {
-    if (expanded || clipId === null) return;
-    expanded = true;
-    clearTimer();
-    if (!port) connect();
-    addNoteButton?.remove();
-    const textarea = h('textarea', { id: 'note', class: 'inp', rows: 2, placeholder: t('ui_notePlaceholder') });
-    textarea.addEventListener('input', () => {
-      currentNote = textarea.value;
-      hasDraft = true;
-      deliver({ type: 'draft', clipId, note: currentNote });
-    });
-    textarea.addEventListener('keydown', (e) => {
-      if (e.isComposing || e.keyCode === 229) return;
-      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        commit();
-      }
-    });
-    noteArea = h('div', { class: 'notearea' }, [
-      h('label', { class: 'sr-only', for: 'note' }, t('ui_note')),
-      textarea,
-      h('div', { class: 'row' }, [
-        h('span', { class: 'hint' }, t('toast_noteHint')),
-        h('button', { type: 'button', class: 'pbtn', onclick: commit }, t('toast_noteSave')),
-      ]),
-    ]);
-    box.appendChild(noteArea);
-    textarea.focus();
-  };
-
   const textButton = (label: string, onclick: () => void) => h('button', { type: 'button', class: 'tbtn', onclick }, label);
+  const closeButton = () => h('button', { type: 'button', class: 'xbtn', 'aria-label': t('toast_close'), onclick: () => dismiss() }, iconEl('close', 14));
 
-  let addNoteButton: HTMLButtonElement | null = null;
+  let closeBtn: HTMLButtonElement | null = null;
+  let panelError: HTMLElement | null = null;
+
+  /** 面板没能打开：提示不再自动消失，补关闭按钮，下面加一行说明；按钮恢复可点（设计稿 Toast.html「面板打开失败」）。 */
+  const showPanelFailed = (button: HTMLButtonElement) => {
+    content.autoDismiss = false;
+    clearTimer();
+    button.disabled = false;
+    if (!closeBtn) {
+      closeBtn = closeButton();
+      row.append(closeBtn);
+    }
+    if (!panelError) {
+      panelError = h('p', { class: 'noteerr', role: 'status' }, t('toast_panelFailed'));
+      row.after(panelError);
+    }
+  };
+
+  /** 「加批注…」：请后台记下这条剪藏并打开工具栏面板；打开了就收起提示。 */
+  const requestNote = async (button: HTMLButtonElement, id: string) => {
+    if (notePending || gone) return;
+    notePending = true;
+    button.disabled = true;
+    clearTimer();
+    let opened = false;
+    try {
+      const response = (await deps.sendMessage({ type: 'toast-action', action: 'note', clipId: id })) as Partial<ToastActionResponse> | undefined;
+      opened = response?.opened === true;
+    } catch (err) {
+      console.warn('[Alayo Get] 请求打开面板失败', err);
+    }
+    notePending = false;
+    if (gone) return;
+    if (opened) dismiss();
+    else showPanelFailed(button);
+  };
+
   const actions: Child[] = [];
   switch (outcome.state) {
     case 'saved':
-    case 'fallback':
-      addNoteButton = textButton(t('toast_addNote'), expandNote);
-      actions.push(addNoteButton);
+    case 'fallback': {
+      const id = outcome.clip.id;
+      const noteButton: HTMLButtonElement = textButton(t('toast_addNote'), () => {
+        void requestNote(noteButton, id);
+      });
+      actions.push(noteButton);
       break;
+    }
     case 'duplicate':
-      actions.push(textButton(t('toast_saveSnapshot'), () => deps.sendMessage({ type: 'toast-action', action: 'snapshot' })));
+      actions.push(textButton(t('toast_saveSnapshot'), () => void deps.sendMessage({ type: 'toast-action', action: 'snapshot' })));
       break;
     case 'failed':
       // 右键时就判定、不写文件的失败（XVideoNeedsPost、NoDownloadableUrl）重试没有意义，只留关闭（ALAG-4）
-      if (failureRetryable(outcome.error)) actions.push(textButton(t('ui_retry'), () => deps.sendMessage({ type: 'toast-action', action: 'retry' })));
+      if (failureRetryable(outcome.error)) actions.push(textButton(t('ui_retry'), () => void deps.sendMessage({ type: 'toast-action', action: 'retry' })));
       break;
     case 'needs-permission':
-      actions.push(textButton(t('toast_allowAccess'), () => deps.sendMessage({ type: 'open-options', section: 'reauth' })));
+      actions.push(textButton(t('toast_allowAccess'), () => void deps.sendMessage({ type: 'open-options', section: 'reauth' })));
       break;
   }
   if (!content.autoDismiss) {
-    actions.push(h('button', { type: 'button', class: 'xbtn', 'aria-label': t('toast_close'), onclick: () => dismiss() }, iconEl('close', 14)));
+    closeBtn = closeButton();
+    actions.push(closeBtn);
   }
 
-  const box = h('div', { class: 'toast', role: 'status', 'data-state': outcome.state }, [
-    h('div', { class: 'row' }, [
-      content.iconName ? iconEl(content.iconName, 16, `icon ${content.iconClass}`) : null,
-      h('div', { class: 'tx' }, [h('div', { class: content.titleClass }, content.title), h('div', { class: 'ts' }, content.desc)]),
-      ...actions,
-    ]),
+  const row = h('div', { class: 'row' }, [
+    content.iconName ? iconEl(content.iconName, 16, `icon ${content.iconClass}`) : null,
+    h('div', { class: 'tx' }, [h('div', { class: content.titleClass }, content.title), h('div', { class: 'ts' }, content.desc)]),
+    ...actions,
   ]);
+  const box = h('div', { class: 'toast', role: 'status', 'data-state': outcome.state }, [row]);
   box.addEventListener('mouseenter', () => {
     hovering = true;
     clearTimer();

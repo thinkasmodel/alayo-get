@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SwToToastNote, ToastNoteToSw } from '@/shared/messages';
 import type { ClipSummary, SaveOutcome } from '@/shared/types';
-import { mountToast, NOTE_ACK_MS, TOAST_AUTO_MS, TOAST_FADE_MS, type ToastDeps } from './toast';
+import { CJK, loadMessages, useLocale } from '../../../tests/setup/i18n';
+import { mountToast, TOAST_AUTO_MS, TOAST_FADE_MS, type ToastDeps } from './toast';
 
 const clip: ClipSummary = {
   id: '01JTOAST',
@@ -26,48 +26,10 @@ const duplicate: SaveOutcome = {
   previous: { id: '01JOLD', file: '文章.md', title: clip.title, medium: 'web', source: clip.source, savedAt: new Date(2026, 8, 28, 12).toISOString(), tags: [] },
 };
 
-/** 假的批注 Port：记录发出的消息；reply() 模拟后台回复，drop() 模拟后台被终止导致断开。 */
-function fakeNotePort(notes: ToastNoteToSw[]) {
-  const messageListeners: Array<(m: SwToToastNote) => void> = [];
-  const disconnectListeners: Array<() => void> = [];
-  let alive = true;
-  return {
-    postMessage: vi.fn((m: ToastNoteToSw) => {
-      if (!alive) throw new Error('Attempting to use a disconnected port object');
-      notes.push(m);
-    }),
-    disconnect: vi.fn(() => {
-      alive = false;
-    }),
-    onMessage: { addListener: (fn: (m: SwToToastNote) => void) => void messageListeners.push(fn) },
-    onDisconnect: { addListener: (fn: () => void) => void disconnectListeners.push(fn) },
-    reply: (m: SwToToastNote) => messageListeners.forEach((fn) => fn(m)),
-    drop: () => {
-      alive = false;
-      disconnectListeners.forEach((fn) => fn());
-    },
-  };
-}
-
 function makeDeps() {
-  const notes: ToastNoteToSw[] = [];
-  const ports: Array<ReturnType<typeof fakeNotePort>> = [];
-  const connectNote = vi.fn(() => {
-    const p = fakeNotePort(notes);
-    ports.push(p);
-    return p;
-  });
-  const deps = { sendMessage: vi.fn<ToastDeps['sendMessage']>(), connectNote } satisfies ToastDeps;
-  return {
-    deps,
-    notes,
-    ports,
-    get port() {
-      const p = ports.at(-1);
-      if (!p) throw new Error('还没有连接批注 Port');
-      return p;
-    },
-  };
+  // 后台的回应：「加批注…」等它（ToastActionResponse），其余按钮不看
+  const deps = { sendMessage: vi.fn<ToastDeps['sendMessage']>(async () => undefined) } satisfies ToastDeps;
+  return { deps };
 }
 
 const hosts = () => document.querySelectorAll('[data-alayo-get-toast]');
@@ -106,7 +68,7 @@ describe('页面提示', () => {
     expect(toast.root.querySelector('.ts')?.textContent).toBe('15 秒内没加载完，存了 23 条');
     expect(toast.root.textContent).toContain('已存入剪藏库');
     expect(toast.root.textContent).not.toContain(clip.title);
-    expect(buttonIn(toast.root, '加批注')).toBeDefined();
+    expect(buttonIn(toast.root, '加批注…')).toBeDefined();
 
     const full = mountToast({ state: 'saved', clip: { ...xClip, extract: 'full', x: { form: 'thread', posts: 23, partial: null } }, tagSuggestions: [] }, deps);
     expect(full.root.querySelector('.ts')?.textContent).toBe(clip.title);
@@ -169,162 +131,6 @@ describe('页面提示', () => {
     expect(first.host.isConnected).toBe(false);
   });
 
-  it('展开批注框后不再自动消失；每次输入发 draft', () => {
-    const { deps, notes } = makeDeps();
-    const toast = mountToast(saved, deps);
-    buttonIn(toast.root, '加批注')?.click();
-    expect(deps.connectNote).toHaveBeenCalledTimes(1);
-    const textarea = toast.root.querySelector('textarea');
-    expect(textarea).not.toBeNull();
-    expect(toast.root.activeElement).toBe(textarea);
-    expect(toast.root.textContent).toContain('回车或 Esc 收起时都会写入');
-    vi.advanceTimersByTime(60_000);
-    expect(hosts()).toHaveLength(1);
-
-    if (!textarea) return;
-    textarea.value = '第三节可以拿去评空态';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(notes).toEqual([{ type: 'draft', clipId: clip.id, note: '第三节可以拿去评空态' }]);
-  });
-
-  // 编排者修改（codex review 第 7 轮）：commit 前先补发完整草稿，收到后台 committed 才收起。
-  it('批注框里回车发 commit，收到确认后收起并淡出；Shift+回车不提交', () => {
-    const ctx = makeDeps();
-    const { deps, notes } = ctx;
-    const toast = mountToast(saved, deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('批注框没展开');
-
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }));
-    expect(notes).toEqual([]);
-
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    expect(notes).toEqual([{ type: 'draft', clipId: clip.id, note: '' }, { type: 'commit' }]);
-    expect(toast.root.querySelector('textarea')).not.toBeNull();
-    ctx.port.reply({ type: 'committed', note: '' });
-    expect(toast.root.querySelector('textarea')).toBeNull();
-    vi.advanceTimersByTime(TOAST_FADE_MS);
-    expect(hosts()).toHaveLength(0);
-    expect(ctx.port.disconnect).toHaveBeenCalled();
-  });
-
-  it('后台断开后再输入并提交：重连、补发完整草稿，提交照常到达（codex review 第 7 轮）', () => {
-    const ctx = makeDeps();
-    const toast = mountToast(saved, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('批注框没展开');
-    ctx.port.drop();
-    ctx.notes.length = 0;
-    textarea.value = '闲置后写的批注';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    expect(ctx.deps.connectNote).toHaveBeenCalledTimes(2);
-    expect(ctx.notes).toEqual([
-      { type: 'draft', clipId: clip.id, note: '闲置后写的批注' },
-      { type: 'draft', clipId: clip.id, note: '闲置后写的批注' },
-      { type: 'commit' },
-    ]);
-    ctx.port.reply({ type: 'committed', note: '闲置后写的批注' });
-    expect(toast.root.querySelector('textarea')).toBeNull();
-  });
-
-  it('输入后后台断开、不再输入：立刻重连补发草稿；随后被新提示替换时断开新 Port（codex review 加审轮）', () => {
-    const ctx = makeDeps();
-    const toast = mountToast(saved, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('批注框没展开');
-    textarea.value = '写完就走';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    const first = ctx.port;
-    ctx.notes.length = 0;
-    first.drop();
-    expect(ctx.deps.connectNote).toHaveBeenCalledTimes(2);
-    expect(ctx.notes).toEqual([{ type: 'draft', clipId: clip.id, note: '写完就走' }]);
-    const second = ctx.port;
-    mountToast(saved, ctx.deps);
-    expect(second.disconnect).toHaveBeenCalled();
-  });
-
-  it('把批注清空后后台断开：重连并补发空草稿，清空操作不丢（codex review 合并前复审）', () => {
-    const ctx = makeDeps();
-    const toast = mountToast(saved, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('批注框没展开');
-    textarea.value = 'A';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.value = '';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    ctx.notes.length = 0;
-    ctx.port.drop();
-    expect(ctx.deps.connectNote).toHaveBeenCalledTimes(2);
-    expect(ctx.notes).toEqual([{ type: 'draft', clipId: clip.id, note: '' }]);
-  });
-
-  it('没动过批注框时后台断开：不重连、不补发草稿', () => {
-    const ctx = makeDeps();
-    const toast = mountToast(saved, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    ctx.notes.length = 0;
-    ctx.port.drop();
-    expect(ctx.deps.connectNote).toHaveBeenCalledTimes(1);
-    expect(ctx.notes).toEqual([]);
-  });
-
-  it('确认的是旧版本（提交后又改了字）：不收起，接着提交新版本（codex review 第 8 轮）', () => {
-    const ctx = makeDeps();
-    const toast = mountToast(saved, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('批注框没展开');
-    textarea.value = '第一版';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    textarea.value = '第一版，再补一句';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    ctx.notes.length = 0;
-    ctx.port.reply({ type: 'committed', note: '第一版' });
-    expect(toast.root.querySelector('textarea')).not.toBeNull();
-    expect(ctx.notes).toEqual([
-      { type: 'draft', clipId: clip.id, note: '第一版，再补一句' },
-      { type: 'commit' },
-    ]);
-    ctx.port.reply({ type: 'committed', note: '第一版，再补一句' });
-    expect(toast.root.querySelector('textarea')).toBeNull();
-  });
-
-  it('后台回复写入失败或超时：保留批注框和输入，说明原因（codex review 第 7 轮）', () => {
-    const ctx = makeDeps();
-    const toast = mountToast(saved, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('批注框没展开');
-    textarea.value = '要保住的批注';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    ctx.port.reply({ type: 'commit-failed', message: '剪藏库没有写入权限（prompt）' });
-    expect(toast.root.querySelector('textarea')?.value).toBe('要保住的批注');
-    expect(toast.root.textContent).toContain('没能写入批注：剪藏库没有写入权限（prompt）');
-    expect(hosts()).toHaveLength(1);
-
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    vi.advanceTimersByTime(NOTE_ACK_MS);
-    expect(toast.root.querySelector('textarea')).not.toBeNull();
-    expect(toast.root.textContent).toContain('没有收到扩展的确认');
-  });
-
-  it('批注框里按 Esc 同样发 commit', () => {
-    const { deps, notes } = makeDeps();
-    const toast = mountToast({ state: 'fallback', clip: { ...clip, extract: 'fallback' }, tagSuggestions: [] }, deps);
-    expect(toast.root.textContent).toContain('已存为书签剪藏');
-    buttonIn(toast.root, '加批注')?.click();
-    toast.root.querySelector('textarea')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    expect(notes).toEqual([{ type: 'draft', clipId: clip.id, note: '' }, { type: 'commit' }]);
-  });
-
   it('已存过的"另存新快照"发 toast-action', () => {
     const { deps } = makeDeps();
     const toast = mountToast(duplicate, deps);
@@ -340,7 +146,7 @@ describe('页面提示：媒体剪藏与流媒体剪藏（ALAG-4）', () => {
     const toast = mountToast({ state: 'saved', clip: mediaClip, tagSuggestions: [] }, deps);
     expect(toast.root.querySelector('.tt')?.textContent).toBe('已存入剪藏库');
     expect(toast.root.querySelector('.ts')?.textContent).toBe('图片 · 少数派年度盘点 - cover@2x.jpg');
-    expect(buttonIn(toast.root, '加批注')).toBeDefined();
+    expect(buttonIn(toast.root, '加批注…')).toBeDefined();
   });
 
   it('流媒体剪藏：说明行“平台 · 标题”；超大与拿不到大小的直链各一句', () => {
@@ -355,7 +161,7 @@ describe('页面提示：媒体剪藏与流媒体剪藏（ALAG-4）', () => {
     );
     const unknown = mountToast({ state: 'saved', clip: direct(null), tagSuggestions: [] }, deps);
     expect(unknown.root.querySelector('.ts')?.textContent).toBe('拿不到视频大小，只记了链接和信息');
-    expect(buttonIn(unknown.root, '加批注')).toBeDefined();
+    expect(buttonIn(unknown.root, '加批注…')).toBeDefined();
   });
 
   it('时间线上右键 X 视频：失败提示说明行请用户打开帖子页', () => {
@@ -421,22 +227,147 @@ describe('页面提示：已摘录（ALAG-4）', () => {
       const toast = mountToast({ state: 'saved', clip: quoteClip(quote), tagSuggestions: [] }, deps);
       expect(toast.root.querySelector('.tt')?.textContent).toBe('已摘录');
       expect(toast.root.querySelector('.ts')?.textContent).toBe(desc);
-      expect(buttonIn(toast.root, '加批注')).toBeDefined();
+      expect(buttonIn(toast.root, '加批注…')).toBeDefined();
       vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS + 10);
       expect(toast.host.isConnected).toBe(false);
     }
   });
+});
 
-  it('“加批注”沿用批注流程：draft 带这一条摘录的 id，回车提交', () => {
-    const ctx = makeDeps();
-    const toast = mountToast({ state: 'saved', clip: quoteClip(base), tagSuggestions: [] }, ctx.deps);
-    buttonIn(toast.root, '加批注')?.click();
-    const textarea = toast.root.querySelector('textarea');
-    if (!textarea) throw new Error('没有展开批注框');
-    textarea.value = '这段和卡尼曼的系统 1 / 系统 2 说法对得上';
-    textarea.dispatchEvent(new Event('input'));
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-    expect(ctx.notes).toContainEqual({ type: 'draft', clipId: '01JQUOTE', note: '这段和卡尼曼的系统 1 / 系统 2 说法对得上' });
-    expect(ctx.notes.at(-1)).toEqual({ type: 'commit' });
+describe('页面提示：网页里没有输入控件，「加批注…」打开工具栏面板（ALAG-16，ADR-0008）', () => {
+  const quoted: ClipSummary = {
+    ...clip,
+    id: '01JQUOTE16',
+    medium: 'quote',
+    file: '摘录 - 为什么我们需要慢思考.md',
+    quote: { fileId: 'F', entry: 3, anchor: 'a', fragment: true, recreated: false },
+  };
+  const fallback: SaveOutcome = { state: 'fallback', clip: { ...clip, extract: 'fallback', medium: 'link' }, tagSuggestions: [] };
+  /** 等 sendMessage 的 Promise 与 toast 里 await 之后的代码跑完（假计时器不推进微任务）。 */
+  const settle = () => vi.advanceTimersByTimeAsync(0);
+
+  it.each<[string, SaveOutcome]>([
+    ['saved', saved],
+    ['fallback', fallback],
+    ['duplicate', duplicate],
+    ['failed', failed],
+    ['needs-permission', { state: 'needs-permission', preview }],
+    ['摘录', { state: 'saved', clip: quoted, tagSuggestions: [] }],
+  ])('%s：shadow root 里没有 textarea、input、contenteditable', async (_name, outcome) => {
+    const { deps } = makeDeps();
+    deps.sendMessage.mockResolvedValue({ opened: false });
+    const toast = mountToast(outcome, deps);
+    expect(toast.root.querySelector('textarea, input, [contenteditable]')).toBeNull();
+    // 点过「加批注…」进入失败态后也一样
+    buttonIn(toast.root, '加批注…')?.click();
+    await settle();
+    expect(toast.root.querySelector('textarea, input, [contenteditable]')).toBeNull();
+  });
+
+  it('点「加批注…」发 note 与 clipId；等待期间按钮 disabled、重复点击只发一次；opened: true 后淡出移除', async () => {
+    const { deps } = makeDeps();
+    let reply: (value: unknown) => void = () => undefined;
+    deps.sendMessage.mockImplementation(() => new Promise((resolve) => (reply = resolve)));
+    const toast = mountToast(saved, deps);
+    const button = buttonIn(toast.root, '加批注…');
+    if (!button) throw new Error('没有「加批注…」');
+    button.click();
+    button.click();
+    expect(deps.sendMessage).toHaveBeenCalledTimes(1);
+    expect(deps.sendMessage).toHaveBeenCalledWith({ type: 'toast-action', action: 'note', clipId: clip.id });
+    expect(button.disabled).toBe(true);
+    // 等待期间不自动消失
+    vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(1);
+    reply({ opened: true });
+    await settle();
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('等待回应期间鼠标移进移出：不重新计时；回应慢于 3 秒且没打开时仍显示失败态', async () => {
+    const { deps } = makeDeps();
+    let reply: (value: unknown) => void = () => undefined;
+    deps.sendMessage.mockImplementation(() => new Promise((resolve) => (reply = resolve)));
+    const toast = mountToast(saved, deps);
+    const box = toast.root.querySelector('.toast');
+    box?.dispatchEvent(new MouseEvent('mouseenter'));
+    buttonIn(toast.root, '加批注…')?.click();
+    box?.dispatchEvent(new MouseEvent('mouseleave'));
+    vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS + 10);
+    expect(hosts()).toHaveLength(1);
+    reply({ opened: false });
+    await settle();
+    expect(toast.root.querySelector('.noteerr')?.textContent).toBe('没能打开面板。把这个浏览器窗口点到前台，再点一次「加批注…」。');
+    // 失败态不再自动消失，鼠标移进移出也一样
+    box?.dispatchEvent(new MouseEvent('mouseenter'));
+    box?.dispatchEvent(new MouseEvent('mouseleave'));
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+  });
+
+  it('摘录剪藏：clipId 是这一条摘录的 id', () => {
+    const { deps } = makeDeps();
+    const toast = mountToast({ state: 'saved', clip: quoted, tagSuggestions: [] }, deps);
+    buttonIn(toast.root, '加批注…')?.click();
+    expect(deps.sendMessage).toHaveBeenCalledWith({ type: 'toast-action', action: 'note', clipId: '01JQUOTE16' });
+  });
+
+  it.each<[string, () => Promise<unknown>]>([
+    ['opened: false', async () => ({ opened: false })],
+    ['没有回应（undefined）', async () => undefined],
+    ['发送抛错', async () => Promise.reject(new Error('Extension context invalidated.'))],
+  ])('面板没能打开（%s）：不消失，加说明行与关闭按钮；再点一次打开了就淡出', async (_name, first) => {
+    const { deps } = makeDeps();
+    deps.sendMessage.mockImplementationOnce(first).mockResolvedValueOnce({ opened: true });
+    const toast = mountToast(saved, deps);
+    expect(toast.root.querySelector('button[aria-label="关闭"]')).toBeNull();
+    const button = buttonIn(toast.root, '加批注…');
+    if (!button) throw new Error('没有「加批注…」');
+    button.click();
+    await settle();
+    vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS + 10);
+    expect(hosts()).toHaveLength(1);
+    const errors = toast.root.querySelectorAll('.noteerr');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.textContent).toBe(loadMessages('zh_CN').toast_panelFailed?.message);
+    expect(errors[0]?.textContent).toBe('没能打开面板。把这个浏览器窗口点到前台，再点一次「加批注…」。');
+    expect(toast.root.querySelectorAll('button[aria-label="关闭"]')).toHaveLength(1);
+    expect(button.disabled).toBe(false);
+
+    button.click();
+    await settle();
+    expect(deps.sendMessage).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('连续失败两次：说明行与关闭按钮都只有一个；点关闭收起', async () => {
+    const { deps } = makeDeps();
+    deps.sendMessage.mockResolvedValue({ opened: false });
+    const toast = mountToast(fallback, deps);
+    const button = buttonIn(toast.root, '加批注…');
+    button?.click();
+    await settle();
+    button?.click();
+    await settle();
+    expect(toast.root.querySelectorAll('.noteerr')).toHaveLength(1);
+    expect(toast.root.querySelectorAll('button[aria-label="关闭"]')).toHaveLength(1);
+    toast.root.querySelector<HTMLButtonElement>('button[aria-label="关闭"]')?.click();
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('英文：失败说明是 en 的 toast_panelFailed，不含中日韩字符', async () => {
+    useLocale('en');
+    const { deps } = makeDeps();
+    deps.sendMessage.mockResolvedValue({ opened: false });
+    const toast = mountToast(saved, deps);
+    buttonIn(toast.root, 'Add note…')?.click();
+    await settle();
+    const text = toast.root.querySelector('.noteerr')?.textContent ?? '';
+    expect(text).toBe('Couldn\'t open the panel. Bring this browser window to the front and click "Add note…" again.');
+    expect(text).toBe(loadMessages('en').toast_panelFailed?.message);
+    expect(text).not.toMatch(CJK);
   });
 });
