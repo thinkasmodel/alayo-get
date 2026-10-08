@@ -228,6 +228,8 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         // 面板断线重连：接着编辑同一条剪藏，不重新保存（codex review 第 8 轮）
         if (started || !deps.findClip) return;
         started = true;
+        // 基线号接着面板记下的数，之后推送的编辑态不会与旧表单的号相同（ALAG-20）
+        baseline = message.baseline ?? 0;
         track(
           deps.findClip(message.clipId).then((found) => {
             clip = found ?? null;

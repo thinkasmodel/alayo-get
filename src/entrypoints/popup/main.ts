@@ -105,7 +105,7 @@ async function main() {
       port = null;
       if (clipId === null) return;
       connect();
-      send({ type: 'resume', clipId });
+      send(lastBaseline === undefined ? { type: 'resume', clipId } : { type: 'resume', clipId, baseline: lastBaseline });
       if (lastFields) send(draftMessage(lastFields));
     });
     port = next;

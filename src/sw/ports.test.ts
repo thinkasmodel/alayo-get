@@ -557,6 +557,24 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(fields?.note ?? '恢复的批注 B').toBe('恢复的批注 B');
   });
 
+  it('断线重连 resume 带基线号 3：之后推送的编辑态带 4，带旧号 3 的 draft 被丢弃（重连接着数基线号）', async () => {
+    const lostEdits = memoryLostEdits([{ ...stored, fields: { note: '恢复的批注 B' } }]);
+    const deps = { ...panelDeps(), lostEdits, findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => clip) };
+    const port = open(deps);
+    port.send({ type: 'resume', clipId: clip.id, baseline: 3 });
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    const pushed = port.sent.filter((m) => m.type === 'state').at(-1);
+    if (pushed?.type !== 'state' || pushed.state.state !== 'saved') throw new Error('没有推送新的编辑态');
+    expect(pushed.baseline).toBe(4);
+    expect(pushed.state.clip.note).toBe('恢复的批注 B');
+    // 重连前的旧表单（基线 3）发来的全量 draft 被丢弃，关闭时不把恢复的批注覆盖回去
+    port.send({ type: 'draft', fields: { title: clip.title, tags: [], note: '' }, baseline: 3 });
+    port.disconnect();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+  });
+
   it('不带 baseline 的 draft 照旧接受（codex review 第 2 轮）', async () => {
     const deps = panelDeps();
     const port = open(deps);
