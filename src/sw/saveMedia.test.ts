@@ -655,3 +655,45 @@ describe('媒体剪藏：探测要求登录', () => {
     expect(await index.all()).toEqual({});
   });
 });
+
+// ALAG-18 codex review 第 4 轮：实际下载阶段的 401/403 也用跨站登录说明（探测与下载文案一致）
+describe('媒体剪藏：下载要求登录', () => {
+  const BLOG = 'https://blog.example.com/post';
+  const denied = (status: number) => ({ status, headers: { 'content-type': 'text/html' }, body: bytes('<html>sign in</html>') });
+
+  it('跨站 PDF 直接下载回 403 → failed（跨站需要登录文案），不写文件、不写记录', async () => {
+    const PDF = 'https://files.other.com/paper.pdf';
+    const { fn, calls } = fakeFetch({ [PDF]: denied(403) });
+    const outcome = await save(mediaCapture(BLOG, '论文', 'pdf', PDF), fn);
+    expect(outcome).toMatchObject({
+      state: 'failed',
+      error: { name: 'DownloadError', message: '这个文件在另一个站点，需要登录才能下载；扩展不会把你的登录态发给别的站点，没有下载' },
+    });
+    expect(calls.map((c) => [c.method, c.init?.credentials])).toEqual([['GET', 'omit']]);
+    expect(library.ops).toEqual([]);
+    expect(await index.all()).toEqual({});
+  });
+
+  it('跨站音频探测通过、实际下载回 401 → failed（跨站需要登录文案），不写文件、不写记录', async () => {
+    const AUDIO = 'https://files.other.com/ep.mp3';
+    const { fn } = fakeFetch({
+      [AUDIO]: { head: { status: 200, headers: { 'content-type': 'audio/mpeg', 'content-length': '1024' } }, ...denied(401) },
+    });
+    const outcome = await save(mediaCapture(BLOG, '播客', 'audio', AUDIO), fn);
+    expect(outcome).toMatchObject({
+      state: 'failed',
+      error: { name: 'DownloadError', message: '这个文件在另一个站点，需要登录才能下载；扩展不会把你的登录态发给别的站点，没有下载' },
+    });
+    expect(library.ops).toEqual([]);
+    expect(await index.all()).toEqual({});
+  });
+
+  it('同站 PDF 直接下载回 403 → failed（HTTP 403 文案）', async () => {
+    const PDF = 'https://cdn.example.com/paper.pdf';
+    const { fn } = fakeFetch({ [PDF]: denied(403) });
+    const outcome = await save(mediaCapture(BLOG, '论文', 'pdf', PDF), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError', message: '下载失败（HTTP 403）' } });
+    expect(library.ops).toEqual([]);
+    expect(await index.all()).toEqual({});
+  });
+});

@@ -76,11 +76,7 @@ export async function probeMedia(fetchFn: FetchLike, url: string, options: Media
         console.info(`[Alayo Get] ${method} 探测媒体时跳转到了跨站地址，中止保存：${url} → ${res.url}`);
         throw downloadError(t('error_mediaRedirectedCrossSite'));
       }
-      if (method === 'GET' && (res.status === 401 || res.status === 403)) {
-        throw downloadError(
-          options.credentials === 'omit' && !isDataUrl(url) ? t('error_authRequiredCrossSite') : t('error_httpStatus', String(res.status)),
-        );
-      }
+      if (method === 'GET' && (res.status === 401 || res.status === 403)) throw authError(res.status, url, options);
       if (!res.ok) return null;
       return {
         bytes: contentLength(res),
@@ -146,6 +142,7 @@ export async function downloadMedia(
       controller.abort();
       throw downloadError(t('error_mediaRedirectedCrossSite'));
     }
+    if (res.status === 401 || res.status === 403) throw authError(res.status, url, options);
     if (!res.ok) throw downloadError(t('error_httpStatus', String(res.status)));
     const declared = contentLength(res);
     if (declared !== null && declared > maxBytes) {
@@ -185,6 +182,11 @@ function downloadError(message: string): Error {
   const err = new Error(message);
   err.name = 'DownloadError';
   return err;
+}
+
+/** 401/403：跨站（不带 cookie）的请求说明「要登录、扩展不把登录态发给别的站点」；同站沿用 HTTP 状态文案（ALAG-18 codex review 第 3、4 轮）。 */
+function authError(status: number, url: string, options: MediaRequestOptions): Error {
+  return downloadError(options.credentials === 'omit' && !isDataUrl(url) ? t('error_authRequiredCrossSite') : t('error_httpStatus', String(status)));
 }
 
 /** 直链标题：`页面标题 - 原文件名`（扩展名保留）；页面标题为空或与原文件名（或其主干）相同时只用原文件名。 */
