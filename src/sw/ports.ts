@@ -74,13 +74,13 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   /** 编辑态基线号：每推一次 saved / fallback 加一，面板的 draft 带回它（codex review ALAG-20 第 2 轮）。 */
   let baseline = 0;
   /**
-   * 基线号 → 那次推送给面板的三个字段（只留最近 2 个号）。draft 按它提取用户意图：
+   * 基线号 → 那次推送给面板的三个字段（不淘汰）。draft 按它提取用户意图：
    * 与这个号的基线相同的字段不算改动，不同的才是用户改的（第 7 轮）。
    */
   const baselines = new Map<number, FormFields>();
   const registerBaseline = (n: number, fields: FormFields) => {
+    // 不淘汰：一个面板会话里最多几十条；淘汰后更早号的 draft 无从判断意图（codex review ALAG-20 第 8 轮）
     baselines.set(n, fields);
-    for (const key of baselines.keys()) if (key <= n - 2) baselines.delete(key);
   };
   const post = (state: PanelState) => {
     if (state.state === 'saved' || state.state === 'fallback') {
@@ -93,10 +93,15 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   };
   /**
    * 意图提取（codex review ALAG-20 第 7 轮）：面板发的是全量表单，按这份表单所依据的基线（draft 带的号登记的字段，
-   * 没有就用当前剪藏）判断每个字段：等于基线 → 用户没改（或改回去了），从 draft 里删掉；不等 → 用户的修改，写入。
-   * 不按号丢弃任何 draft。还没有剪藏（保存还没结束）时原样合入。
+   * 不带号的用当前剪藏）判断每个字段：等于基线 → 用户没改（或改回去了），从 draft 里删掉；不等 → 用户的修改，写入。
+   * 带号但这个号没登记过的丢弃（第 8 轮）。不带号且还没有剪藏（保存还没结束）时原样合入。
    */
   const extractIntent = (current: EditFields, fields: EditFields, n: number | undefined): EditFields => {
+    if (n !== undefined && !baselines.has(n)) {
+      // 带号但没登记过这个号：不知道这份表单依据的是什么，不按当前剪藏猜，丢弃（第 8 轮）
+      console.debug('[Alayo Get] 忽略基线号未登记的修改', n);
+      return current;
+    }
     const base = (n !== undefined ? baselines.get(n) : undefined) ?? (clip ? fieldsOf(clip) : null);
     if (!base) return { ...current, ...fields };
     const next: EditFields = { ...current };

@@ -698,7 +698,7 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     const fileNow: ClipSummary = { ...clip, note: '恢复的批注 B', tags: [] };
     const applyEdits = vi.fn(async (c: ClipSummary, fields: EditFields) => ({ ...c, ...fields }));
     const second = open({ ...panelDeps(), applyEdits, findClip: async () => fileNow });
-    second.send({ type: 'resume', clipId: clip.id, baseline: pushed.baseline });
+    second.send({ type: 'resume', clipId: clip.id, baseline: pushed.baseline, baselineFields });
     const diff = changedFields(baselineFields, lastFields);
     expect(diff).toEqual({ tags: ['x'] });
     second.send({ type: 'draft', fields: diff, baseline: pushed.baseline });
@@ -734,7 +734,7 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(fields).toEqual({ tags: ['x'] });
   });
 
-  it('基线号不在登记表里（更旧或未知）：不丢弃，按当前剪藏提取意图（codex review 第 6、7 轮）', async () => {
+  it('带号但这个号没登记过：丢弃，不按当前剪藏猜（codex review 第 6、7、8 轮）', async () => {
     const fileClip: ClipSummary = { ...clip, note: '旧批注 A' };
     const lostEdits = memoryLostEdits([{ ...stored, clip: fileClip, fields: { note: '恢复的批注 B' } }]);
     const deps = {
@@ -751,8 +751,37 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     port.send({ type: 'draft', fields: { title: clip.title, tags: ['y'], note: '恢复的批注 B' }, baseline: 0 });
     port.disconnect();
     await flush();
-    expect(deps.applyEdits).toHaveBeenCalledTimes(2);
-    expect(deps.applyEdits.mock.calls[1]?.[1]).toEqual({ tags: ['y'] });
+    expect(deps.applyEdits).toHaveBeenCalledTimes(1);
+  });
+
+  it('连续两次重试（号 1 → 3）后，带号 1 的全量 draft 仍按号 1 的基线提取意图：只写标签，不写旧批注（codex review 第 8 轮）', async () => {
+    const fileClip: ClipSummary = { ...clip, note: 'A' };
+    const lostEdits = memoryLostEdits([
+      { ...stored, id: 'L1', clip: fileClip, fields: { note: 'B' } },
+      { ...stored, id: 'L2', clip: fileClip, fields: { note: 'C' } },
+    ]);
+    const deps = {
+      ...panelDeps(),
+      lostEdits,
+      takePendingEdit: vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => fileClip.id),
+      findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => fileClip),
+    };
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L2' });
+    await flush();
+    const pushed = port.sent.filter((m) => m.type === 'state').at(-1);
+    if (pushed?.type !== 'state' || pushed.state.state !== 'saved') throw new Error('没有推送新的编辑态');
+    expect(pushed.baseline).toBe(3);
+    expect(pushed.state.clip.note).toBe('C');
+    port.send({ type: 'draft', fields: { title: clip.title, tags: ['x'], note: 'A' }, baseline: 1 });
+    port.disconnect();
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledTimes(3);
+    expect(deps.applyEdits.mock.calls[2]?.[0].note).toBe('C');
+    expect(deps.applyEdits.mock.calls[2]?.[1]).toEqual({ tags: ['x'] });
   });
 
   it('撤销：用户改了批注、重试恢复了别的内容后，旧表单又把批注改回基线值 → 关闭时不写批注，文件保留恢复的内容（codex review 第 7 轮）', async () => {
