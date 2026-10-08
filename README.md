@@ -1,5 +1,7 @@
 # Alayo Get
 
+English · [中文](README.zh-CN.md)
+
 Alayo Get is a Chrome extension that saves web pages, X posts, links, images, videos and selected text as plain Markdown and media files in a local folder you choose.
 
 It covers the same ground as Obsidian Web Clipper and MarkDownload, and uses the same extraction engine as Obsidian Web Clipper ([defuddle](https://github.com/kepano/defuddle)). Compared with those, and with full-page archivers like SingleFile:
@@ -95,11 +97,3 @@ These documents are written in Chinese.
 ## License
 
 [Apache License 2.0](LICENSE). Copyright 2026 ThinkAsModel Limited. Third-party components are listed in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
-
----
-
-## 中文简介
-
-Alayo Get 是一个 Chrome 扩展，把网页、X 帖子、链接、图片、视频和选中的文字存成普通的 Markdown 和媒体文件，放进你选定的本地文件夹（剪藏库）。不绑定任何笔记软件；用 File System Access API 直接写进文件夹，不经下载目录；X 作者串自动合并成一篇；媒体剪藏带元数据侧档；摘录带 `#:~:text=` 链接，能跳回原文位置；界面跟随浏览器语言显示简体中文或英文。
-
-存下的文件任何编辑器和笔记工具都能读。用 [Alayo Workbench](https://alayo.ai/zh/workbench/) 的话，可以把剪藏库加为监控目录，在画布上整理剪藏。隐私政策见 [alayo.ai/zh/get/privacy](https://alayo.ai/zh/get/privacy)。
