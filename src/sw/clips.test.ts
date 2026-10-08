@@ -380,6 +380,41 @@ describe('「加批注…」→ 文件不在或被替换 / 写回失败 → 草�
     expect(state.error.name).toBe('ClipMismatchError');
   });
 
+  it('媒体剪藏的草稿重试时媒体文件已被移走：不算写成，草稿仍在列表、错误为 NotFoundError，没有“已写入”通知（codex review 第 3 轮）', async () => {
+    const book = newBook();
+    const lostEdits = createLostEdits();
+    const media: ClipSummary = {
+      id: 'MEDIA3',
+      file: 'gone.jpg',
+      title: 'gone',
+      medium: 'image',
+      site: 'example.com',
+      source: 'https://example.com/g',
+      extract: 'full',
+      imageCount: 0,
+      imageFailures: 0,
+      tags: [],
+      note: '',
+      savedAt: '2026-10-08T00:00:00.000Z',
+      media: { kind: 'image', bytes: 3 },
+    };
+    const sidecar = serializeMediaMeta({ id: 'MEDIA3', file: 'gone.jpg', source: media.source, media_url: media.source, medium: 'image', title: 'gone', site: 'example.com', captured: '', bytes: 3, mime: 'image/jpeg', tags: [], note: '' });
+    library.files.set(mediaMetaPath('MEDIA3'), sidecar);
+    await book.remember(media, library);
+    await lostEdits.add({ id: 'LM', clip: media, fields: { note: '媒体批注' }, error: { name: 'NotFoundError', message: 'gone' }, at: '2026-10-08T00:00:00.000Z' });
+
+    const port = openPanel(book, lostEdits, null);
+    await until(() => port.sent.some((m) => m.type === 'lost-edits'));
+    port.send({ type: 'lost-edit', action: 'retry', id: 'LM' });
+    await until(() => port.sent.filter((m) => m.type === 'lost-edits').length > 1);
+    const [edit] = await lostEdits.list();
+    expect(edit?.id).toBe('LM');
+    expect(edit?.error).toEqual({ name: 'NotFoundError', message: '找不到这条剪藏' });
+    const last = port.sent.filter((m) => m.type === 'lost-edits').at(-1);
+    expect(last?.type === 'lost-edits' ? last.notices : null).toEqual([]);
+    expect(library.text(mediaMetaPath('MEDIA3'))).toBe(sidecar);
+  });
+
   it('编辑态里写批注、文件被移走、关闭面板：草稿入列表；下次打开面板「存为草稿文件」写出批注草稿文件，列表清空', async () => {
     const book = newBook();
     const lostEdits = createLostEdits();

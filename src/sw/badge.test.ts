@@ -78,7 +78,10 @@ describe('角标', () => {
 
 describe('角标：有未处理的草稿时保持 !（ALAG-20）', () => {
   const failed: SaveOutcome = { state: 'failed', preview, error: { name: 'NotFoundError', message: 'gone' } };
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
+  /** 等到角标显示 text（定时器到点后的更新要经两次假 API 调用，固定等几毫秒在满载时不够）；最多等约 1 秒。 */
+  const settleTo = async (action: ReturnType<typeof fakeAction>, text: string) => {
+    for (let i = 0; i < 200 && action.texts.at(-1) !== text; i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  };
 
   it('setSticky(true) 显示 !', async () => {
     const action = fakeAction();
@@ -96,7 +99,7 @@ describe('角标：有未处理的草稿时保持 !（ALAG-20）', () => {
     await badge.show(saved);
     expect(action.texts.at(-1)).toBe('✓');
     timers.fireAll();
-    await settle();
+    await settleTo(action, '!');
     expect(action.texts.at(-1)).toBe('!');
   });
 
@@ -108,7 +111,7 @@ describe('角标：有未处理的草稿时保持 !（ALAG-20）', () => {
     await badge.setSticky(true);
     expect(action.texts).toEqual(['✓']);
     timers.fireAll();
-    await settle();
+    await settleTo(action, '!');
     expect(action.texts.at(-1)).toBe('!');
   });
 
@@ -120,7 +123,7 @@ describe('角标：有未处理的草稿时保持 !（ALAG-20）', () => {
     await badge.show(saved);
     await badge.setSticky(false);
     timers.fireAll();
-    await settle();
+    await settleTo(action, '');
     expect(action.texts.at(-1)).toBe('');
 
     await badge.setSticky(true);

@@ -151,10 +151,16 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
     if (action === 'discard') {
       await store.remove(id);
     } else if (action === 'retry') {
+      // ① 写回；失败记下新的错误并结束
+      let next: ClipSummary | null = null;
       try {
-        const next = await deps.applyEdits(edit.clip, edit.fields);
-        await store.remove(id);
-        notices.push({ id, kind: 'written', file: next.file });
+        next = await deps.applyEdits(edit.clip, edit.fields);
+      } catch (err) {
+        console.warn('[Alayo Get] 重试写入没写进去的修改失败', err);
+        await store.update({ ...edit, error: errorInfo(err) });
+      }
+      if (next) {
+        // ② 先切换基线：文件已写成，后面删草稿失败也不能让面板停在旧值上（codex review ALAG-20 第 3 轮）
         if (clip && clip.id === edit.clip.id) {
           // 面板正开着同一条剪藏：以写回后的内容为新基线，保留本次会话里用户还没提交的修改，
           // 否则关闭面板时会把刚恢复的内容覆盖回旧值（codex review ALAG-20 第 1 轮）。
@@ -168,9 +174,13 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
             post({ state: editState(next), clip: { ...next, ...userEdits }, tagSuggestions });
           }
         }
-      } catch (err) {
-        console.warn('[Alayo Get] 重试写入没写进去的修改失败', err);
-        await store.update({ ...edit, error: errorInfo(err) });
+        // ③ 删草稿、记通知；删不掉只记日志，草稿留在列表里，用户可以再丢弃
+        try {
+          await store.remove(id);
+          notices.push({ id, kind: 'written', file: next.file });
+        } catch (err) {
+          console.error('[Alayo Get] 删除已写入的草稿失败', err);
+        }
       }
     } else {
       if (!deps.fileLostEdit) return;

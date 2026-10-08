@@ -93,6 +93,12 @@ export async function applyEdits<T extends ClipRef>(clip: T, fields: EditFields,
  * 写回侧档；已保存记录只更新 tags。
  */
 async function applyMediaEditsLocked<T extends ClipRef>(clip: T, fields: EditFields, deps: EditDeps): Promise<T> {
+  // 媒体文件本身被移走时不算写成：只改侧档会让写回“成功”、草稿被清掉（codex review ALAG-20 第 3 轮）
+  if (!(await deps.library.exists(clip.file))) {
+    const err = new Error(t('error_clipNotFound'));
+    err.name = 'NotFoundError';
+    throw err;
+  }
   const path = mediaMetaPath(clip.id);
   const meta = parseMediaMeta(await deps.library.readText(path));
   if (meta.id !== clip.id) throw mismatch(t('error_sidecarMismatch', [path, clip.id, meta.id || t('error_idNone')]));

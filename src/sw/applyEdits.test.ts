@@ -301,3 +301,45 @@ describe('applyEdits：媒体剪藏与流媒体剪藏（ALAG-4）', () => {
     expect(await index.get(WATCH)).toMatchObject({ file: '新视频标题.md', title: '新视频标题' });
   });
 });
+
+describe('applyEdits：媒体文件本身被移走（ALAG-20 codex review 第 3 轮）', () => {
+  it('侧档还在、媒体文件不在：抛 NotFoundError，侧档内容不变，不写文件', async () => {
+    const mediaId = '01JMEDIAGONE0000000000001';
+    const file = '封面 - cover.jpg';
+    const metaPath = `.meta/${mediaId}.json`;
+    const meta: MediaMeta = {
+      id: mediaId,
+      file,
+      source: 'https://example.com/p',
+      media_url: 'https://cdn.example.com/cover.jpg',
+      medium: 'image',
+      title: '封面',
+      site: 'example.com',
+      captured: '2026-10-08T00:00:00.000Z',
+      bytes: 3,
+      mime: 'image/jpeg',
+      tags: [],
+      note: '',
+    };
+    const sidecar = serializeMediaMeta(meta);
+    library.files.set(metaPath, sidecar);
+    const mediaClip: ClipSummary = {
+      id: mediaId,
+      file,
+      title: '封面',
+      medium: 'image',
+      site: 'example.com',
+      source: meta.media_url,
+      extract: 'full',
+      imageCount: 0,
+      imageFailures: 0,
+      tags: [],
+      note: '',
+      savedAt: meta.captured,
+      media: { kind: 'image', bytes: 3 },
+    };
+    await expect(applyEdits(mediaClip, { note: '写不进去' }, { library, index })).rejects.toMatchObject({ name: 'NotFoundError' });
+    expect(library.text(metaPath)).toBe(sidecar);
+    expect(library.ops).toEqual([]);
+  });
+});
