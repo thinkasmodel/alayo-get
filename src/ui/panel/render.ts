@@ -129,13 +129,15 @@ function button(label: string, className: string, onclick: () => void): HTMLButt
   return h('button', { type: 'button', class: `btn ${className}`, onclick }, label);
 }
 
-/** 文件不在、已被替换、其他写入错误三种原因句（「没能打开这条剪藏」与恢复块共用，ALAG-20）。 */
+/** 文件不在、已被替换、摘录找不到、其他写入错误四种原因句（恢复块用，ALAG-20）。 */
 function fileReason(error: { name: string }, file: string): string {
   switch (lostEditReason(error)) {
     case 'missing':
       return t('panel_fileMissing', [file]);
     case 'replaced':
       return t('panel_fileReplaced', [file]);
+    case 'entry-missing':
+      return t('panel_quoteEntryMissing', [file]);
     case 'other':
       return t('panel_writeFailed', [file]);
   }
@@ -161,6 +163,14 @@ function lostEditBlock(edit: LostEdit, folderName: string, actions: PanelActions
       textButton(t('ui_retry'), 'tbtn', 'retry'),
     ]),
   ]);
+}
+
+/** 「没能打开这条剪藏」的原因句：missing、entry-missing 各自的文案，其余按已被替换。 */
+function unavailableReason(error: { name: string }, file: string): string {
+  const reason = lostEditReason(error);
+  if (reason === 'missing') return t('panel_fileMissing', [file]);
+  if (reason === 'entry-missing') return t('panel_quoteEntryMissing', [file]);
+  return t('panel_fileReplaced', [file]);
 }
 
 function lostNotice(notice: LostEditNotice): HTMLElement {
@@ -268,8 +278,8 @@ export function renderPanel(root: HTMLElement, view: PanelView, actions: PanelAc
       // 从页面提示「加批注…」进入前核对文件，文件不在或已被替换（ALAG-20）：没有输入框，也没有按钮
       body.push(
         h('div', { class: 'stext' }, [h('div', { class: 'st err' }, t('panel_clipUnavailableTitle')), h('div', { class: 'sm' }, t('panel_nothingChanged'))]),
-        // 这个状态只带文件不在、已被替换两种错误
-        h('div', { class: 'reason' }, lostEditReason(state.error) === 'missing' ? t('panel_fileMissing', [state.clip.file]) : t('panel_fileReplaced', [state.clip.file])),
+        // 这个状态只带文件不在、已被替换、摘录找不到三种错误
+        h('div', { class: 'reason' }, unavailableReason(state.error, state.clip.file)),
         h('div', { class: 'mono' }, `${state.error.name} · ${state.clip.file}`),
       );
       foot = [folderPath(folderName)];

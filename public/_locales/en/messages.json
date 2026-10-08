@@ -1084,5 +1084,18 @@
         "content": "$1"
       }
     }
+  },
+  "panel_quoteEntryMissing": {
+    "message": "Can’t find this quote in “$file$”. It may have been deleted or edited.",
+    "description": "Reason line: the quote's entry is no longer in its quotes file",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_noteDraftReasonEntryMissing": {
+    "message": "the quote entry is no longer in the file",
+    "description": "Reason inside the note draft file intro"
   }
 }

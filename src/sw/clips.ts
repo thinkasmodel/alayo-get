@@ -44,6 +44,12 @@ export interface ClipBook {
 
 export type CheckResult = { ok: true; clip: ClipSummary } | { ok: false; clip: ClipSummary; error: { name: string; message: string } };
 
+function namedError(name: string, message: string): Error {
+  const err = new Error(message);
+  err.name = name;
+  return err;
+}
+
 export function createClipBook(deps: ClipBookDeps): ClipBook {
   /** 最近保存的剪藏和它所在的剪藏库（面板编辑态、面板关闭写回时按 id 找回）。 */
   const recent = new Map<string, { clip: ClipSummary; library: Library }>();
@@ -153,13 +159,17 @@ export function createClipBook(deps: ClipBookDeps): ClipBook {
       const md = await library.readText(clip.file);
       const fileId = frontmatterId(md);
       if (fileId !== quote.fileId) throw mismatch(t('error_quoteFileMismatch', [clip.file, quote.fileId, fileId ?? t('error_idNone')]));
+      // 这一条的 anchor 行不在或不止一处：写回时 replaceQuoteNote 也会拒绝（第 2 轮）
       const note = readQuoteNote(md, quote.anchor);
-      return note === null ? clip : { ...clip, note };
+      if (note === null) throw namedError('QuoteEntryNotFound', t('error_quoteEntryNotFound'));
+      return { ...clip, note };
     }
     if (isMediaClip(clip)) {
       const path = mediaMetaPath(clip.id);
       const meta = parseMediaMeta(await library.readText(path));
       if (meta.id !== clip.id) throw mismatch(t('error_sidecarMismatch', [path, clip.id, meta.id || t('error_idNone')]));
+      // 侧档还在、媒体文件本身被移走也算文件不在（codex review ALAG-20 第 2 轮）
+      if (!(await library.exists(clip.file))) throw namedError('NotFoundError', t('error_clipNotFound'));
       return withMediaMeta(clip, meta);
     }
     const md = await library.readText(clip.file);

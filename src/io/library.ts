@@ -14,6 +14,8 @@ export interface Library {
   /** 根目录下现有的条目名（文件与目录）。 */
   listRoot(): Promise<string[]>;
   readText(path: string): Promise<string>;
+  /** 文件在不在：目录或文件不存在为 false；其他错误（如没有权限）照常抛出（ALAG-20）。 */
+  exists(path: string): Promise<boolean>;
   /** 写入（覆盖）文件，中间目录不存在时创建。 */
   write(path: string, data: Blob | string): Promise<void>;
   remove(path: string): Promise<void>;
@@ -90,6 +92,20 @@ export class FsaLibrary implements Library {
     const dir = await this.dir(dirs, false);
     const file = await (await dir.getFileHandle(name)).getFile();
     return file.text();
+  }
+
+  async exists(path: string): Promise<boolean> {
+    const { dirs, name } = splitPath(path);
+    // 没有剪藏库、没有权限时照常抛出（不当成文件不在）
+    let dir = await this.root();
+    try {
+      for (const part of dirs) dir = await dir.getDirectoryHandle(part);
+      await dir.getFileHandle(name);
+      return true;
+    } catch (err) {
+      if ((err as { name?: unknown } | null)?.name === 'NotFoundError') return false;
+      throw err;
+    }
   }
 
   async write(path: string, data: Blob | string): Promise<void> {

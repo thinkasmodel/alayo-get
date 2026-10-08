@@ -84,7 +84,11 @@ export function replaceQuoteNote(md: string, anchor: string, note: string): stri
   const lines = md.split('\n');
   const area = locateNoteArea(lines, anchor);
   // 摘录文件里找不到（或不止一处）这一条的 anchor 行
-  if (!area) throw new Error(t('error_quoteEntryNotFound'));
+  if (!area) {
+    const err = new Error(t('error_quoteEntryNotFound'));
+    err.name = 'QuoteEntryNotFound';
+    throw err;
+  }
   const { at, next } = area;
 
   const head = lines.slice(0, at + 1).join('\n');

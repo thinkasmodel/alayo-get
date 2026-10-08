@@ -1068,5 +1068,16 @@
         "content": "$1"
       }
     }
+  },
+  "panel_quoteEntryMissing": {
+    "message": "「$file$」里找不到这条摘录，可能已被删除或改动。",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_noteDraftReasonEntryMissing": {
+    "message": "摘录文件里找不到这一条"
   }
 }

@@ -25,6 +25,10 @@ async function main() {
   let lastFields: Parameters<PanelActions['postDraft']>[0] | null = null;
   /** lastFields 属于哪条剪藏。 */
   let lastFieldsClipId: string | null = null;
+  /** 最后一条 state 消息的基线号；每条 draft 都带上，service worker 据此丢弃旧表单的修改（ALAG-20）。 */
+  let lastBaseline: number | undefined;
+  const draftMessage = (fields: NonNullable<typeof lastFields>): PanelToSw =>
+    lastBaseline === undefined ? { type: 'draft', fields } : { type: 'draft', fields, baseline: lastBaseline };
   /** 最后一次收到的面板状态，和写回失败留下的草稿（ALAG-20）；两者任一变化都整体重渲染。 */
   let lastState: PanelState | null = null;
   let lost: { edits: LostEdit[]; notices: LostEditNotice[] } = { edits: [], notices: [] };
@@ -54,7 +58,7 @@ async function main() {
     postDraft: (fields) => {
       lastFields = fields;
       lastFieldsClipId = clipId;
-      send({ type: 'draft', fields });
+      send(draftMessage(fields));
     },
     snapshot: () => send({ type: 'snapshot' }),
     retry: () => {
@@ -79,6 +83,7 @@ async function main() {
       if (next !== port) return;
       if (message?.type === 'state') {
         const state = message.state;
+        lastBaseline = message.baseline;
         // clip-unavailable 不设 clipId：断线后没有可以接着编辑的剪藏
         if (state.state === 'saved' || state.state === 'fallback') {
           clipId = state.clip.id;
@@ -101,7 +106,7 @@ async function main() {
       if (clipId === null) return;
       connect();
       send({ type: 'resume', clipId });
-      if (lastFields) send({ type: 'draft', fields: lastFields });
+      if (lastFields) send(draftMessage(lastFields));
     });
     port = next;
   }

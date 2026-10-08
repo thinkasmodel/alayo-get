@@ -6,10 +6,14 @@ import { linkDestination } from './document';
 import { uniqueFileName } from './filename';
 import { quoteTimestamp } from './quote';
 
-/** 写回失败的原因分类：文件不在（missing）、原路径已是另一个文件（replaced）、其他错误（other）。 */
-export function lostEditReason(error: { name: string }): 'missing' | 'replaced' | 'other' {
+/**
+ * 写回失败的原因分类：文件不在（missing）、原路径已是另一个文件（replaced）、
+ * 摘录文件里找不到这一条（entry-missing）、其他错误（other）。
+ */
+export function lostEditReason(error: { name: string }): 'missing' | 'replaced' | 'entry-missing' | 'other' {
   if (error.name === 'NotFoundError') return 'missing';
   if (error.name === 'ClipMismatchError') return 'replaced';
+  if (error.name === 'QuoteEntryNotFound') return 'entry-missing';
   return 'other';
 }
 
@@ -29,6 +33,8 @@ function reasonText(edit: LostEdit): string {
       return t('file_noteDraftReasonMissing');
     case 'replaced':
       return t('file_noteDraftReasonReplaced');
+    case 'entry-missing':
+      return t('file_noteDraftReasonEntryMissing');
     case 'other':
       return edit.error.name;
   }

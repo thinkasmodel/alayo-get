@@ -70,7 +70,16 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       console.debug('[Alayo Get] 面板已断开', err);
     }
   };
-  const post = (state: PanelState) => send({ type: 'state', state });
+  /** 编辑态基线号：每推一次 saved / fallback 加一；带旧基线的 draft 来自旧表单，丢弃（codex review ALAG-20 第 2 轮）。 */
+  let baseline = 0;
+  const post = (state: PanelState) => {
+    if (state.state === 'saved' || state.state === 'fallback') {
+      baseline += 1;
+      send({ type: 'state', state, baseline });
+    } else {
+      send({ type: 'state', state });
+    }
+  };
   /** 推送草稿全量和本次会话的通知。 */
   const postLostEdits = async (store: LostEditStore): Promise<LostEdit[]> => {
     const edits = await store.list();
@@ -97,7 +106,7 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
 
   /**
    * 页面提示记下的待编辑剪藏。没有记录、找不到剪藏或读取出错时返回 undefined，回到保存流程。
-   * 有 checkClip 时严格核对（ALAG-20）：文件不在或已被替换返回 unavailable；其他错误（如权限收回）回到保存流程。
+   * 有 checkClip 时严格核对（ALAG-20）：文件不在、已被替换或摘录找不到返回 unavailable；其他错误（如权限收回）回到保存流程。
    */
   const pendingClip = async (tabId: number): Promise<{ clip: ClipSummary } | { unavailable: ClipUnavailableState } | undefined> => {
     if (!deps.takePendingEdit || !(deps.checkClip || deps.findClip)) return undefined;
@@ -148,11 +157,16 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         notices.push({ id, kind: 'written', file: next.file });
         if (clip && clip.id === edit.clip.id) {
           // 面板正开着同一条剪藏：以写回后的内容为新基线，保留本次会话里用户还没提交的修改，
-          // 否则关闭面板时会把刚恢复的内容覆盖回旧值（codex review ALAG-20 第 1 轮）
-          const userEdits = changedFields(clip, draft);
-          clip = next;
-          draft = userEdits;
-          post({ state: editState(next), clip: { ...next, ...userEdits }, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
+          // 否则关闭面板时会把刚恢复的内容覆盖回旧值（codex review ALAG-20 第 1 轮）。
+          // 先等标签建议，再按等待结束时最新的 draft 算用户的修改、切换基线（第 2 轮）
+          const tagSuggestions = (await deps.tagSuggestions?.()) ?? [];
+          const current = clip;
+          if (current && current.id === edit.clip.id) {
+            const userEdits = changedFields(current, draft);
+            clip = next;
+            draft = userEdits;
+            post({ state: editState(next), clip: { ...next, ...userEdits }, tagSuggestions });
+          }
         }
       } catch (err) {
         console.warn('[Alayo Get] 重试写入没写进去的修改失败', err);
@@ -230,6 +244,10 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         return;
       }
       case 'draft': {
+        if (message.baseline !== undefined && baseline > 0 && message.baseline !== baseline) {
+          console.debug('[Alayo Get] 忽略旧表单的修改', message.baseline, baseline);
+          return;
+        }
         draft = { ...draft, ...message.fields };
         return;
       }

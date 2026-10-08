@@ -454,6 +454,19 @@ describe('写回失败可见、草稿可恢复（ALAG-20）', () => {
     expect(text).toContain('上次的修改已写入「文章.md」');
   });
 
+  it('没能打开这条剪藏（摘录文件里找不到这一条）：zh 与 en 的原因句（codex review 第 2 轮）', () => {
+    const quoteClip: ClipSummary = { ...clip, medium: 'quote', file: '摘录 - 慢思考.md', quote: { fileId: 'F', entry: 2, anchor: 'a', fragment: true, recreated: false } };
+    const error = { name: 'QuoteEntryNotFound', message: 'x' };
+    const zh = render({ state: 'clip-unavailable', clip: quoteClip, error });
+    expect(zh.root.querySelector('.reason')?.textContent).toBe('「摘录 - 慢思考.md」里找不到这条摘录，可能已被删除或改动。');
+    expect(zh.root.querySelector('.mono')?.textContent).toBe('QuoteEntryNotFound · 摘录 - 慢思考.md');
+    expect(zh.root.querySelector('input, textarea, button.btn')).toBeNull();
+    useLocale('en');
+    const en = render({ state: 'clip-unavailable', clip: { ...quoteClip, file: 'Quotes - Slow thinking.md' }, error });
+    expect(en.root.querySelector('.reason')?.textContent).toBe('Can’t find this quote in “Quotes - Slow thinking.md”. It may have been deleted or edited.');
+    expect(en.text).not.toMatch(CJK);
+  });
+
   it('en：恢复块、通知行与“没能打开这条剪藏”不含中日韩字符', () => {
     useLocale('en');
     const enLost: LostEdit = { ...lost, clip: { ...clip }, fields: { title: 'New title', tags: ['design', 'reading'], note: 'note' } };

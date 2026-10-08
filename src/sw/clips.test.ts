@@ -254,6 +254,62 @@ describe('ClipBook.checkClip：进入编辑态前严格核对（ALAG-20）', () 
     expect(library.text(a.file)).toBe(other);
   });
 
+  it('媒体剪藏：侧档还在、媒体文件被移走 → ok: false，NotFoundError（codex review 第 2 轮）', async () => {
+    const book = newBook();
+    const media: ClipSummary = {
+      id: 'MEDIA2',
+      file: 'photo.jpg',
+      title: 'photo',
+      medium: 'image',
+      site: 'example.com',
+      source: 'https://example.com/p',
+      extract: 'full',
+      imageCount: 0,
+      imageFailures: 0,
+      tags: [],
+      note: '',
+      savedAt: '2026-10-08T00:00:00.000Z',
+      media: { kind: 'image', bytes: 3 },
+    };
+    library.files.set('photo.jpg', new Uint8Array([1, 2, 3]));
+    library.files.set(
+      mediaMetaPath('MEDIA2'),
+      serializeMediaMeta({ id: 'MEDIA2', file: 'photo.jpg', source: media.source, media_url: media.source, medium: 'image', title: 'photo', site: 'example.com', captured: '', bytes: 3, mime: 'image/jpeg', tags: [], note: '' }),
+    );
+    await book.remember(media, library);
+    expect(await library.exists('photo.jpg')).toBe(true);
+    expect((await book.checkClip('MEDIA2'))?.ok).toBe(true);
+
+    await library.remove('photo.jpg');
+    expect(await library.exists('photo.jpg')).toBe(false);
+    expect(await library.exists(mediaMetaPath('MEDIA2'))).toBe(true);
+    const result = await book.checkClip('MEDIA2');
+    expect(result?.ok).toBe(false);
+    if (result?.ok !== false) return;
+    expect(result.error.name).toBe('NotFoundError');
+  });
+
+  it('摘录剪藏：这一条的 anchor 行被删掉或重复 → ok: false，QuoteEntryNotFound（codex review 第 2 轮）', async () => {
+    const book = newBook();
+    const [, second] = await saveThree(book);
+    if (!second?.quote) throw new Error('缺少摘录');
+    const original = library.text(FILE) ?? '';
+    const anchorLine = `${second.quote.anchor}\n`;
+    expect(original).toContain(anchorLine);
+
+    library.files.set(FILE, original.replace(anchorLine, ''));
+    const removed = await book.checkClip(second.id);
+    expect(removed?.ok).toBe(false);
+    if (removed?.ok !== false) return;
+    expect(removed.error.name).toBe('QuoteEntryNotFound');
+
+    library.files.set(FILE, original.replace(anchorLine, `${anchorLine}\n${anchorLine}`));
+    const duplicated = await book.checkClip(second.id);
+    expect(duplicated?.ok).toBe(false);
+    if (duplicated?.ok !== false) return;
+    expect(duplicated.error.name).toBe('QuoteEntryNotFound');
+  });
+
   it('任何来源都找不到 → undefined', async () => {
     expect(await newBook().checkClip('NOPE')).toBeUndefined();
   });

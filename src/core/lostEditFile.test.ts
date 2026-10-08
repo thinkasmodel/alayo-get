@@ -97,6 +97,13 @@ describe('批注草稿文件内容', () => {
     expect(md.endsWith('这里的「慢」是指延迟回应。\n')).toBe(true);
   });
 
+  it('摘录文件里找不到这一条（QuoteEntryNotFound）：原因句写“摘录文件里找不到这一条”（codex review 第 2 轮）', () => {
+    expect(lostEditReason({ name: 'QuoteEntryNotFound' })).toBe('entry-missing');
+    expect(buildLostEditFile(lost({ note: 'x' }, quoteClip, 'QuoteEntryNotFound'))).toContain('没能写进「摘录 - 慢思考.md」（摘录文件里找不到这一条）。');
+    useLocale('en');
+    expect(buildLostEditFile(lost({ note: 'x' }, { ...quoteClip, file: 'Quotes - Slow thinking.md' }, 'QuoteEntryNotFound'))).toContain('(the quote entry is no longer in the file).');
+  });
+
   it('en：文件名与内容不含中日韩字符', () => {
     useLocale('en');
     const enClip: ClipSummary = { ...clip, file: 'Why quiet interfaces are harder.md', title: 'Why quiet interfaces are harder', tags: ['design'] };

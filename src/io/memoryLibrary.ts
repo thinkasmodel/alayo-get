@@ -45,6 +45,11 @@ export class MemoryLibrary implements Library {
     return typeof content === 'string' ? content : new TextDecoder().decode(content);
   }
 
+  async exists(path: string): Promise<boolean> {
+    this.assertGranted();
+    return this.files.has(path);
+  }
+
   async write(path: string, data: Blob | string): Promise<void> {
     this.assertGranted();
     if (this.failWrite?.match(path)) throw this.failWrite.error;
