@@ -48,10 +48,10 @@ export interface MediaRequestOptions {
 
 /**
  * 带 cookie 的请求跟随重定向落到了与页面跨站的地址：cookie 已经发出，只能在响应侧丢弃结果。
- * 不带 cookie 或没有重定向信息（res.url 为空）时不拦。
+ * 不带 cookie 或没有重定向信息（res.url 为空）时不拦。不比协议：同站的 http 地址跳到 https 放行（ADR-0009）。
  */
 function redirectedCrossSite(res: Response, url: string, options: MediaRequestOptions): boolean {
-  return options.credentials === 'include' && res.url !== '' && !sameSite(options.pageUrl ?? url, res.url);
+  return options.credentials === 'include' && res.url !== '' && !sameSite(options.pageUrl ?? url, res.url, { ignoreScheme: true });
 }
 
 function contentLength(res: Response): number | null {
@@ -63,7 +63,7 @@ function contentLength(res: Response): number | null {
 
 /**
  * 探测媒体地址的大小与类型，不下载内容：先 HEAD；HEAD 失败或没给 content-length 时 GET，读到响应头就中止。
- * 都失败时 bytes 为 null。带 cookie 的探测跳转到跨站地址时，该次探测视为失败。
+ * 都失败时 bytes 为 null。带 cookie 的探测跳转到跨站地址时抛 DownloadError，不再发任何请求。
  */
 export async function probeMedia(fetchFn: FetchLike, url: string, options: MediaRequestOptions): Promise<ProbeResult> {
   const attempt = async (method: 'HEAD' | 'GET'): Promise<ProbeResult | null> => {
@@ -72,8 +72,8 @@ export async function probeMedia(fetchFn: FetchLike, url: string, options: Media
     try {
       const res = await fetchFn(url, { method, credentials: options.credentials, signal: controller.signal });
       if (redirectedCrossSite(res, url, options)) {
-        console.info(`[Alayo Get] ${method} 探测媒体时跳转到了跨站地址，丢弃结果：${url} → ${res.url}`);
-        return null;
+        console.info(`[Alayo Get] ${method} 探测媒体时跳转到了跨站地址，中止保存：${url} → ${res.url}`);
+        throw downloadError(t('error_mediaRedirectedCrossSite'));
       }
       if (!res.ok) return null;
       return {
@@ -82,6 +82,8 @@ export async function probeMedia(fetchFn: FetchLike, url: string, options: Media
         fileName: fileNameFromContentDisposition(res.headers.get('content-disposition')),
       };
     } catch (err) {
+      // 跨站跳转不是普通的探测失败：让它穿透，不再试 GET（ALAG-18）
+      if (err instanceof Error && err.name === 'DownloadError') throw err;
       console.info(`[Alayo Get] ${method} 探测媒体大小失败`, url, err);
       return null;
     } finally {
@@ -261,7 +263,8 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
   // 服务器回了网页（登录页、错误页）而不是文件：不写文件、不写记录。跨站请求没带 cookie，提示里说明原因
   const gotMime = mimeOf(got.contentType);
   if (gotMime === 'text/html' || gotMime === 'application/xhtml+xml') {
-    throw downloadError(t(credentials === 'omit' ? 'error_notAFileCrossSite' : 'error_notAFile'));
+    // data: 地址不是网络请求，没有“另一个站点”可言
+    throw downloadError(t(credentials === 'omit' && !isDataUrl(url) ? 'error_notAFileCrossSite' : 'error_notAFile'));
   }
 
   const name = got.fileName || media.fileName || fileNameFromUrl(url);
@@ -313,6 +316,13 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
 export async function probeMediaKind(fetchFn: FetchLike, url: string): Promise<MediaKind | null> {
   if (!/^https?:\/\//i.test(url)) return null;
   // 探的是标签页自身地址，与页面必然同站：mediaCredentials(url, url) 恒为 include
-  const probe = await probeMedia(fetchFn, url, { credentials: mediaCredentials(url, url), pageUrl: url });
+  let probe: ProbeResult;
+  try {
+    probe = await probeMedia(fetchFn, url, { credentials: mediaCredentials(url, url), pageUrl: url });
+  } catch (err) {
+    // 标签页地址的 HEAD 跳到了跨站地址：不再发请求，按"判断不出类别"处理（与原先探测失败时一样）
+    if (err instanceof Error && err.name === 'DownloadError') return null;
+    throw err;
+  }
   return mediaKindFromContentType(probe.contentType);
 }

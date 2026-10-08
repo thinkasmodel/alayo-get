@@ -5,7 +5,7 @@
 
 ## 决策
 
-媒体剪藏的探测与下载请求，只在**媒体地址与被保存页面同站**时带 cookie（`credentials: 'include'`）；跨站一律不带（`'omit'`），但照常下载。同站按 schemeful site 判：协议相同，且按 Public Suffix List 算出的 eTLD+1 相同（私有后缀如 `github.io` 也算后缀）。带 cookie 的请求若跟随重定向落到跨站目标，响应被丢弃并提示用户。
+媒体剪藏的探测与下载请求，只在**媒体地址与被保存页面同站**时带 cookie（`credentials: 'include'`）；跨站一律不带（`'omit'`），但照常下载。同站按 schemeful site 判：协议相同，且按 Public Suffix List 算出的 eTLD+1 相同（私有后缀如 `github.io` 也算后缀）。带 cookie 的请求若跟随重定向落到跨站目标，响应被丢弃并提示用户。这项重定向检查只比站点、不比协议：同站页面上的 http 媒体地址 301 到同主机的 https 很常见，协议升级不改变请求落在哪个站点，按 schemeful 判会误拒；是否带 cookie 的初始判定仍按 schemeful site。
 
 两处有意的例外：
 - 正文图片下载一直不带 cookie（原有行为）。

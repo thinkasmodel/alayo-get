@@ -42,11 +42,31 @@ describe('sameSite', () => {
     expect(sameSite('not a url', 'https://a.com')).toBe(false);
     expect(sameSite('https://a.com', '')).toBe(false);
   });
+  it('尾点：只有一边带尾点不同站；两边都带尾点照常按可注册域比', () => {
+    expect(sameSite('https://example.com.', 'https://example.com')).toBe(false);
+    expect(sameSite('https://cdn.example.com', 'https://example.com.')).toBe(false);
+    expect(sameSite('https://example.com.', 'https://example.com.')).toBe(true);
+    expect(sameSite('https://blog.example.com.', 'https://cdn.example.com.')).toBe(true);
+    expect(sameSite('https://a.com.', 'https://b.com.')).toBe(false);
+  });
+
+  it('ignoreScheme：不比协议，其余规则不变', () => {
+    expect(sameSite('http://a.com', 'https://a.com', { ignoreScheme: true })).toBe(true);
+    expect(sameSite('http://blog.a.com', 'https://cdn.a.com', { ignoreScheme: true })).toBe(true);
+    expect(sameSite('http://a.com', 'https://b.com', { ignoreScheme: true })).toBe(false);
+    expect(sameSite('http://a.com', 'https://a.com.', { ignoreScheme: true })).toBe(false);
+    expect(sameSite('ftp://a.com', 'https://a.com', { ignoreScheme: true })).toBe(false);
+  });
 });
 
 describe('mediaCredentials', () => {
   it('同站带 cookie，跨站不带', () => {
     expect(mediaCredentials('https://blog.example.com/post', 'https://cdn.example.com/a.pdf')).toBe('include');
     expect(mediaCredentials('https://blog.example.com/post', 'https://files.other.com/a.pdf')).toBe('omit');
+  });
+
+  it('尾点：单边尾点不带 cookie，两边都带尾点的同站子域带 cookie', () => {
+    expect(mediaCredentials('https://blog.example.com/post', 'https://cdn.example.com./a.pdf')).toBe('omit');
+    expect(mediaCredentials('https://blog.example.com./post', 'https://cdn.example.com./a.pdf')).toBe('include');
   });
 });
