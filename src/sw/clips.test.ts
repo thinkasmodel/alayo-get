@@ -380,6 +380,45 @@ describe('「加批注…」→ 文件不在或被替换 / 写回失败 → 草�
     expect(state.error.name).toBe('ClipMismatchError');
   });
 
+  it('旧会话重试把批注 B 写进文件时，新会话已按旧批注 A 打开、只改了标签：关闭后文件里批注是 B、标签是新的（codex review 第 4 轮）', async () => {
+    const book = newBook();
+    const lostEdits = createLostEdits();
+    const saved = await saveArticle(book, PAGE, '文章');
+    library.files.set(saved.file, (library.text(saved.file) ?? '').replace('note: ""', 'note: "旧批注 A"'));
+    await lostEdits.add({ id: 'LB', clip: { ...saved, note: '旧批注 A' }, fields: { note: '恢复的批注 B' }, error: { name: 'NotAllowedError', message: 'x' }, at: '2026-10-08T00:00:00.000Z' });
+
+    // 旧会话：重试的写回被拦住，等新会话预检之后才放行
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const retried: { done?: Promise<ClipSummary> } = {};
+    const first = new FakePort();
+    handlePanelPort(first, {
+      savePage: () => Promise.reject(new Error('不该保存')),
+      saveSnapshot: () => Promise.reject(new Error('不该另存')),
+      lostEdits,
+      applyEdits: (c, f) => (retried.done = gate.then(() => book.editClip(c, f))),
+    });
+    first.send({ type: 'lost-edit', action: 'retry', id: 'LB' });
+    await until(() => retried.done !== undefined);
+    first.disconnect();
+
+    // 新会话：预检读到旧批注 A
+    const second = openPanel(book, lostEdits, saved.id);
+    const clip = await enterEdit(second, saved.id);
+    expect(clip.note).toBe('旧批注 A');
+    release();
+    await retried.done;
+    expect(library.text(saved.file)).toContain('note: "恢复的批注 B"');
+
+    second.send({ type: 'draft', fields: { title: clip.title, tags: ['新标签'], note: clip.note } });
+    second.disconnect();
+    await until(() => (library.text(saved.file) ?? '').includes('新标签'));
+    const md = library.text(saved.file) ?? '';
+    expect(md).toContain('note: "恢复的批注 B"');
+    expect(md).toContain('新标签');
+    expect(await lostEdits.list()).toEqual([]);
+  });
+
   it('媒体剪藏的草稿重试时媒体文件已被移走：不算写成，草稿仍在列表、错误为 NotFoundError，没有“已写入”通知（codex review 第 3 轮）', async () => {
     const book = newBook();
     const lostEdits = createLostEdits();

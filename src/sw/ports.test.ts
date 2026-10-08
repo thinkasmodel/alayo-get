@@ -602,6 +602,71 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(deps.applyEdits.mock.calls[1]?.[0].note).toBe('恢复的批注 B');
   });
 
+  it('两个面板会话同一剪藏：旧会话重试写入 B 期间新会话只改了标签，关闭时只提交标签，不带旧批注 A（codex review 第 4 轮）', async () => {
+    const lostEdits = memoryLostEdits([{ ...stored, fields: { note: '恢复的批注 B' } }]);
+    const fileClip: ClipSummary = { ...clip, note: '旧批注 A' };
+    let finishRetry: () => void = () => undefined;
+    const applyEdits = vi.fn(async (c: ClipSummary, fields: EditFields) => ({ ...c, ...fields }));
+    // 第一次（旧会话的重试）手动放行
+    applyEdits.mockImplementationOnce(
+      (c, fields) =>
+        new Promise((resolve) => {
+          finishRetry = () => resolve({ ...c, ...fields });
+        }),
+    );
+    const pending = () => vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => clip.id);
+    const first = open({ ...panelDeps(), applyEdits, lostEdits, takePendingEdit: pending(), findClip: async () => fileClip });
+    first.send({ type: 'start', tabId: 7 });
+    await flush();
+    first.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    first.disconnect();
+
+    // 「加批注…」重开同一剪藏：预检读到的还是旧批注 A
+    const second = open({
+      ...panelDeps(),
+      applyEdits,
+      lostEdits,
+      takePendingEdit: pending(),
+      checkClip: vi.fn<NonNullable<PanelDeps['checkClip']>>(async () => ({ ok: true, clip: fileClip })),
+    });
+    second.send({ type: 'start', tabId: 7 });
+    await flush();
+    // 输入组件发全量字段：只改了标签，批注仍是旧值 A
+    second.send({ type: 'draft', fields: { title: clip.title, tags: ['新标签'], note: '旧批注 A' } });
+    second.disconnect();
+    finishRetry();
+    await flush();
+    expect(applyEdits).toHaveBeenCalledTimes(2);
+    const secondWrite = applyEdits.mock.calls.find(([, fields]) => fields.tags !== undefined);
+    expect(secondWrite?.[1]).toEqual({ tags: ['新标签'] });
+  });
+
+  it('「存为草稿文件」写成后删草稿出错：通知里有 filed，草稿仍在且错误没被改写（codex review 第 4 轮）', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    lostEdits.remove.mockRejectedValueOnce(new Error('storage.local 写入失败'));
+    const fileLostEdit = vi.fn(async () => '批注草稿 - 文章.md');
+    const port = open({ ...panelDeps(), lostEdits, fileLostEdit });
+    port.send({ type: 'lost-edit', action: 'file', id: 'L1' });
+    await flush();
+    expect(fileLostEdit).toHaveBeenCalledTimes(1);
+    expect(lostEdits.update).not.toHaveBeenCalled();
+    const last = lostMessages(port).at(-1);
+    expect(last?.notices).toEqual([{ id: 'L1', kind: 'filed', file: '批注草稿 - 文章.md' }]);
+    expect(last?.edits).toEqual([stored]);
+  });
+
+  it('丢弃时删草稿出错：只记日志，照常推送列表（codex review 第 4 轮）', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    lostEdits.remove.mockRejectedValueOnce(new Error('storage.local 写入失败'));
+    const onLostEditsChanged = vi.fn();
+    const port = open({ ...panelDeps(), lostEdits, onLostEditsChanged });
+    port.send({ type: 'lost-edit', action: 'discard', id: 'L1' });
+    await flush();
+    expect(lostMessages(port).at(-1)?.edits).toEqual([stored]);
+    expect(onLostEditsChanged).toHaveBeenLastCalledWith(1);
+  });
+
   it('不带 baseline 的 draft 照旧接受（codex review 第 2 轮）', async () => {
     const deps = panelDeps();
     const port = open(deps);

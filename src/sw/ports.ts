@@ -3,7 +3,7 @@ import { lostEditReason } from '@/core/lostEditFile';
 import type { LostEditStore } from '@/io/lostEdits';
 import type { PanelToSw, SwToPanel } from '@/shared/messages';
 import type { Capture, ClipSummary, ClipUnavailableState, EditFields, LostEdit, LostEditNotice, PanelState, SaveOutcome, TagCount } from '@/shared/types';
-import { changedFields, hasChanges } from './applyEdits';
+import { changedFields } from './applyEdits';
 import type { ClipBook } from './clips';
 
 /** Port 的最小接口（便于用假 Port 测试）。 */
@@ -149,7 +149,11 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
     const edit = (await store.list()).find((e) => e.id === id);
     if (!edit) return;
     if (action === 'discard') {
-      await store.remove(id);
+      try {
+        await store.remove(id);
+      } catch (err) {
+        console.error('[Alayo Get] 丢弃草稿失败', err);
+      }
     } else if (action === 'retry') {
       // ① 写回；失败记下新的错误并结束
       let next: ClipSummary | null = null;
@@ -184,13 +188,22 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       }
     } else {
       if (!deps.fileLostEdit) return;
+      // 与重试同形（codex review ALAG-20 第 4 轮）：① 写草稿文件，失败记下新的错误并结束
+      let file: string | null = null;
       try {
-        const file = await deps.fileLostEdit(edit);
-        await store.remove(id);
-        notices.push({ id, kind: 'filed', file });
+        file = await deps.fileLostEdit(edit);
       } catch (err) {
         console.warn('[Alayo Get] 存为批注草稿文件失败', err);
         await store.update({ ...edit, error: errorInfo(err) });
+      }
+      if (file !== null) {
+        // ② 文件已写成，先记通知；③ 删草稿失败只记日志，不当成写文件失败
+        notices.push({ id, kind: 'filed', file });
+        try {
+          await store.remove(id);
+        } catch (err) {
+          console.error('[Alayo Get] 删除已存为草稿文件的草稿失败', err);
+        }
       }
     }
     const edits = await postLostEdits(store);
@@ -290,13 +303,16 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
       .then(async () => {
         if (finished) return;
         finished = true;
-        if (!clip || !hasChanges(clip, draft)) return;
+        if (!clip) return;
+        // 只提交本会话里相对面板基线真正改过的字段：没动的字段不参与写回，
+        // 不会把别的面板会话刚恢复的内容覆盖回旧值（codex review ALAG-20 第 4 轮）
         const target = clip;
-        const fields = draft;
+        const changes = changedFields(target, draft);
+        if (Object.keys(changes).length === 0) return;
         try {
-          await deps.applyEdits(target, fields);
+          await deps.applyEdits(target, changes);
         } catch (err) {
-          await keepLostEdit(target, fields, err);
+          await keepLostEdit(target, changes, err);
           throw err;
         }
       })
