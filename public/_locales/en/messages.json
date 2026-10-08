@@ -979,5 +979,110 @@
         "content": "$1"
       }
     }
+  },
+  "panel_clipUnavailableTitle": {
+    "message": "Couldn’t open this clip",
+    "description": "Panel status when the clip opened from the toast's “Add note…” is missing or replaced"
+  },
+  "panel_nothingChanged": {
+    "message": "Nothing was changed",
+    "description": "Subline under “Couldn’t open this clip”"
+  },
+  "panel_fileMissing": {
+    "message": "“$file$” isn’t in the library. It may have been moved or renamed.",
+    "description": "Reason line: the clip file is gone",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_fileReplaced": {
+    "message": "“$file$” is now a different file, so it won’t be changed.",
+    "description": "Reason line: the clip's path now holds another file",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_writeFailed": {
+    "message": "Couldn’t write to “$file$”.",
+    "description": "Reason line of a recovery block for other write errors",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_lostEditTitle": {
+    "message": "Last edit wasn’t saved",
+    "description": "Title of the recovery block for an edit that failed to write"
+  },
+  "panel_lostEditDiscard": {
+    "message": "Discard",
+    "description": "Recovery block button"
+  },
+  "panel_lostEditFile": {
+    "message": "Save as draft file",
+    "description": "Recovery block button"
+  },
+  "panel_lostEditFiled": {
+    "message": "Last edit saved as “$file$”",
+    "description": "Line shown after the draft was saved as a file",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_lostEditWritten": {
+    "message": "Last edit written to “$file$”",
+    "description": "Line shown after retrying the write succeeded",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_tagJoin": {
+    "message": ", ",
+    "description": "Separator between tags in the recovery block and the draft file"
+  },
+  "file_noteDraft": {
+    "message": "Note draft",
+    "description": "File name and heading prefix of a note draft file: “Note draft - <clip file name>”"
+  },
+  "file_noteDraftIntro": {
+    "message": "Edits made in the toolbar panel on $time$ that couldn’t be written to “$file$” ($reason$).",
+    "description": "First paragraph of a note draft file",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      },
+      "file": {
+        "content": "$2"
+      },
+      "reason": {
+        "content": "$3"
+      }
+    }
+  },
+  "file_noteDraftReasonMissing": {
+    "message": "the file isn’t in the library; it may have been moved or renamed",
+    "description": "Reason inside the note draft file intro"
+  },
+  "file_noteDraftReasonReplaced": {
+    "message": "the path now holds a different file",
+    "description": "Reason inside the note draft file intro"
+  },
+  "file_noteDraftQuoteEntry": {
+    "message": "#$n$",
+    "description": "First line of a quote's note in a note draft file: which quote it belongs to",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
   }
 }

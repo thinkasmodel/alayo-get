@@ -4,6 +4,7 @@ import { LIBRARY_HANDLE_KEY } from '@/io/library';
 import { createSavedIndex } from '@/io/savedIndex';
 import { currentLang } from '@/shared/i18n';
 import { PANEL_PORT, type OpenOptionsMessage, type PanelToSw, type SwToPanel } from '@/shared/messages';
+import type { LostEdit, LostEditNotice, PanelState } from '@/shared/types';
 import { renderPanel, type PanelActions } from '@/ui/panel/render';
 import '@/ui/tokens.css';
 import './style.css';
@@ -22,6 +23,24 @@ async function main() {
   /** 已存下的剪藏 id 和最后一次完整草稿：service worker 被终止导致断线时，用它们重连并接着编辑（codex review 第 8 轮）。 */
   let clipId: string | null = null;
   let lastFields: Parameters<PanelActions['postDraft']>[0] | null = null;
+  /** lastFields 属于哪条剪藏。 */
+  let lastFieldsClipId: string | null = null;
+  /** 最后一次收到的面板状态，和写回失败留下的草稿（ALAG-20）；两者任一变化都整体重渲染。 */
+  let lastState: PanelState | null = null;
+  let lost: { edits: LostEdit[]; notices: LostEditNotice[] } = { edits: [], notices: [] };
+
+  /**
+   * 按最后的状态和草稿重渲染。只因草稿列表变化而重渲染时，编辑态的字段按已经输入的内容显示：
+   * 否则输入框会回到已存的值，而 service worker 里的草稿还是输入过的内容。
+   */
+  const rerender = (keepInput: boolean) => {
+    if (lastState === null) return;
+    let state = lastState;
+    if (keepInput && lastFields && (state.state === 'saved' || state.state === 'fallback') && state.clip.id === lastFieldsClipId) {
+      state = { ...state, clip: { ...state.clip, ...lastFields } };
+    }
+    renderPanel(root, { state, folderName, lostEdits: lost.edits, lostNotices: lost.notices }, actions);
+  };
 
   const send = (message: PanelToSw) => {
     try {
@@ -34,6 +53,7 @@ async function main() {
   const actions: PanelActions = {
     postDraft: (fields) => {
       lastFields = fields;
+      lastFieldsClipId = clipId;
       send({ type: 'draft', fields });
     },
     snapshot: () => send({ type: 'snapshot' }),
@@ -50,15 +70,23 @@ async function main() {
     openSettings: () => void browser.runtime.openOptionsPage(),
     closePanel: () => window.close(),
     loadIndex: () => index.all(),
+    lostEdit: (action, id) => send({ type: 'lost-edit', action, id }),
   };
 
   function connect() {
     const next = browser.runtime.connect({ name: PANEL_PORT });
     next.onMessage.addListener((message: SwToPanel) => {
-      if (next !== port || message?.type !== 'state') return;
-      const state = message.state;
-      if (state.state === 'saved' || state.state === 'fallback') clipId = state.clip.id;
-      renderPanel(root, { state, folderName }, actions);
+      if (next !== port) return;
+      if (message?.type === 'state') {
+        const state = message.state;
+        // clip-unavailable 不设 clipId：断线后没有可以接着编辑的剪藏
+        if (state.state === 'saved' || state.state === 'fallback') clipId = state.clip.id;
+        lastState = state;
+        rerender(false);
+      } else if (message?.type === 'lost-edits') {
+        lost = { edits: message.edits, notices: message.notices };
+        rerender(true);
+      }
     });
     // 面板还开着时断线（service worker 被终止）：重连，接着编辑同一条剪藏，并补发最后一次完整草稿。
     // 面板自己关闭或主动换 Port 时不会触发这里。

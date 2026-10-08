@@ -22,7 +22,8 @@ export function isMediaClip(clip: Pick<ClipRef, 'file' | 'media' | 'medium'>): b
   return isMediaKind(clip.medium) && !/\.md$/i.test(clip.file);
 }
 
-function mismatch(message: string): Error {
+/** 文件不是这条剪藏时拒绝修改的错误（name 为 ClipMismatchError）；进入编辑态前的核对也用它（ALAG-20）。 */
+export function mismatch(message: string): Error {
   const err = new Error(message);
   err.name = 'ClipMismatchError';
   return err;

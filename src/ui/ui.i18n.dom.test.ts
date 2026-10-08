@@ -114,6 +114,7 @@ describe('英文：工具栏面板', () => {
     openSettings: vi.fn(),
     closePanel: vi.fn(),
     loadIndex: vi.fn(async () => ({})),
+    lostEdit: vi.fn(),
   });
 
   function render(state: PanelState, folderName: string | null = 'Alayo Get'): HTMLElement {

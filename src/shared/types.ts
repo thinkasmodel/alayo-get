@@ -176,12 +176,33 @@ export type PanelState =
   | { state: 'saved' | 'fallback'; clip: ClipSummary; tagSuggestions: TagCount[] }
   | { state: 'duplicate'; preview: Preview; previous: SavedEntry }
   | { state: 'failed'; preview: Preview; error: { name: string; message: string } }
-  | { state: 'needs-permission'; preview: Preview };
+  | { state: 'needs-permission'; preview: Preview }
+  /** 从页面提示「加批注…」进入编辑态前核对文件：文件不在或已被替换（ALAG-20）。不是保存结果。 */
+  | { state: 'clip-unavailable'; clip: ClipSummary; error: { name: string; message: string } };
 
 export type SavingState = Extract<PanelState, { state: 'saving' }>;
 
-/** 一次保存的结果（不含 'saving'）。 */
-export type SaveOutcome = Exclude<PanelState, SavingState>;
+export type ClipUnavailableState = Extract<PanelState, { state: 'clip-unavailable' }>;
+
+/** 一次保存的结果（不含 'saving' 与 'clip-unavailable'）。 */
+export type SaveOutcome = Exclude<PanelState, SavingState | ClipUnavailableState>;
+
+/** 关闭面板写回失败后留下的草稿（ALAG-20）。fields 只含与已存内容不同的字段。 */
+export interface LostEdit {
+  id: string;
+  clip: ClipSummary;
+  fields: EditFields;
+  error: { name: string; message: string };
+  /** ISO 时间，失败那一刻。 */
+  at: string;
+}
+
+/** 本次面板会话里已处理完的草稿：存成了草稿文件，或重试写进了原文件。 */
+export interface LostEditNotice {
+  id: string;
+  kind: 'filed' | 'written';
+  file: string;
+}
 
 /** 面板与页面提示可改的字段。 */
 export interface EditFields {

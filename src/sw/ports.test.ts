@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PanelToSw, SwToPanel } from '@/shared/messages';
 import type { Capture, ClipSummary, EditFields, SaveOutcome } from '@/shared/types';
 import { handlePanelPort, type PanelDeps, type PortLike } from './ports';
+import type { LostEditStore } from '@/io/lostEdits';
+import type { LostEdit } from '@/shared/types';
 
 /** 假 Port：记录 postMessage，可以手动发消息、断开。 */
 class FakePort<In, Out> implements PortLike<In, Out> {
@@ -120,7 +122,7 @@ describe("Port 'panel'", () => {
     expect(deps.savePage).toHaveBeenCalledTimes(1);
     expect(deps.savePage.mock.calls[0]?.[0]).toBe(7);
     expect(port.sent.map((m) => m.type)).toEqual(['state', 'state']);
-    expect(port.sent.map((m) => m.state.state)).toEqual(['saving', 'saved']);
+    expect(port.sent.flatMap((m) => (m.type === 'state' ? [m.state.state] : []))).toEqual(['saving', 'saved']);
   });
 
   it('断开时若最后的 draft 有改动，调用 applyEdits，且只调用一次', async () => {
@@ -190,7 +192,7 @@ describe("Port 'panel'", () => {
     port.send({ type: 'snapshot' });
     await flush();
     expect(deps.saveSnapshot).toHaveBeenCalledWith(capture, expect.any(Function));
-    expect(port.sent.map((m) => m.state.state)).toEqual(['saving', 'duplicate', 'saved']);
+    expect(port.sent.flatMap((m) => (m.type === 'state' ? [m.state.state] : []))).toEqual(['saving', 'duplicate', 'saved']);
     port.send({ type: 'draft', fields: { tags: ['x'] } });
     port.disconnect();
     await flush();
@@ -249,7 +251,7 @@ describe("Port 'panel'：从页面提示「加批注…」进入编辑态（ALAG
     await flush();
     expect(deps.findClip).toHaveBeenCalledWith(clip.id);
     expect(deps.savePage).toHaveBeenCalledTimes(1);
-    expect(port.sent.map((m) => m.state.state)).toEqual(['saving', 'saved']);
+    expect(port.sent.flatMap((m) => (m.type === 'state' ? [m.state.state] : []))).toEqual(['saving', 'saved']);
   });
 
   it('没有待编辑剪藏：照常保存当前页', async () => {
@@ -277,6 +279,170 @@ describe("Port 'panel'：从页面提示「加批注…」进入编辑态（ALAG
     port.send({ type: 'start', tabId: 7 });
     await flush();
     expect(deps.savePage).not.toHaveBeenCalled();
-    expect(port.sent.map((m) => m.state.state)).toEqual(['fallback']);
+    expect(port.sent.flatMap((m) => (m.type === 'state' ? [m.state.state] : []))).toEqual(['fallback']);
+  });
+});
+
+describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () => {
+  const open = (deps: PanelDeps): PanelPort => {
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, deps);
+    return port;
+  };
+  const notFound = () => Object.assign(new Error('找不到文件'), { name: 'NotFoundError' });
+
+  /** 内存里的草稿列表，方法都是 spy。 */
+  function memoryLostEdits(initial: LostEdit[] = []) {
+    let edits = [...initial];
+    return {
+      list: vi.fn(async () => edits.map((e) => ({ ...e }))),
+      add: vi.fn(async (edit: LostEdit) => {
+        edits.push(edit);
+      }),
+      update: vi.fn(async (edit: LostEdit) => {
+        edits = edits.map((e) => (e.id === edit.id ? edit : e));
+      }),
+      remove: vi.fn(async (id: string) => {
+        edits = edits.filter((e) => e.id !== id);
+      }),
+    } satisfies LostEditStore;
+  }
+
+  const stored: LostEdit = {
+    id: 'L1',
+    clip,
+    fields: { note: '没写进去的批注' },
+    error: { name: 'NotFoundError', message: 'gone' },
+    at: '2026-10-08T00:00:00.000Z',
+  };
+
+  const lostMessages = (port: PanelPort) => port.sent.flatMap((m) => (m.type === 'lost-edits' ? [m] : []));
+  const states = (port: PanelPort) => port.sent.flatMap((m) => (m.type === 'state' ? [m.state] : []));
+
+  it('有待编辑剪藏且 checkClip 回 ok: false：推送 clip-unavailable，不保存当前页；之后 draft + 断开不写回', async () => {
+    const error = { name: 'NotFoundError', message: 'gone' };
+    const deps = {
+      ...panelDeps(),
+      takePendingEdit: vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => clip.id),
+      findClip: vi.fn<NonNullable<PanelDeps['findClip']>>(async () => clip),
+      checkClip: vi.fn<NonNullable<PanelDeps['checkClip']>>(async () => ({ ok: false, clip, error })),
+    };
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    expect(deps.checkClip).toHaveBeenCalledWith(clip.id);
+    expect(deps.savePage).not.toHaveBeenCalled();
+    const [state] = states(port);
+    expect(state?.state).toBe('clip-unavailable');
+    if (state?.state !== 'clip-unavailable') return;
+    expect(state.clip.id).toBe(clip.id);
+    expect(state.error.name).toBe('NotFoundError');
+    port.send({ type: 'start', tabId: 7 });
+    port.send({ type: 'draft', fields: { note: '不该写回' } });
+    port.disconnect();
+    await flush();
+    expect(deps.savePage).not.toHaveBeenCalled();
+    expect(deps.applyEdits).not.toHaveBeenCalled();
+  });
+
+  it('checkClip 回 ok: false 但原因是其他错误（权限收回）：照常保存当前页', async () => {
+    const deps = {
+      ...panelDeps(),
+      takePendingEdit: vi.fn<NonNullable<PanelDeps['takePendingEdit']>>(async () => clip.id),
+      checkClip: vi.fn<NonNullable<PanelDeps['checkClip']>>(async () => ({ ok: false, clip, error: { name: 'NotAllowedError', message: 'denied' } })),
+    };
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    expect(deps.savePage).toHaveBeenCalledTimes(1);
+    expect(states(port).map((s) => s.state)).toEqual(['saving', 'saved']);
+  });
+
+  it('连接后不等 start 就推送 lost-edits（列表全量）', async () => {
+    const lostEdits = memoryLostEdits([stored, { ...stored, id: 'L2' }]);
+    const port = open({ ...panelDeps(), lostEdits });
+    await flush();
+    expect(port.sent).toEqual([{ type: 'lost-edits', edits: [stored, { ...stored, id: 'L2' }], notices: [] }]);
+  });
+
+  it('断开时 applyEdits 抛 NotFoundError：记下一条草稿，fields 只含改过的字段，onLostEditsChanged(1)', async () => {
+    const lostEdits = memoryLostEdits();
+    const onLostEditsChanged = vi.fn();
+    const deps = {
+      ...panelDeps(),
+      lostEdits,
+      onLostEditsChanged,
+      newId: () => 'NEW',
+      now: () => new Date('2026-10-08T01:02:03.000Z'),
+    };
+    deps.applyEdits.mockRejectedValue(notFound());
+    const port = open(deps);
+    port.send({ type: 'start', tabId: 1 });
+    await flush();
+    port.send({ type: 'draft', fields: { title: clip.title, tags: [], note: '改了批注' } });
+    port.disconnect();
+    await flush();
+    expect(lostEdits.add).toHaveBeenCalledTimes(1);
+    expect(lostEdits.add.mock.calls[0]?.[0]).toEqual({
+      id: 'NEW',
+      clip,
+      fields: { note: '改了批注' },
+      error: { name: 'NotFoundError', message: '找不到文件' },
+      at: '2026-10-08T01:02:03.000Z',
+    });
+    expect(onLostEditsChanged).toHaveBeenCalledWith(1);
+  });
+
+  it('lost-edit retry 成功：删掉这条，推送的 notices 含 written 与写入的文件名', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    const onLostEditsChanged = vi.fn();
+    const deps = { ...panelDeps(), lostEdits, onLostEditsChanged };
+    const port = open(deps);
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    expect(deps.applyEdits).toHaveBeenCalledWith(clip, { note: '没写进去的批注' });
+    expect(lostEdits.remove).toHaveBeenCalledWith('L1');
+    expect(lostMessages(port).at(-1)).toEqual({ type: 'lost-edits', edits: [], notices: [{ id: 'L1', kind: 'written', file: clip.file }] });
+    expect(onLostEditsChanged).toHaveBeenLastCalledWith(0);
+  });
+
+  it('lost-edit retry 失败：仍在列表里，error 已更新', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    const deps = { ...panelDeps(), lostEdits, onLostEditsChanged: vi.fn() };
+    deps.applyEdits.mockRejectedValue(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+    const port = open(deps);
+    port.send({ type: 'lost-edit', action: 'retry', id: 'L1' });
+    await flush();
+    expect(lostEdits.remove).not.toHaveBeenCalled();
+    const last = lostMessages(port).at(-1);
+    expect(last?.edits).toEqual([{ ...stored, error: { name: 'NotAllowedError', message: 'denied' } }]);
+    expect(last?.notices).toEqual([]);
+    expect(deps.onLostEditsChanged).toHaveBeenLastCalledWith(1);
+  });
+
+  it('lost-edit file：fileLostEdit 调一次，删掉这条，notices 含 filed 与草稿文件名', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    const fileLostEdit = vi.fn(async () => '批注草稿 - 文章.md');
+    const port = open({ ...panelDeps(), lostEdits, fileLostEdit });
+    port.send({ type: 'lost-edit', action: 'file', id: 'L1' });
+    await flush();
+    expect(fileLostEdit).toHaveBeenCalledTimes(1);
+    expect(fileLostEdit).toHaveBeenCalledWith(stored);
+    expect(lostEdits.remove).toHaveBeenCalledWith('L1');
+    expect(lostMessages(port).at(-1)?.notices).toEqual([{ id: 'L1', kind: 'filed', file: '批注草稿 - 文章.md' }]);
+  });
+
+  it('lost-edit discard：删掉这条，onLostEditsChanged(0)；找不到的 id 忽略', async () => {
+    const lostEdits = memoryLostEdits([stored]);
+    const onLostEditsChanged = vi.fn();
+    const port = open({ ...panelDeps(), lostEdits, onLostEditsChanged });
+    port.send({ type: 'lost-edit', action: 'discard', id: 'nope' });
+    await flush();
+    expect(lostEdits.remove).not.toHaveBeenCalled();
+    port.send({ type: 'lost-edit', action: 'discard', id: 'L1' });
+    await flush();
+    expect(lostEdits.remove).toHaveBeenCalledWith('L1');
+    expect(onLostEditsChanged).toHaveBeenCalledWith(0);
+    expect(lostMessages(port).at(-1)).toEqual({ type: 'lost-edits', edits: [], notices: [] });
   });
 });

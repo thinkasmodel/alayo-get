@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClipSummary, EditFields, PanelState, Preview, SavedEntry } from '@/shared/types';
 import { icon } from '../icons';
 import { renderPanel, type PanelActions } from './render';
+import type { LostEdit } from '@/shared/types';
+import { CJK, useLocale } from '../../../tests/setup/i18n';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -46,6 +48,7 @@ function makeActions() {
     openSettings: vi.fn(),
     closePanel: vi.fn(),
     loadIndex: vi.fn(async () => ({})),
+    lostEdit: vi.fn(),
   } satisfies PanelActions;
 }
 
@@ -368,5 +371,100 @@ describe('从页面提示「加批注…」进入的编辑态（ALAG-16）', () 
     note.value = '面板里写的批注';
     note.dispatchEvent(new Event('input'));
     expect(actions.postDraft).toHaveBeenLastCalledWith({ title: quoteClip.title, tags: [], note: '面板里写的批注' });
+  });
+});
+
+describe('写回失败可见、草稿可恢复（ALAG-20）', () => {
+  const lost: LostEdit = {
+    id: 'L1',
+    clip: { ...clip, file: '为什么安静的界面更难做.md' },
+    fields: { title: '新标题', tags: ['设计', '读书'], note: '批注第一行\n第二行' },
+    error: { name: 'NotFoundError', message: 'gone' },
+    at: '2026-10-08T00:00:00.000Z',
+  };
+
+  function renderWith(state: PanelState, lostEdits: LostEdit[], lostNotices: { id: string; kind: 'filed' | 'written'; file: string }[] = []) {
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    const actions = makeActions();
+    renderPanel(root, { state, folderName: 'Alayo Get', lostEdits, lostNotices }, actions);
+    return { root, actions, text: root.textContent ?? '' };
+  }
+
+  it('没能打开这条剪藏（文件不在）：danger 标题、说明行、原因、等宽行；没有输入框和按钮，底栏只有文件夹名', () => {
+    const { root, text } = render({ state: 'clip-unavailable', clip, error: { name: 'NotFoundError', message: 'gone' } });
+    expect(root.querySelector('.st.err')?.textContent).toBe('没能打开这条剪藏');
+    expect(text).toContain('没有改动任何文件');
+    expect(root.querySelector('.reason')?.textContent).toBe('「Designing for calm.md」不在剪藏库里，可能已被移动或改名。');
+    expect(root.querySelector('.mono')?.textContent).toBe('NotFoundError · Designing for calm.md');
+    expect(root.querySelector('input, textarea, button.btn')).toBeNull();
+    expect(root.querySelector('.foot')?.textContent).toBe('Alayo Get');
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('没能打开这条剪藏（已被替换）：原因换成“现在是另一个文件”', () => {
+    const { root } = render({ state: 'clip-unavailable', clip, error: { name: 'ClipMismatchError', message: 'x' } });
+    expect(root.querySelector('.reason')?.textContent).toBe('「Designing for calm.md」现在是另一个文件，不会改动它。');
+    expect(root.querySelector('.mono')?.textContent).toBe('ClipMismatchError · Designing for calm.md');
+    expect(root.querySelector('input, textarea, button.btn')).toBeNull();
+  });
+
+  it('恢复块：放在正文最后，danger 标题、原因、三个改动字段、三个文字按钮，点击各发 lostEdit(action, id)', () => {
+    const { root, actions } = renderWith({ state: 'saved', clip, tagSuggestions: [] }, [lost]);
+    const block = root.querySelector<HTMLElement>('.lost[data-lost-edit="L1"]');
+    if (!block) throw new Error('没有恢复块');
+    expect(root.querySelector('.body')?.lastElementChild).toBe(block);
+    expect(block.querySelector('.st.err')?.textContent).toBe('上次的修改没能写入');
+    expect(block.querySelector('.sm')?.textContent).toBe('「为什么安静的界面更难做.md」不在剪藏库里，可能已被移动或改名。');
+    expect(block.querySelector('.mono')).toBeNull();
+    const rows = [...block.querySelectorAll('.draft .dl')].map((row) => [row.querySelector('.dk')?.textContent, row.querySelector('.dv')?.textContent]);
+    expect(rows).toEqual([
+      ['标题', '新标题'],
+      ['标签', '设计、读书'],
+      ['批注', '批注第一行\n第二行'],
+    ]);
+    const buttons = [...block.querySelectorAll<HTMLButtonElement>('.acts button.tbtn')];
+    expect(buttons.map((b) => b.textContent)).toEqual(['丢弃', '存为草稿文件', '重试']);
+    expect(buttons[0]?.classList.contains('quiet')).toBe(true);
+    buttons[0]?.click();
+    buttons[1]?.click();
+    buttons[2]?.click();
+    expect(actions.lostEdit.mock.calls).toEqual([
+      ['discard', 'L1'],
+      ['file', 'L1'],
+      ['retry', 'L1'],
+    ]);
+  });
+
+  it('恢复块只列改过的字段；其他错误写“写入时出错”并加等宽行', () => {
+    const { root } = renderWith({ state: 'needs-permission', preview }, [{ ...lost, fields: { tags: ['论文'] }, error: { name: 'NotAllowedError', message: 'denied' } }]);
+    const block = root.querySelector('.lost');
+    expect([...(block?.querySelectorAll('.dk') ?? [])].map((k) => k.textContent)).toEqual(['标签']);
+    expect(block?.querySelector('.sm')?.textContent).toBe('写入「为什么安静的界面更难做.md」时出错。');
+    expect(block?.querySelector('.mono')?.textContent).toBe('NotAllowedError · Alayo Get');
+  });
+
+  it('处理完的草稿：一行小字写明文件名', () => {
+    const { root, text } = renderWith({ state: 'saved', clip, tagSuggestions: [] }, [], [
+      { id: 'L1', kind: 'filed', file: '批注草稿 - 文章.md' },
+      { id: 'L2', kind: 'written', file: '文章.md' },
+    ]);
+    expect(root.querySelector('.lost')).toBeNull();
+    expect(text).toContain('上次的修改已存为「批注草稿 - 文章.md」');
+    expect(text).toContain('上次的修改已写入「文章.md」');
+  });
+
+  it('en：恢复块、通知行与“没能打开这条剪藏”不含中日韩字符', () => {
+    useLocale('en');
+    const enLost: LostEdit = { ...lost, clip: { ...clip }, fields: { title: 'New title', tags: ['design', 'reading'], note: 'note' } };
+    const withBlock = renderWith({ state: 'saved', clip: { ...clip, tags: [] }, tagSuggestions: [] }, [enLost, { ...enLost, id: 'L2', error: { name: 'NotAllowedError', message: 'x' } }], [{ id: 'L3', kind: 'filed', file: 'Note draft - x.md' }]);
+    expect(withBlock.text).not.toMatch(CJK);
+    expect(withBlock.text).toContain('Last edit wasn’t saved');
+    expect(withBlock.text).toContain('design, reading');
+    for (const name of ['NotFoundError', 'ClipMismatchError']) {
+      const { text } = render({ state: 'clip-unavailable', clip, error: { name, message: 'x' } });
+      expect(text).not.toMatch(CJK);
+      expect(text).toContain('Couldn’t open this clip');
+    }
   });
 });

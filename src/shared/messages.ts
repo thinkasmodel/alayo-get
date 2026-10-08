@@ -1,5 +1,5 @@
 // 消息与 Port 协议的字面量和类型。冻结于 tasks/briefs/ALAG-2A.md「协议」段，Brief B 依赖，不改字面量。
-import type { Capture, EditFields, PanelState, QuoteCaptureInfo, SaveOutcome } from './types';
+import type { Capture, EditFields, LostEdit, LostEditNotice, PanelState, QuoteCaptureInfo, SaveOutcome } from './types';
 
 // ---- 页面内消息（tabs.sendMessage / runtime.onMessage）
 
@@ -81,9 +81,14 @@ export type PanelToSw =
   | { type: 'snapshot' }
   | { type: 'draft'; fields: EditFields }
   /** 面板仍开着、service worker 被终止导致断线后，面板重连并接着编辑同一条剪藏（不重新保存）。 */
-  | { type: 'resume'; clipId: string };
+  | { type: 'resume'; clipId: string }
+  /** 恢复块上的按钮：对 id 这条写回失败的草稿重试、存为草稿文件或丢弃（ALAG-20）。 */
+  | { type: 'lost-edit'; action: 'retry' | 'file' | 'discard'; id: string };
 
-export type SwToPanel = { type: 'state'; state: PanelState };
+export type SwToPanel =
+  | { type: 'state'; state: PanelState }
+  /** 写回失败留下的草稿全量与本次面板会话里已处理完的通知；连接后立刻推一次，之后每次变化都推（ALAG-20）。 */
+  | { type: 'lost-edits'; edits: LostEdit[]; notices: LostEditNotice[] };
 
 export function isCaptureError(r: CaptureResponse): r is CaptureError {
   return typeof (r as CaptureError).error === 'string';

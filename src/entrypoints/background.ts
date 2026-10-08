@@ -4,9 +4,11 @@
 import { ulid } from 'ulid';
 import { canonicalizeUrl } from '@/core/canonical';
 import { siteFromUrl } from '@/core/frontmatter';
+import { buildLostEditFile, lostEditFileName } from '@/core/lostEditFile';
 import type { ParsedStream } from '@/core/stream';
 import { tagSuggestions } from '@/core/tags';
 import { pinnedLibrary, type Library } from '@/io/library';
+import { createLostEdits } from '@/io/lostEdits';
 import { createPendingQueue } from '@/io/pending';
 import { createQuoteEntries } from '@/io/quoteEntries';
 import { createQuoteOps } from '@/io/quoteOps';
@@ -26,9 +28,10 @@ import {
   type ToastActionMessage,
   type ToastMessage,
 } from '@/shared/messages';
-import type { Capture, PanelState, Preview, SaveOutcome, TagCount } from '@/shared/types';
+import type { Capture, LostEdit, PanelState, Preview, SaveOutcome, TagCount } from '@/shared/types';
 import { createBadge } from '@/sw/badge';
 import { createClipBook } from '@/sw/clips';
+import { libraryLock } from '@/sw/lock';
 import { createPendingEdits, openPanelForNote, type NotePanelDeps } from '@/sw/pendingEdit';
 import { handlePanelPort, type PortLike } from '@/sw/ports';
 import {
@@ -363,6 +366,28 @@ export default defineBackground(() => {
     openPopup: (windowId) => browser.action.openPopup({ windowId }),
   };
 
+  // ---- 面板写回失败留下的草稿（ALAG-20）
+
+  /** 写回失败的草稿（storage.local，最多 10 条）；有草稿时角标保持 !。 */
+  const lostEdits = createLostEdits();
+  const setLostSticky = (count: number) => {
+    badge.setSticky(count > 0).catch((err) => console.error('[Alayo Get] 角标更新失败', err));
+  };
+  // 后台被终止后重启，按存着的草稿恢复角标的 !
+  lostEdits
+    .list()
+    .then((edits) => setLostSticky(edits.length))
+    .catch((err) => console.error('[Alayo Get] 读取没写入的修改失败', err));
+
+  /** 「存为草稿文件」：写进这条剪藏当初所在的库的根目录，与保存、写回经同一把锁串行。返回写出的文件名。 */
+  const fileLostEdit = (edit: LostEdit): Promise<string> =>
+    libraryLock(async () => {
+      const library = clips.libraryFor(edit.clip.id);
+      const name = lostEditFileName(edit, await library.listRoot());
+      await library.write(name, buildLostEditFile(edit));
+      return name;
+    });
+
   /** 编辑态的标签建议：已保存记录里最常用的标签；读不到时给空列表（不改 saveClip，ALAG-17 在改它）。 */
   const panelTagSuggestions = async (): Promise<TagCount[]> => {
     try {
@@ -447,8 +472,13 @@ export default defineBackground(() => {
         saveSnapshot: (capture, onState) => saveCapture(capture, true, onState),
         applyEdits: clips.editClip,
         findClip: clips.findClip,
+        checkClip: clips.checkClip,
         takePendingEdit: pendingEdits.take,
         tagSuggestions: panelTagSuggestions,
+        lostEdits,
+        fileLostEdit,
+        onLostEditsChanged: setLostSticky,
+        newId: () => ulid(),
       });
     }
   });
