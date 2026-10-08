@@ -1,7 +1,7 @@
 // 媒体剪藏的纯函数（ALAG-4）：类别判定、原文件名、媒体文件名、`.meta/<id>.json` 组装、大小格式、data: 地址。
 import { canonicalizeUrl } from './canonical';
 import { clipBaseName } from './filename';
-import { extFromContentType } from './images';
+import { extFromImageMime } from './images';
 import { t, type MessageKey } from '@/shared/i18n';
 import type { MediaKind } from '@/shared/types';
 
@@ -138,7 +138,7 @@ export function splitExt(name: string): { stem: string; ext: string } {
   return { stem: m[1], ext: m[2].toLowerCase() };
 }
 
-/** extFromContentType 不认识的媒体类型。 */
+/** extFromImageMime 不认识的媒体类型。 */
 const MEDIA_TYPE_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
   'application/x-pdf': 'pdf',
@@ -162,10 +162,44 @@ const MEDIA_TYPE_EXT: Record<string, string> = {
   'image/avif': 'avif',
 };
 
-/** 没有扩展名时按 content-type 补的扩展名；判不出返回空串。 */
-export function extForMedia(contentType: string | null | undefined, url: string): string {
+/**
+ * 媒体剪藏可写出的扩展名（ALAG-17）。svg 在集合里只为 MIME 明确是 image/svg+xml 时可用；
+ * 按文件名后缀回退时 resolveMediaExt 显式排除 svg（主动内容，只有服务器明确声明才信）。
+ */
+export const MEDIA_SAFE_EXTS: ReadonlySet<string> = new Set([
+  'jpg',
+  'png',
+  'gif',
+  'webp',
+  'avif',
+  'bmp',
+  'svg',
+  'mp3',
+  'm4a',
+  'aac',
+  'wav',
+  'ogg',
+  'flac',
+  'webm',
+  'mp4',
+  'mov',
+  'ogv',
+  'pdf',
+]);
+
+/**
+ * 媒体文件的扩展名（ALAG-17）：由 content-type 推出；推得出时服务器文件名和 URL 都不参与。
+ * 推不出（空、application/octet-stream、未映射的类型）时取服务器文件名的后缀，没有再取 URL 文件名的后缀，
+ * 只接受 MEDIA_SAFE_EXTS 里的（svg 除外）；其余一律 `bin`。
+ */
+export function resolveMediaExt(contentType: string | null | undefined, serverFileName: string, url: string): string {
   const mime = mimeOf(contentType);
-  return MEDIA_TYPE_EXT[mime] ?? extFromContentType(mime, url) ?? '';
+  const mapped = MEDIA_TYPE_EXT[mime] ?? extFromImageMime(mime);
+  if (mapped) return mapped;
+  const raw = splitExt(serverFileName).ext || splitExt(fileNameFromUrl(url)).ext;
+  const candidate = raw === 'jpeg' ? 'jpg' : raw;
+  if (candidate !== 'svg' && MEDIA_SAFE_EXTS.has(candidate)) return candidate;
+  return 'bin';
 }
 
 /** 由扩展名反推 mime（没有 content-type 时写进侧档）；判不出为空串。 */

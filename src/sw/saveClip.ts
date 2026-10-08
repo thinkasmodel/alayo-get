@@ -1,6 +1,7 @@
 // 保存编排：规范化出处 → 查重 → 查授权（未授权暂存）→ 下载图片、写附件、写 .md、写已保存记录。
 // 媒体剪藏、流媒体剪藏与摘录剪藏（ALAG-4）的写法在 saveMedia.ts、saveStream.ts、saveQuote.ts，查重、加锁、清理、提交记录仍只在这里。
 // 依赖全部注入，便于在 node 环境里用 MemoryLibrary 和假 fetch 测试。
+import { HTML_MAX_BYTES, readBodyCapped, readTextCapped } from './fetchBody';
 import { libraryLock, type Lock } from './lock';
 import { saveMediaClip } from './saveMedia';
 import { quoteIndexKey, writeQuoteClip } from './saveQuote';
@@ -46,6 +47,8 @@ export interface SaveDeps {
   lock?: Lock;
   /** 已落盘的摘录操作表，缺省用 browser.storage.local（摘录幂等，ALAG-4）。 */
   quoteOps?: QuoteOps;
+  /** 单次剪藏的附件（正文图片、封面）总字节预算，缺省 IMAGE_TOTAL_MAX_BYTES（ALAG-17）。 */
+  imageTotalMaxBytes?: number;
 }
 
 export interface SaveOptions {
@@ -56,6 +59,8 @@ export interface SaveOptions {
 export const IMAGE_CONCURRENCY = 4;
 export const IMAGE_TIMEOUT_MS = 15_000;
 export const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+/** 单次剪藏所有附件加起来的上限（ALAG-17）：用完后剩下的图片不再下载，保留远程地址。 */
+export const IMAGE_TOTAL_MAX_BYTES = 200 * 1024 * 1024;
 export const LINK_TIMEOUT_MS = 10_000;
 
 type Shape =
@@ -127,25 +132,71 @@ export interface Downloaded {
   ext: string;
 }
 
-/** 下载一张图片；失败、超时、超过 20MB、定不出扩展名都返回 null。 */
-async function downloadImage(fetchFn: FetchLike, url: string): Promise<Downloaded | null> {
+/** 单次剪藏的附件预算（剩余字节数），由 saveClipLocked 每次保存新建一个，所有图片下载共用。 */
+interface ImageBudget {
+  remaining: number;
+}
+
+/** 响应头里的 content-length；没有或不是非负数时为 null。 */
+function declaredLength(res: Response): number | null {
+  const raw = res.headers.get('content-length');
+  if (raw === null || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * 下载一张图片；失败、超时、超过 20MB、定不出扩展名、附件预算不够都返回 null。
+ * 响应体边读边计数，超过上限就取消读取（ALAG-17）。
+ * 预算按预留制：fetch 返回后在同一个同步段里判断并预留 content-length 声明的大小，这样并发下也是确定的。
+ * content-length 在 gzip/br 响应里是压缩后的长度、响应流已解压，所以它只用于预检与预留，不当读取上限：
+ * 读取上限一律是 min(IMAGE_MAX_BYTES, 开始读时的剩余预算)，读完按实际字节修正预留（可扣成负数），失败退还。
+ * 并发 IMAGE_CONCURRENCY 路各按快照判断，总量最多超出预算 IMAGE_CONCURRENCY × IMAGE_MAX_BYTES——这是有意接受的上界。
+ */
+async function downloadImage(fetchFn: FetchLike, url: string, budget: ImageBudget): Promise<Downloaded | null> {
+  if (budget.remaining <= 0) {
+    console.warn('[Alayo Get] 本次剪藏的附件已超过总预算，不再下载，保留远程地址', url);
+    return null;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS);
+  let reserved = 0;
   try {
     const res = await fetchFn(url, { credentials: 'omit', signal: controller.signal });
+    // 从这里到预留之间不能有 await：并发下按 fetch 返回顺序确定地占用预算
     if (!res.ok) return null;
-    const declared = Number(res.headers.get('content-length'));
-    if (Number.isFinite(declared) && declared > IMAGE_MAX_BYTES) {
+    const declared = declaredLength(res);
+    if (declared !== null && declared > IMAGE_MAX_BYTES) {
       controller.abort();
       return null;
     }
     const contentType = res.headers.get('content-type');
     const ext = extFromContentType(contentType, url);
     if (!ext) return null;
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength > IMAGE_MAX_BYTES) return null;
-    return { data: new Blob([buf], { type: contentType ?? '' }), ext };
+    const avail = budget.remaining;
+    if (avail <= 0 || (declared !== null && declared > avail)) {
+      controller.abort();
+      console.warn('[Alayo Get] 本次剪藏的附件已超过总预算，不再下载，保留远程地址', url);
+      return null;
+    }
+    if (declared !== null) {
+      budget.remaining -= declared;
+      reserved = declared;
+    }
+    const body = await readBodyCapped(res, Math.min(IMAGE_MAX_BYTES, avail));
+    if (body.kind === 'too-large') {
+      controller.abort();
+      budget.remaining += reserved;
+      reserved = 0;
+      console.warn('[Alayo Get] 图片超过大小上限或附件预算，保留远程地址', url);
+      return null;
+    }
+    // 成功：按实际字节修正（预留多了退差额，少了补扣）
+    budget.remaining += reserved - body.bytes;
+    reserved = 0;
+    return { data: new Blob(body.chunks as Uint8Array<ArrayBuffer>[], { type: contentType ?? '' }), ext };
   } catch (err) {
+    budget.remaining += reserved;
     console.warn('[Alayo Get] 图片下载失败，保留远程地址', url, err);
     return null;
   } finally {
@@ -367,14 +418,15 @@ async function saveClipLocked(request: PendingSave, deps: SaveDeps, options: Sav
       return { state: 'needs-permission', preview };
     }
 
-    // 4. 写入
+    // 4. 写入（本次保存的附件预算，所有图片下载共用）
+    const imageBudget: ImageBudget = { remaining: deps.imageTotalMaxBytes ?? IMAGE_TOTAL_MAX_BYTES };
     const ctx: WriteCtx = {
       deps,
       id: deps.newId(),
       captured: deps.now(),
       write,
       progress,
-      downloadImage: (url) => downloadImage(deps.fetch, url),
+      downloadImage: (url) => downloadImage(deps.fetch, url, imageBudget),
     };
     const title = preview.title;
     let result: ClipResult;
@@ -486,7 +538,12 @@ export async function captureLink(linkUrl: string, linkText: string, fetchFn: Fe
     const res = await fetchFn(linkUrl, { signal: controller.signal });
     if (!res.ok) return partial;
     if (!(res.headers.get('content-type') ?? '').toLowerCase().includes('text/html')) return partial;
-    const html = await res.text();
+    const html = await readTextCapped(res, HTML_MAX_BYTES);
+    if (html === null) {
+      controller.abort();
+      console.warn('[Alayo Get] 链接目标页超过 4MB，按抓取失败处理，只记 URL 和链接文字', linkUrl);
+      return partial;
+    }
     const meta = parseHtmlMeta(html, res.url || linkUrl);
     return {
       ...partial,

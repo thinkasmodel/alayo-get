@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   decodeDataUrl,
-  extForMedia,
   fileNameFromContentDisposition,
   fileNameFromUrl,
   formatProgressBytes,
@@ -11,6 +10,7 @@ import {
   mediaKindFromContentType,
   mediaUrlForMeta,
   parseMediaMeta,
+  resolveMediaExt,
   serializeMediaMeta,
   splitExt,
 } from './media';
@@ -39,11 +39,20 @@ describe('媒体剪藏的纯函数', () => {
     expect(splitExt('keynote-1080p.mp4')).toEqual({ stem: 'keynote-1080p', ext: 'mp4' });
     expect(splitExt('1706.03762')).toEqual({ stem: '1706.03762', ext: '' });
     expect(splitExt('.hidden')).toEqual({ stem: '.hidden', ext: '' });
-    expect(extForMedia('application/pdf', 'https://arxiv.org/pdf/1706.03762')).toBe('pdf');
-    expect(extForMedia('audio/mpeg', 'https://x/a')).toBe('mp3');
-    expect(extForMedia('image/jpeg', 'https://x/a')).toBe('jpg');
-    expect(extForMedia('video/quicktime', 'https://x/a')).toBe('mov');
-    expect(extForMedia(null, 'https://x/a')).toBe('');
+  });
+
+  // ALAG-17：扩展名由 content-type 定，服务器文件名只贡献主干；推不出时后缀只认白名单，svg 必须有明确 MIME
+  it('扩展名（resolveMediaExt）：MIME 推得出就用 MIME；推不出时只接受白名单后缀，否则 bin', () => {
+    expect(resolveMediaExt('image/png', 'photo.bat', 'https://x/a/photo.bat')).toBe('png');
+    expect(resolveMediaExt('application/octet-stream', 'photo.bat', 'https://x/a/photo.png')).toBe('bin');
+    expect(resolveMediaExt('application/octet-stream', 'photo.PNG', 'https://x/a/photo')).toBe('png');
+    expect(resolveMediaExt('', '', 'https://x/a/clip.mp4')).toBe('mp4');
+    expect(resolveMediaExt(null, '', 'https://x/a/clip.mp4')).toBe('mp4');
+    expect(resolveMediaExt('application/octet-stream', 'logo.svg', 'https://x/a/logo.svg')).toBe('bin');
+    expect(resolveMediaExt('image/svg+xml', 'logo.svg', 'https://x/a/logo.svg')).toBe('svg');
+    expect(resolveMediaExt('application/pdf', 'paper.exe', 'https://x/a/paper.exe')).toBe('pdf');
+    expect(resolveMediaExt('application/octet-stream', 'photo.JPEG', 'https://x/a/photo')).toBe('jpg');
+    expect(resolveMediaExt('application/x-unknown', 'no-ext', 'https://x/a/b')).toBe('bin');
   });
 
   it('媒体文件基础名：页面标题 - 原文件名主干；标题为空或与文件名（主干）相同时只用主干', () => {

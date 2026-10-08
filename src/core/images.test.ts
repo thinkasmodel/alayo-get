@@ -86,3 +86,14 @@ describe('extFromContentType：明确不是图片的内容', () => {
     expect(extFromContentType('application/json', 'https://x.example/a.webp')).toBeNull();
   });
 });
+
+// ALAG-17：URL 后缀回退只认图片白名单；svg 没有明确 MIME 时不认
+describe('extFromContentType：URL 后缀回退只认图片白名单', () => {
+  it('非图片后缀、svg 返回 null；白名单内的照常（jpeg 归一为 jpg）；明确的 image/svg+xml 仍是 svg', () => {
+    expect(extFromContentType('application/octet-stream', 'https://x.example/x.bat')).toBeNull();
+    expect(extFromContentType('application/octet-stream', 'https://x.example/x.svg')).toBeNull();
+    expect(extFromContentType('application/octet-stream', 'https://x.example/x.PNG')).toBe('png');
+    expect(extFromContentType('application/octet-stream', 'https://x.example/x.jpeg')).toBe('jpg');
+    expect(extFromContentType('image/svg+xml', 'https://x.example/x.svg')).toBe('svg');
+  });
+});

@@ -1,12 +1,12 @@
 // 媒体剪藏（ALAG-4）：探测大小、下载（带 cookie，60 秒，边读边计数）、写媒体文件与 `.meta/<id>.json`。
 // 音视频超过 100MB 或拿不到大小时转成直链流媒体剪藏；图片、PDF 超过 100MB 退回书签剪藏——这两种转向由 saveClip 接着写。
+import { readBodyCapped } from './fetchBody';
 import type { ClipResult, FetchLike, WriteCtx } from './saveClip';
 import { canonicalizeUrl } from '@/core/canonical';
 import { uniqueFileName } from '@/core/filename';
 import { siteFromUrl } from '@/core/frontmatter';
 import {
   decodeDataUrl,
-  extForMedia,
   fileNameFromContentDisposition,
   fileNameFromUrl,
   isDataUrl,
@@ -17,6 +17,7 @@ import {
   mediaUrlForMeta,
   mimeFromExt,
   mimeOf,
+  resolveMediaExt,
   serializeMediaMeta,
   splitExt,
 } from '@/core/media';
@@ -121,36 +122,22 @@ export async function downloadMedia(
     const total = declared ?? undefined;
     const contentType = res.headers.get('content-type');
     const fileName = fileNameFromContentDisposition(res.headers.get('content-disposition'));
-    const chunks: Uint8Array[] = [];
-    let received = 0;
     let lastAt = Date.now();
     let lastBytes = 0;
     onProgress(0, total);
-    const reader = res.body?.getReader();
-    if (reader) {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        received += value.byteLength;
-        if (received > maxBytes) {
-          await reader.cancel().catch(() => undefined);
-          controller.abort();
-          return { kind: 'too-large', bytes: declared };
-        }
-        chunks.push(value);
-        const now = Date.now();
-        if (now - lastAt >= PROGRESS_INTERVAL_MS || received - lastBytes >= PROGRESS_STEP_BYTES) {
-          lastAt = now;
-          lastBytes = received;
-          onProgress(received, total);
-        }
+    const body = await readBodyCapped(res, maxBytes, (received) => {
+      const now = Date.now();
+      if (now - lastAt >= PROGRESS_INTERVAL_MS || received - lastBytes >= PROGRESS_STEP_BYTES) {
+        lastAt = now;
+        lastBytes = received;
+        onProgress(received, total);
       }
-    } else {
-      const buf = new Uint8Array(await res.arrayBuffer());
-      if (buf.byteLength > maxBytes) return { kind: 'too-large', bytes: declared };
-      chunks.push(buf);
-      received = buf.byteLength;
+    });
+    if (body.kind === 'too-large') {
+      controller.abort();
+      return { kind: 'too-large', bytes: declared };
     }
+    const { chunks, bytes: received } = body;
     onProgress(received, total ?? received);
     return { kind: 'ok', data: new Blob(chunks as Uint8Array<ArrayBuffer>[], { type: contentType ?? '' }), bytes: received, contentType, fileName };
   } catch (err) {
@@ -247,7 +234,8 @@ export async function saveMediaClip(ctx: WriteCtx, capture: Capture): Promise<Me
   }
 
   const name = got.fileName || media.fileName || fileNameFromUrl(url);
-  const ext = splitExt(name).ext || extForMedia(got.contentType, url) || 'bin';
+  // 扩展名由 content-type 定；服务器文件名只贡献主干，后缀只在白名单内才用（ALAG-17）
+  const ext = resolveMediaExt(got.contentType, name, url);
   const mime = mimeOf(got.contentType) || mimeFromExt(ext);
   const pageTitle = capture.title.trim();
   const file = uniqueFileName(mediaBaseName(pageTitle, name), await ctx.deps.library.listRoot(), `.${ext}`);

@@ -358,3 +358,33 @@ describe('媒体剪藏：响应是网页', () => {
     expect(await index.get(PDF)).toBeUndefined();
   });
 });
+
+// ALAG-17 S2：扩展名由已验证的 MIME 定，服务器给的文件名只贡献主干
+describe('媒体剪藏：服务器给的文件名后缀', () => {
+  const PHOTO = 'https://cdn.sspai.com/2026/photo.png';
+
+  it('application/octet-stream + filename="photo.bat" → 写出 .bin，主干含 photo，侧档 file 一致', async () => {
+    const { fn } = fakeFetch({
+      [PHOTO]: { headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="photo.bat"' }, body: bytes('MZ') },
+    });
+    const outcome = await save(mediaCapture(PAGE, '少数派年度盘点', 'image', PHOTO), fn);
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    const file = outcome.clip.file;
+    expect(file.endsWith('.bin')).toBe(true);
+    expect(file).not.toContain('.bat');
+    expect(file.slice(0, -'.bin'.length)).toContain('photo');
+    expect(library.files.has(file)).toBe(true);
+    const meta = JSON.parse(library.text(`.meta/${ID1}.json`) ?? '{}') as Record<string, unknown>;
+    expect(meta.file).toBe(file);
+  });
+
+  it('同一地址返回 text/html（文件名说是 .png）→ 仍是 failed（DownloadError），不写文件', async () => {
+    const { fn } = fakeFetch({
+      [PHOTO]: { headers: { 'content-type': 'text/html', 'content-disposition': 'attachment; filename="photo.png"' }, body: bytes('<html></html>') },
+    });
+    const outcome = await save(mediaCapture(PAGE, '少数派年度盘点', 'image', PHOTO), fn);
+    expect(outcome).toMatchObject({ state: 'failed', error: { name: 'DownloadError' } });
+    expect(library.files.size).toBe(0);
+  });
+});
