@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>页面提示与右键菜单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-light{--accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--pill:rgba(66,87,181,.08);--canvas:#F1F2F4;--panel:#FFFFFF;--island:rgba(255,255,255,.86);--hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);--t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;--shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);--menu:rgba(246,246,248,.96);--sel:#3B6FE0}
+.t-dark{--accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);--canvas:#212228;--panel:#2B2D34;--island:rgba(43,45,52,.88);--hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);--t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;--shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);--menu:rgba(40,41,46,.96);--sel:#2F5BD0}
+.row{box-sizing:border-box;width:1500px;height:680px;padding:48px 64px;display:flex;gap:32px;align-items:flex-start;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1)}
+.col{width:340px;flex:none;display:flex;flex-direction:column;gap:12px}
+.wide{width:600px}
+.lab{font-size:13px;font-weight:600;color:var(--t1);line-height:18px}
+.lab span{font-weight:400;color:var(--t2);margin-left:6px}
+.cap{font-size:11px;line-height:15px;color:var(--t2);margin-top:-6px}
+.toast{box-sizing:border-box;width:340px;border-radius:14px;background:var(--island);box-shadow:var(--shadow);padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.trow{display:flex;align-items:center;gap:10px}
+.trow svg{flex:none}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tt{font-size:13px;font-weight:600;line-height:18px}
+.ts{font-size:11px;line-height:15px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{flex:none;height:28px;border:0;border-radius:8px;padding:0 10px;background:transparent;color:var(--accent);font:inherit;font-size:12.5px;font-weight:600}
+.ta{box-sizing:border-box;width:100%;min-height:56px;border-radius:9px;background:var(--region);border:.5px solid var(--hairSoft);padding:7px 9px;font-size:12.5px;line-height:17px;color:var(--t1)}
+.tfoot{display:flex;align-items:center;gap:8px}
+.hint{flex:1;font-size:11px;color:var(--t3)}
+.pbtn{flex:none;height:28px;border:0;border-radius:9px;padding:0 12px;background:var(--accent);color:var(--onAccent);font:inherit;font-size:12.5px;font-weight:600}
+.menus{display:flex;gap:24px;align-items:flex-start}
+.mcol{display:flex;flex-direction:column;gap:10px;width:288px}
+.menu{box-sizing:border-box;width:250px;background:var(--menu);border-radius:8px;box-shadow:var(--shadow);padding:5px;font-size:13px;line-height:22px;color:var(--t1)}
+.mi{display:flex;align-items:center;gap:7px;padding:0 9px;border-radius:4px;height:22px;white-space:nowrap}
+.mi .ic{width:14px;height:14px;flex:none;border-radius:3px;background:#4257B5;display:flex;align-items:center;justify-content:center}
+.mi .sp{width:14px;flex:none}
+.mi .tx2{flex:1}
+.mi .ch{color:var(--t2);font-size:11px}
+.on{background:var(--sel);color:#FFFFFF}
+.on .ch{color:#FFFFFF}
+.sep{height:.5px;background:var(--hair);margin:5px 9px}
+.sub{display:flex;align-items:flex-start;gap:0}
+.sub .menu{width:230px;margin-top:56px;margin-left:-6px}
+.ref{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:17px}
+.rl{display:flex;gap:10px}
+.rl .k{width:96px;flex:none;color:var(--t2)}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; width: 1500px">
+<sc-for list="{{themes}}" as="th" hint-placeholder-count="2">
+<div class="row {{th.cls}}">
+
+<div class="col">
+<div class="lab">媒体与流媒体<span>右键或快捷键保存</span></div>
+<div class="cap">右键图片保存</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">图片 · 少数派年度盘点 - cover@2x.jpg</div></div>
+<button class="tbtn">加批注</button>
+</div></div>
+<div class="cap">右键视频保存，文件超过 100MB</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">视频超过 100MB，只记了链接和信息</div></div>
+<button class="tbtn">加批注</button>
+</div></div>
+<div class="cap">右键保存一个 B 站链接</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">B 站 · 【官方 MV】Never Gonna Give You Up - Rick Astley</div></div>
+<button class="tbtn">加批注</button>
+</div></div>
+<div class="cap">同一张图再存一次（沿用 M1 的“已存过”）</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--t2)"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg>
+<div class="tx"><div class="tt">已于 10 月 5 日保存过</div><div class="ts">本次没有写入</div></div>
+<button class="tbtn">另存新快照</button>
+</div></div>
+</div>
+
+<div class="col">
+<div class="lab">摘录<span>右键“选中文字”</span></div>
+<div class="cap">追加到已有的摘录文件</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已摘录</div><div class="ts">第 3 条 · 摘录 - 为什么我们需要慢思考.md</div></div>
+<button class="tbtn">加批注</button>
+</div></div>
+<div class="cap">原文件被移走或改名，新建一个</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已摘录</div><div class="ts">原来的摘录文件不在了，新建了一个</div></div>
+<button class="tbtn">加批注</button>
+</div></div>
+<div class="cap">没能生成跳回原文的链接（如 PDF 里的选区）</div>
+<div class="toast"><div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已摘录</div><div class="ts">第 2 条 · 没能定位到原文位置，链接只到页面</div></div>
+<button class="tbtn">加批注</button>
+</div></div>
+<div class="cap">点“加批注”后展开（交互沿用 M1）</div>
+<div class="toast">
+<div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已摘录</div><div class="ts">第 3 条 · 摘录 - 为什么我们需要慢思考.md</div></div>
+</div>
+<div class="ta">这段和卡尼曼的系统 1 / 系统 2 说法对得上</div>
+<div class="tfoot"><span class="hint">回车或 Esc 收起时都会写入</span><button class="pbtn">写入</button></div>
+</div>
+</div>
+
+<div class="col wide">
+<div class="lab">右键菜单<span>每项都带“Alayo Get”，因为只有一项时 Chrome 把它直接放在顶层</span></div>
+<div class="menus">
+<div class="mcol">
+<div class="cap" style="margin-top: 0">选中文字时（只有一项，放在顶层）</div>
+<div class="menu">
+<div class="mi"><span class="sp"></span><span class="tx2">复制</span></div>
+<div class="mi"><span class="sp"></span><span class="tx2">使用 Google 搜索“慢思考”</span></div>
+<div class="mi"><span class="sp"></span><span class="tx2">打印…</span></div>
+<div class="sep"></div>
+<div class="mi on"><span class="ic"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path></svg></span><span class="tx2">摘录到 Alayo Get</span></div>
+<div class="sep"></div>
+<div class="mi"><span class="sp"></span><span class="tx2">检查</span></div>
+</div>
+</div>
+<div class="mcol">
+<div class="cap" style="margin-top: 0">链接里的图片（两项，Chrome 收进子菜单）</div>
+<div class="sub">
+<div class="menu" style="width: 200px">
+<div class="mi"><span class="sp"></span><span class="tx2">在新标签页中打开链接</span></div>
+<div class="mi"><span class="sp"></span><span class="tx2">复制链接地址</span></div>
+<div class="sep"></div>
+<div class="mi"><span class="sp"></span><span class="tx2">将图片存储为…</span></div>
+<div class="mi"><span class="sp"></span><span class="tx2">复制图片</span></div>
+<div class="sep"></div>
+<div class="mi on"><span class="ic"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path></svg></span><span class="tx2">Alayo Get</span><span class="ch">›</span></div>
+</div>
+<div class="menu" style="width: 170px; margin-top: 128px">
+<div class="mi"><span class="tx2">把链接存入 Alayo Get</span></div>
+<div class="mi on"><span class="tx2">把图片存入 Alayo Get</span></div>
+</div>
+</div>
+</div>
+</div>
+<div class="ref" style="margin-top: 8px">
+<div class="rl"><span class="k">页面空白处</span><span>存入 Alayo Get（不变）</span></div>
+<div class="rl"><span class="k">链接</span><span>把链接存入 Alayo Get</span></div>
+<div class="rl"><span class="k">图片</span><span>把图片存入 Alayo Get</span></div>
+<div class="rl"><span class="k">视频、音频</span><span>把视频存入 Alayo Get ／ 把音频存入 Alayo Get</span></div>
+<div class="rl"><span class="k">选中文字</span><span>摘录到 Alayo Get</span></div>
+</div>
+</div>
+
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1500,"height":1360}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 't-light' }, { cls: 't-dark' }] };
+  }
+}
+</script>
+</body>
+</html>

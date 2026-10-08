@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>重新授权 浅色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-light{--accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--canvas:#F1F2F4;--panel:#FFFFFF;--hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);--t1:#23252C;--t2:#6E7280;--t3:#72767F;--success:#248A3D;--shadow:0 2px 8px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);--dlg:#FFFFFF}
+.t-dark{--accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--canvas:#212228;--panel:#2B2D34;--hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);--t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--success:#30D158;--shadow:0 2px 8px rgba(0,0,0,.28),0 0 0 .5px rgba(255,255,255,.10);--dlg:#35363A}
+.page{box-sizing:border-box;width:100%;min-height:1240px;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1);padding:48px 16px 64px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.top span{flex:1}
+.top em{font-style:normal;font-weight:400;color:var(--t3);font-size:12px}
+.card{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px;display:flex;gap:16px}
+.card.focus{box-shadow:0 0 0 1.5px var(--accent),0 2px 8px rgba(20,21,26,.08)}
+.ic{flex:none;width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--region);color:var(--t2)}
+.sc{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.stt{font-size:15px;font-weight:600;line-height:26px}
+.p{margin:0;font-size:13px;line-height:21px;color:var(--t2)}
+.p b{color:var(--t1);font-weight:600}
+.dlg{align-self:flex-start;width:100%;max-width:420px;box-sizing:border-box;background:var(--dlg);border-radius:12px;box-shadow:0 8px 24px rgba(20,21,26,.14),0 0 0 .5px var(--hair);padding:16px;display:flex;flex-direction:column;gap:10px}
+.dl{height:10px;border-radius:4px;background:var(--region)}
+.dbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:4px}
+.dbtn{height:28px;border-radius:14px;padding:0 12px;border:.5px solid var(--hair);background:transparent;font:inherit;font-size:12px;color:var(--accent)}
+.dbtn.hl{border:1.5px solid var(--accent);background:var(--accentSoft);font-weight:600}
+.pend{background:var(--region);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.pl{font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.pi{font-size:12.5px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{height:30px;border:0;border-radius:9px;padding:0 14px;font:inherit;font-size:13px;font-weight:600;white-space:nowrap}
+.pri{background:var(--accent);color:var(--onAccent)}
+.sec{background:var(--accentSoft);color:var(--accent)}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3);margin-top:8px}
+.chosen{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chosen code{flex:1;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;color:var(--t1)}
+.lab{font-size:13px;font-weight:600;color:var(--t2);margin-top:28px}
+.ok{display:flex;align-items:center;gap:10px;font-size:13px}
+</style>
+</helmet>
+<div class="page t-light">
+<div class="wrap">
+<div class="top">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span>Alayo Get</span><em>设置</em>
+</div>
+
+<div class="card focus">
+<div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></div>
+<div class="sc">
+<div class="stt">需要重新授权剪藏库</div>
+<p class="p">Chrome 重启后收回了写入“Alayo Get”文件夹的权限。点“授权…”，在弹出的询问框里选<b>“每次访问时都允许”</b>，以后重启就不用再授权。</p>
+<div class="dlg" aria-label="Chrome 询问框示意">
+<div class="dl" style="width:78%"></div>
+<div class="dl" style="width:52%"></div>
+<div class="dbtns">
+<button class="dbtn">仅这次访问时允许</button>
+<button class="dbtn hl">每次访问时都允许</button>
+<button class="dbtn">不允许</button>
+</div>
+</div>
+<div class="pend">
+<div class="pl">授权后会补存 2 条剪藏</div>
+<div class="pi">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示——一位产品设计师的复盘</div>
+<div class="pi">Designing for calm: notes on interface restraint</div>
+</div>
+<div><button class="btn pri">授权…</button></div>
+</div>
+</div>
+
+<div class="fl">剪藏库</div>
+<div class="card" style="padding:16px 24px">
+<div class="sc">
+<div class="chosen">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" style="color:var(--t2)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+<code>Alayo Get</code>
+<button class="btn sec">更换…</button>
+</div>
+</div>
+</div>
+
+<div class="lab">授权成功后</div>
+<div class="card">
+<div class="ic" style="background:transparent;color:var(--success)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></div>
+<div class="sc">
+<div class="stt">已授权，补存了 2 条剪藏</div>
+<p class="p">可以关掉这个页面，回去继续浏览。</p>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

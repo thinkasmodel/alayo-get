@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Panel and notices in English</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-light{--accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--pill:rgba(66,87,181,.08);--canvas:#F1F2F4;--panel:#FFFFFF;--hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);--t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;--shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09)}
+.board{box-sizing:border-box;width:2120px;height:1000px;padding:56px 64px;display:flex;gap:32px;align-items:flex-start;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1)}
+.col{width:360px;flex:none;display:flex;flex-direction:column;gap:12px}
+.lab{font-size:13px;font-weight:600;color:var(--t1)}
+.lab span{font-weight:400;color:var(--t2);margin-left:6px}
+.panel{width:360px;box-sizing:border-box;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.head{height:44px;box-sizing:border-box;padding:0 8px 0 16px;display:flex;align-items:center;gap:8px;border-bottom:.5px solid var(--hairSoft)}
+.brand{font-size:13px;font-weight:600;flex:1}
+.ibtn{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--t2);display:flex;align-items:center;justify-content:center;padding:0}
+.body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.status{display:flex;align-items:flex-start;gap:8px}
+.status svg{flex:none;margin-top:1px}
+.stext{display:flex;flex-direction:column;gap:2px;min-width:0}
+.st{font-size:13px;font-weight:600;line-height:18px}
+.sm{font-size:11px;line-height:15px;color:var(--t2)}
+.card{background:var(--region);border-radius:10px;padding:12px;display:flex;gap:10px;align-items:flex-start}
+.cc{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.ct{font-size:13px;font-weight:600;line-height:18px}
+.fn{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;line-height:14px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field{display:flex;flex-direction:column;gap:6px}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3);text-transform:uppercase}
+.inp{box-sizing:border-box;width:100%;min-height:30px;border-radius:9px;background:var(--region);border:.5px solid var(--hairSoft);padding:6px 9px;font:inherit;font-size:12.5px;line-height:17px;color:var(--t1)}
+.ph{color:var(--t3)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;line-height:15px;padding:2px 7px;border-radius:6px;background:var(--accentSoft);color:var(--accent)}
+.drop{border-radius:10px;background:var(--panel);box-shadow:var(--shadow);padding:4px;display:flex;flex-direction:column}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:6px;font-size:12.5px;line-height:17px}
+.opt.on{background:var(--accentSoft)}
+.opt em{font-style:normal;font-size:11px;color:var(--t3)}
+.note{font-size:11px;line-height:16px;color:var(--t2)}
+.reason{font-size:12px;line-height:18px;color:var(--t2)}
+.inset{background:var(--region);border-radius:9px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--t1)}
+.inset b{font-weight:600;color:var(--accent)}
+.foot{display:flex;align-items:center;gap:8px;padding:10px 16px 12px;border-top:.5px solid var(--hairSoft)}
+.path{flex:1;min-width:0;display:flex;align-items:center;gap:5px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--t3);white-space:nowrap;overflow:hidden}
+.btn{height:30px;border:0;border-radius:9px;padding:0 14px;font:inherit;font-size:13px;font-weight:600;white-space:nowrap}
+.pri{background:var(--accent);color:var(--onAccent)}
+.sec{background:var(--accentSoft);color:var(--accent)}
+.wide{width:100%;height:34px}
+.err{color:var(--danger)}
+.auto{flex:none;font-size:11px;color:var(--t3)}
+.toast{width:340px;box-sizing:border-box;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:12px 12px 10px 14px;display:flex;flex-direction:column;gap:8px}
+.tr{display:flex;align-items:flex-start;gap:8px}
+.tr svg{flex:none;margin-top:1px}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tt{font-size:13px;font-weight:600;line-height:18px}
+.td{font-size:11.5px;line-height:16px;color:var(--t2)}
+.tacts{display:flex;gap:12px;padding-left:24px}
+.tb{border:0;background:transparent;padding:0;font:inherit;font-size:12px;font-weight:600;color:var(--accent)}
+.menu{width:260px;box-sizing:border-box;background:rgba(246,246,247,.98);border-radius:8px;box-shadow:0 8px 24px rgba(20,21,26,.16),0 0 0 .5px rgba(35,37,44,.15);padding:5px;font-size:13px;line-height:20px}
+.mi{padding:2px 10px;border-radius:4px;color:#23252C}
+.mi.on{background:#4257B5;color:#FFFFFF}
+.sep{height:.5px;background:rgba(35,37,44,.15);margin:4px 10px}
+</style>
+</helmet>
+<div class="board t-light">
+
+<div class="col">
+<div class="lab">Saved<span>editing tags</span></div>
+<div class="panel">
+<div class="head"><span class="brand">Alayo Get</span><button class="ibtn" type="button" aria-label="Settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button></div>
+<div class="body">
+<div class="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg><div class="stext"><div class="st">Saved to library</div><div class="sm">Article · 3 images · 1 failed to download</div></div></div>
+<div class="field"><label class="fl">Title</label><div class="inp">Designing for calm: notes on interface restraint</div></div>
+<div class="field"><label class="fl">Tags</label><div class="inp tags"><span class="chip">design</span><span>calm</span></div>
+<div class="drop"><div class="opt on">calm-tech<em>12 clips</em></div><div class="opt">Create tag “calm”<em>Return</em></div></div></div>
+<div class="field"><label class="fl">Note</label><div class="inp" style="min-height:52px"><span class="ph">Add a note (optional)</span></div></div>
+</div>
+<div class="foot"><div class="path">Alayo Get / Designing for calm….md</div><span class="auto">Saved when you close the panel</span></div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">Already saved</div>
+<div class="panel">
+<div class="head"><span class="brand">Alayo Get</span></div>
+<div class="body">
+<div class="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><div class="stext"><div class="st">Already saved on 2026-10-05</div><div class="sm">Nothing new was saved</div></div></div>
+<div class="card"><div class="cc"><div class="ct">Designing for calm: notes on interface restraint</div><div class="fn">Designing for calm - notes on interface restraint.md</div></div></div>
+<div class="note">The original file may have been moved or edited, so it won’t be overwritten. To keep the current version, save a new snapshot. Its file name will end in “ (2)”.</div>
+</div>
+<div class="foot"><div class="path">Alayo Get</div><button class="btn sec" type="button">Save new snapshot</button></div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">Access needed</div>
+<div class="panel">
+<div class="head"><span class="brand">Alayo Get</span></div>
+<div class="body">
+<div class="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg><div class="stext"><div class="st">Allow access to your library again</div><div class="sm">This page hasn’t been saved yet</div></div></div>
+<div class="reason">After restarting, Chrome removed permission to write to the “Alayo Get” folder.</div>
+<div class="inset">Click the button below. When Chrome asks, choose <b>“Allow on every visit”</b> so you won’t be asked again after restarting.</div>
+</div>
+<div class="foot"><button class="btn pri wide" type="button">Allow access and save…</button></div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">Failed</div>
+<div class="panel">
+<div class="head"><span class="brand">Alayo Get</span></div>
+<div class="body">
+<div class="stext"><div class="st err">Couldn’t save to library</div><div class="sm">This page hasn’t been saved yet</div></div>
+<div class="reason">Can’t find the library folder “Alayo Get”. It may have been moved, renamed or deleted.</div>
+</div>
+<div class="foot"><button class="btn sec" type="button">Choose folder again…</button><span style="flex:1"></span><button class="btn pri" type="button">Retry</button></div>
+</div>
+</div>
+
+<div class="col" style="width:340px">
+<div class="lab">Page notices · right-click menu</div>
+<div class="toast">
+<div class="tr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg><div class="tx"><div class="tt">Quote saved</div><div class="td">Quote 3 · Quotes - Thinking, Fast and Slow notes.md</div></div></div>
+<div class="tacts"><button class="tb" type="button">Add note</button></div>
+</div>
+<div class="toast">
+<div class="tr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg><div class="tx"><div class="tt">Allow access to your library again</div><div class="td">Not saved yet. It will be saved once you allow access.</div></div></div>
+<div class="tacts"><button class="tb" type="button">Allow access…</button></div>
+</div>
+<div class="toast">
+<div class="tr"><div class="tx" style="padding-left:24px"><div class="tt err">Couldn’t save to library</div><div class="td">Can’t tell which post this is on the timeline. Open the post, then save again</div></div></div>
+</div>
+<div class="menu" style="margin-top:12px">
+<div class="mi">Copy</div>
+<div class="mi">Search Google for “System 1 operates…”</div>
+<div class="sep"></div>
+<div class="mi on">Save quote to Alayo Get</div>
+<div class="sep"></div>
+<div class="mi">Inspect</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

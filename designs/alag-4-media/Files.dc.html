@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>文件样张</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.wrap{box-sizing:border-box;width:1760px;height:1000px;padding:48px 64px;display:flex;gap:32px;align-items:flex-start;background:#F1F2F4;font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#23252C}
+.col{width:520px;flex:none;display:flex;flex-direction:column;gap:12px}
+.lab{font-size:13px;font-weight:600;line-height:18px}
+.lab span{font-weight:400;color:#6E7280;margin-left:6px}
+.card{background:#FFFFFF;border-radius:12px;box-shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);padding:16px 18px}
+.code{margin:0;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px;line-height:18px;color:#23252C;white-space:pre-wrap;word-break:break-all}
+.dim{color:#72767F}
+.cap{font-size:11px;line-height:16px;color:#6E7280}
+</style>
+</helmet>
+<div class="wrap">
+
+<div class="col">
+<div class="lab">流媒体剪藏<span>Rick Astley - Never Gonna Give You Up….md</span></div>
+<div class="card"><pre class="code"><span class="dim">---
+id: 01K6Z8M3Q4R5S6T7V8W9XAYBZC
+source: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+medium: video
+title: Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+author: Rick Astley
+published: 2009-10-25
+captured: 2026-10-07T16:20:00+08:00
+site: youtube.com
+tags: []
+note: ""
+extract: full
+platform: youtube
+video_id: dQw4w9WgXcQ
+embed: https://www.youtube.com/embed/dQw4w9WgXcQ
+duration: 213
+cover: .assets/01K6Z8M3Q4R5S6T7V8W9XAYBZC/cover.jpg
+---</span>
+
+# Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+
+[原文](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+
+![](.assets/01K6Z8M3Q4R5S6T7V8W9XAYBZC/cover.jpg)
+
+▶ YouTube 视频 (3:33) · Rick Astley
+
+The official video for “Never Gonna Give You Up” by Rick Astley. Never: The Autobiography OUT NOW! …</pre></div>
+<div class="cap">版式沿用文章剪藏：一级标题、原文链接，下接封面、“▶ 平台 视频 (时长) · 作者”一行、简介全文。取不到的项不写。以后做转录时，转录文本追加到文件末尾。</div>
+</div>
+
+<div class="col">
+<div class="lab">摘录剪藏<span>摘录 - 为什么我们需要慢思考.md</span></div>
+<div class="card"><pre class="code"><span class="dim">---
+id: 01K6Z9A1B2C3D4E5F6G7H8J9KM
+source: https://sspai.com/post/90001
+medium: quote
+title: 为什么我们需要慢思考
+site: sspai.com
+captured: 2026-10-07T16:31:00+08:00
+tags: []
+note: ""
+---</span>
+
+# 摘录 - 为什么我们需要慢思考
+
+[原文](https://sspai.com/post/90001)
+
+&gt; 快思考替我们省下了大量注意力，代价是它几乎从不怀疑自己。
+&gt;
+&gt; 慢思考的价值不在于更**聪明**，而在于它肯停下来。
+
+2026-10-07 16:31 · [跳回原文](https://sspai.com/post/90001#:~:text=%E5%BF%AB%E6%80%9D%E8%80%83%E6%9B%BF%E6%88%91%E4%BB%AC,%E4%BB%8E%E4%B8%8D%E6%80%80%E7%96%91%E8%87%AA%E5%B7%B1)
+
+&gt; 每一次“我早就知道”，都是一次被删改的记忆。
+
+2026-10-07 16:35 · [跳回原文](https://sspai.com/post/90001#:~:text=%E6%AF%8F%E4%B8%80%E6%AC%A1)
+
+这段和卡尼曼的系统 1 / 系统 2 说法对得上</pre></div>
+<div class="cap">每条摘录是一个引用块，下一行写保存时间和“跳回原文”链接；批注写在这一行下面，作为普通段落。frontmatter 的 captured 是第一条的时间。</div>
+</div>
+
+<div class="col" style="width: 448px">
+<div class="lab">媒体剪藏的元数据侧档<span>.meta/01K6ZA….json</span></div>
+<div class="card"><pre class="code">{
+  "id": "01K6ZAP0Q1R2S3T4U5V6W7X8Y9",
+  "file": "少数派年度盘点 - cover@2x.jpg",
+  "source": "https://sspai.com/post/90002",
+  "media_url": "https://cdn.sspai.com/2026/cover@2x.jpg",
+  "medium": "image",
+  "title": "少数派年度盘点",
+  "site": "sspai.com",
+  "captured": "2026-10-07T16:40:00+08:00",
+  "bytes": 1258291,
+  "mime": "image/jpeg",
+  "tags": [],
+  "note": ""
+}</pre></div>
+<div class="cap">source 是所在网页，media_url 是文件本身的地址，已保存记录按 media_url 去重。媒体文件原样放在剪藏库根目录，名字是“页面标题 - 原文件名.扩展名”。</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1760,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

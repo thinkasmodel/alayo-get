@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>作者串部分保存提示</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-light{--accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--pill:rgba(66,87,181,.08);--canvas:#F1F2F4;--panel:#FFFFFF;--island:rgba(255,255,255,.86);--hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);--t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;--shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09)}
+.t-dark{--accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);--canvas:#212228;--panel:#2B2D34;--island:rgba(43,45,52,.88);--hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);--t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;--shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10)}
+.row{box-sizing:border-box;width:2120px;height:750px;padding:48px 64px;display:flex;gap:32px;align-items:flex-start;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1)}
+.col{width:360px;flex:none;display:flex;flex-direction:column;gap:12px}
+.lab{font-size:13px;font-weight:600;color:var(--t1);line-height:18px}
+.lab span{font-weight:400;color:var(--t2);margin-left:6px}
+.panel{width:360px;box-sizing:border-box;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.head{height:44px;box-sizing:border-box;padding:0 8px 0 16px;display:flex;align-items:center;gap:8px;border-bottom:.5px solid var(--hairSoft)}
+.brand{font-size:13px;font-weight:600;flex:1}
+.ibtn{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--t2);display:flex;align-items:center;justify-content:center;padding:0}
+.body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.status{display:flex;align-items:flex-start;gap:8px}
+.status svg{flex:none;margin-top:1px}
+.stext{display:flex;flex-direction:column;gap:2px;min-width:0}
+.st{font-size:13px;font-weight:600;line-height:18px}
+.sm{font-size:11px;line-height:15px;color:var(--t2)}
+.fn{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;line-height:14px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fnrow{display:flex;align-items:center;gap:8px;min-width:0}
+.fnrow .fn{flex:1;min-width:0}
+.mchip{flex:none;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10px;line-height:14px;padding:2px 6px;border-radius:6px;background:var(--region);color:var(--t2)}
+.note{font-size:11px;line-height:16px;color:var(--t2)}
+.inset{background:var(--region);border-radius:9px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--t1)}
+.inset code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--t2)}
+.field{display:flex;flex-direction:column;gap:6px}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.inp{box-sizing:border-box;width:100%;min-height:30px;border-radius:9px;background:var(--region);border:.5px solid var(--hairSoft);padding:6px 9px;font:inherit;font-size:12.5px;line-height:17px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph{color:var(--t3)}
+.foot{display:flex;align-items:center;gap:8px;padding:10px 16px 12px;border-top:.5px solid var(--hairSoft)}
+.path{flex:1;min-width:0;display:flex;align-items:center;gap:5px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--t3);white-space:nowrap;overflow:hidden}
+.auto{flex:none;font-size:11px;color:var(--t3)}
+.ref{background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.refl{display:flex;flex-direction:column;gap:2px}
+.toast{box-sizing:border-box;width:340px;border-radius:14px;background:var(--island);box-shadow:var(--shadow);padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.trow{display:flex;align-items:center;gap:10px}
+.trow svg{flex:none}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tt{font-size:13px;font-weight:600;line-height:18px}
+.ts{font-size:11px;line-height:15px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{flex:none;height:28px;border:0;border-radius:8px;padding:0 10px;background:transparent;color:var(--accent);font:inherit;font-size:12.5px;font-weight:600}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; width: 2120px">
+<sc-for list="{{themes}}" as="th" hint-placeholder-count="2">
+<div class="row {{th.cls}}">
+
+<div class="col">
+<div class="lab">方案 A · 超过上限<span>chip 加一行小字</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存入剪藏库</div><div class="sm">X 作者串 · 50 条 · 含 8 张图片</div></div>
+</div>
+<div class="fnrow"><div class="fn">@naval - How to Get Rich (without getting.md</div><span class="mchip">extract: partial</span></div>
+<div class="note">作者串超过 50 条，只存了前 50 条。</div>
+<div class="field"><label class="fl">标题</label><div class="inp">@naval - How to Get Rich (without getting</div></div>
+<div class="field"><label class="fl">标签</label><div class="inp"><span class="ph">输入后回车</span></div></div>
+<div class="field"><label class="fl">批注</label><div class="inp" style="min-height: 64px"><span class="ph">添加批注（可选）</span></div></div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">方案 A · 长帖被截断<span>两个原因同时出现时两句都写</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存入剪藏库</div><div class="sm">X 作者串 · 12 条 · 含 3 张图片</div></div>
+</div>
+<div class="fnrow"><div class="fn">@AlchainHust - 这两天已经不下5个出版社编辑老师找我合.md</div><span class="mchip">extract: partial</span></div>
+<div class="note">有 2 条长帖在列表里只显示了开头，已在文中附上原帖链接。</div>
+<div class="field"><label class="fl">标题</label><div class="inp">@AlchainHust - 这两天已经不下5个出版社编辑老师找我合</div></div>
+<div class="field"><label class="fl">标签</label><div class="inp"><span class="ph">输入后回车</span></div></div>
+<div class="field"><label class="fl">批注</label><div class="inp" style="min-height: 64px"><span class="ph">添加批注（可选）</span></div></div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">方案 B · 超过上限<span>内嵌块，不加 chip</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存入剪藏库</div><div class="sm">X 作者串 · 50 条 · 含 8 张图片</div></div>
+</div>
+<div class="fn">@naval - How to Get Rich (without getting.md</div>
+<div class="inset">作者串超过 50 条，只存了前 50 条。文件里标了 <code>extract: partial</code>。</div>
+<div class="field"><label class="fl">标题</label><div class="inp">@naval - How to Get Rich (without getting</div></div>
+<div class="field"><label class="fl">标签</label><div class="inp"><span class="ph">输入后回车</span></div></div>
+<div class="field"><label class="fl">批注</label><div class="inp" style="min-height: 64px"><span class="ph">添加批注（可选）</span></div></div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">方案 B · 15 秒没加载完</div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存入剪藏库</div><div class="sm">X 作者串 · 37 条 · 含 5 张图片</div></div>
+</div>
+<div class="fn">@naval - How to Get Rich (without getting.md</div>
+<div class="inset">15 秒内没有加载完，存下了已加载的 37 条。文件里标了 <code>extract: partial</code>。</div>
+<div class="field"><label class="fl">标题</label><div class="inp">@naval - How to Get Rich (without getting</div></div>
+<div class="field"><label class="fl">标签</label><div class="inp"><span class="ph">输入后回车</span></div></div>
+<div class="field"><label class="fl">批注</label><div class="inp" style="min-height: 64px"><span class="ph">添加批注（可选）</span></div></div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<div class="col">
+<div class="lab">页面提示<span>快捷键或右键保存时；两个方案共用</span></div>
+<div class="toast">
+<div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">作者串超过 50 条，只存了前 50 条</div></div>
+<button class="tbtn">加批注</button>
+</div>
+</div>
+<div class="toast">
+<div class="trow">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">有 2 条长帖只存了开头，附了原帖链接</div></div>
+<button class="tbtn">加批注</button>
+</div>
+</div>
+<div class="lab" style="margin-top: 20px">完整保存时的说明行<span>参照：X 三种形态</span></div>
+<div class="ref">
+<div class="refl"><div class="st">已存入剪藏库</div><div class="sm">X 帖子 · 含 2 张图片</div></div>
+<div class="refl"><div class="st">已存入剪藏库</div><div class="sm">X 作者串 · 41 条 · 含 8 张图片</div></div>
+<div class="refl"><div class="st">已存入剪藏库</div><div class="sm">X 长文 · 含 6 张图片</div></div>
+</div>
+</div>
+
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2120,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 't-light' }, { cls: 't-dark' }] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+/* DESIGN.md §2 的全部令牌。界面里的色值只允许出现在本文件。
+   选择器同时写 :root 和 :host：扩展页面用 :root，页面提示的 shadow root 用 :host。 */
+:root,
+:host {
+  --accent: #4257B5;
+  --onAccent: #FFFFFF;
+  --accentSoft: rgba(66, 87, 181, 0.1);
+  --pill: rgba(66, 87, 181, 0.08);
+  --canvas: #F1F2F4;
+  --panel: #FFFFFF;
+  --island: rgba(255, 255, 255, 0.86);
+  --hair: rgba(35, 37, 44, 0.09);
+  --hairSoft: rgba(35, 37, 44, 0.055);
+  --region: rgba(35, 37, 44, 0.045);
+  --t1: #23252C;
+  --t2: #6E7280;
+  --t3: #72767F;
+  --danger: #C8362C;
+  --success: #248A3D;
+  /* 选项页里 Chrome 询问框示意图的底色（取自设计稿 Onboarding / Reauth） */
+  --dlg: #FFFFFF;
+
+  /* 阴影：DESIGN.md §2，外加一圈 0.5px 的 hair 描边 */
+  --shadowDrop: 0 8px 24px rgba(20, 21, 26, 0.08);
+  --shadow: var(--shadowDrop), 0 0 0 0.5px var(--hair);
+
+  --font: -apple-system, "SF Pro Text", "Helvetica Neue", "PingFang SC", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, monospace;
+
+  /* 圆角：chip 6、按钮和输入框 9、内嵌卡 10、面板 12、页面提示和引导卡 14 */
+  --rChip: 6px;
+  --rControl: 9px;
+  --rInset: 10px;
+  --rPanel: 12px;
+  --rCard: 14px;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  :host {
+    --accent: #7B8CDE;
+    --onAccent: #14151A;
+    --accentSoft: rgba(123, 140, 222, 0.16);
+    --pill: rgba(123, 140, 222, 0.14);
+    --canvas: #212228;
+    --panel: #2B2D34;
+    --island: rgba(43, 45, 52, 0.88);
+    --hair: rgba(255, 255, 255, 0.1);
+    --hairSoft: rgba(255, 255, 255, 0.06);
+    --region: rgba(255, 255, 255, 0.05);
+    --t1: #E8EAF0;
+    --t2: #A3A8B5;
+    --t3: #9DA1AC;
+    --danger: #E06058;
+    --success: #30D158;
+    --dlg: #35363A;
+    --shadowDrop: 0 8px 24px rgba(0, 0, 0, 0.34);
+  }
+}

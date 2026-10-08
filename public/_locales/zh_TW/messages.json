@@ -1,0 +1,1001 @@
+{
+  "uiLang": {
+    "message": "zh",
+    "description": "Language of this message set: en or zh. currentLang() reads it."
+  },
+  "extName": {
+    "message": "Alayo Get"
+  },
+  "extDescription": {
+    "message": "把网页存成本地 Markdown 文件"
+  },
+  "cmd_savePage": {
+    "message": "保存当前页",
+    "description": "Shortcut command description"
+  },
+  "menu_savePage": {
+    "message": "存入 Alayo Get"
+  },
+  "menu_saveLink": {
+    "message": "把链接存入 Alayo Get"
+  },
+  "menu_saveImage": {
+    "message": "把图片存入 Alayo Get"
+  },
+  "menu_saveVideo": {
+    "message": "把视频存入 Alayo Get"
+  },
+  "menu_saveAudio": {
+    "message": "把音频存入 Alayo Get"
+  },
+  "menu_saveQuote": {
+    "message": "摘录到 Alayo Get"
+  },
+  "file_source": {
+    "message": "原文",
+    "description": "Link text under the title of every Markdown clip: [Source](url)"
+  },
+  "file_jumpToSource": {
+    "message": "跳回原文",
+    "description": "Link text on the time line of each quote"
+  },
+  "file_quotesTitle": {
+    "message": "摘录 - $title$",
+    "description": "Quote file heading and file name",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_untitled": {
+    "message": "未命名剪藏",
+    "description": "File name when the title is empty"
+  },
+  "file_from": {
+    "message": "来自 $link$",
+    "description": "Direct-link stream clip: the page the link came from (link is Markdown)",
+    "placeholders": {
+      "link": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_fullPost": {
+    "message": "全文",
+    "description": "X: link at the end of a truncated post"
+  },
+  "file_post": {
+    "message": "原帖",
+    "description": "X: link in the quote header"
+  },
+  "file_image": {
+    "message": "图片",
+    "description": "Quote: link text replacing an image"
+  },
+  "file_xVideo": {
+    "message": "视频",
+    "description": "X: video marker in the post body (▶ Video (0:42))"
+  },
+  "kind_image": {
+    "message": "图片",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kind_audio": {
+    "message": "音频",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kind_video": {
+    "message": "视频",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kind_pdf": {
+    "message": "PDF",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kindInline_image": {
+    "message": "图片",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_audio": {
+    "message": "音频",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_video": {
+    "message": "视频",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_pdf": {
+    "message": "PDF",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "platform_youtube": {
+    "message": "YouTube"
+  },
+  "platform_bilibili": {
+    "message": "B 站"
+  },
+  "platform_x": {
+    "message": "X 视频"
+  },
+  "platform_baidupan": {
+    "message": "百度网盘"
+  },
+  "platform_115": {
+    "message": "115"
+  },
+  "platform_quark": {
+    "message": "夸克"
+  },
+  "platform_directVideo": {
+    "message": "视频直链"
+  },
+  "platform_directAudio": {
+    "message": "音频直链"
+  },
+  "date_monthDay": {
+    "message": "$month$ 月 $day$ 日",
+    "description": "Toast date. English does not use this message: it formats with Intl.DateTimeFormat (Oct 7).",
+    "placeholders": {
+      "month": {
+        "content": "$1"
+      },
+      "day": {
+        "content": "$2"
+      }
+    }
+  },
+  "saving_extract": {
+    "message": "正在抽取正文…"
+  },
+  "saving_images": {
+    "message": "正文已抽取，正在下载图片 $done$ / $total$",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "saving_write": {
+    "message": "正在写入剪藏库…"
+  },
+  "saving_download": {
+    "message": "正在下载 $label$，$size$",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      },
+      "size": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_xPost": {
+    "message": "X 帖子"
+  },
+  "desc_xArticle": {
+    "message": "X 长文"
+  },
+  "desc_xClip": {
+    "message": "X 剪藏"
+  },
+  "desc_xThread_one": {
+    "message": "X 作者串 · $n$ 条",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "desc_xThread_other": {
+    "message": "X 作者串 · $n$ 条",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "desc_media": {
+    "message": "媒体剪藏 · $kind$ · $size$",
+    "placeholders": {
+      "kind": {
+        "content": "$1"
+      },
+      "size": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_stream": {
+    "message": "流媒体剪藏 · $platform$",
+    "placeholders": {
+      "platform": {
+        "content": "$1"
+      }
+    }
+  },
+  "desc_bookmark": {
+    "message": "书签剪藏"
+  },
+  "desc_article": {
+    "message": "文章剪藏"
+  },
+  "desc_withImages_one": {
+    "message": "$label$ · 含 $n$ 张图片",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "label": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_withImages_other": {
+    "message": "$label$ · 含 $n$ 张图片",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "label": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_imageFailures": {
+    "message": "$text$ · $n$ 张没下载成功",
+    "placeholders": {
+      "text": {
+        "content": "$1"
+      },
+      "n": {
+        "content": "$2"
+      }
+    }
+  },
+  "oversize_noSize": {
+    "message": "拿不到文件大小，没有下载，只记了链接。"
+  },
+  "oversize_tooBig": {
+    "message": "文件有 $size$，超过 100MB，没有下载，只记了链接。",
+    "placeholders": {
+      "size": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_videoNoSize": {
+    "message": "拿不到视频大小，只记了链接和信息"
+  },
+  "toast_audioNoSize": {
+    "message": "拿不到音频大小，只记了链接和信息"
+  },
+  "toast_videoTooBig": {
+    "message": "视频超过 100MB，只记了链接和信息"
+  },
+  "toast_audioTooBig": {
+    "message": "音频超过 100MB，只记了链接和信息"
+  },
+  "quote_recreated": {
+    "message": "原来的摘录文件不在了，新建了一个"
+  },
+  "quote_noFragment": {
+    "message": "第 $n$ 条 · 没能定位到原文位置，链接只到页面",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "quote_entry": {
+    "message": "第 $n$ 条 · $file$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "file": {
+        "content": "$2"
+      }
+    }
+  },
+  "partial_limit": {
+    "message": "作者串超过 50 条，只存了前 50 条。"
+  },
+  "partial_timeout_one": {
+    "message": "15 秒内没有加载完，存下了已加载的 $n$ 条。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "partial_timeout_other": {
+    "message": "15 秒内没有加载完，存下了已加载的 $n$ 条。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "partial_truncated_one": {
+    "message": "有 $n$ 条长帖在列表里只显示了开头，已在文中附上原帖链接。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "partial_truncated_other": {
+    "message": "有 $n$ 条长帖在列表里只显示了开头，已在文中附上原帖链接。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_limit": {
+    "message": "作者串超过 50 条，只存了前 50 条"
+  },
+  "toastPartial_timeout_one": {
+    "message": "15 秒内没加载完，存了 $n$ 条",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_timeout_other": {
+    "message": "15 秒内没加载完，存了 $n$ 条",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_truncated_one": {
+    "message": "有 $n$ 条长帖只存了开头，附了原帖链接",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_truncated_other": {
+    "message": "有 $n$ 条长帖只存了开头，附了原帖链接",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "fail_notFound": {
+    "message": "找不到剪藏库文件夹“$folder$”，它可能被移动、改名或删除了。",
+    "placeholders": {
+      "folder": {
+        "content": "$1"
+      }
+    }
+  },
+  "fail_writeError": {
+    "message": "写入时出错：$message$",
+    "placeholders": {
+      "message": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastFail_notFound": {
+    "message": "找不到剪藏库文件夹，本次没有保存"
+  },
+  "toastFail_expired": {
+    "message": "这条提示已过期，没有保存，请重新保存一次"
+  },
+  "toastFail_noDownloadableUrl": {
+    "message": "这张图片没有可下载的地址，本次没有保存"
+  },
+  "toastFail_writeError": {
+    "message": "写入时出错：$message$，本次没有保存",
+    "placeholders": {
+      "message": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_xVideoTimeline": {
+    "message": "在时间线上认不出是哪条帖子，请打开帖子页再存",
+    "description": "XVideoNeedsPost from the context menu; also the toast text"
+  },
+  "error_dataUrlTooLarge": {
+    "message": "这张图片是内嵌数据，太大，没法暂存，请授权后重新保存",
+    "description": "DataUrlTooLarge; also the toast text"
+  },
+  "error_noDownloadableUrl": {
+    "message": "这张图片没有可下载的地址"
+  },
+  "error_expiredRequest": {
+    "message": "这条提示对应的内容已过期"
+  },
+  "error_xVideoOwnerUnknown": {
+    "message": "认不出右键的这个视频属于哪条帖子"
+  },
+  "error_xPostNoVideo": {
+    "message": "这条帖子里没有视频"
+  },
+  "error_xPostNotFound": {
+    "message": "页面上找不到这条帖子"
+  },
+  "error_dataUrlDecode": {
+    "message": "这张图片的内嵌数据解不开"
+  },
+  "error_httpStatus": {
+    "message": "下载失败（HTTP $status$）",
+    "placeholders": {
+      "status": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_downloadTimeout": {
+    "message": "下载超时（$seconds$ 秒）",
+    "placeholders": {
+      "seconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_notAFile": {
+    "message": "服务器返回的是网页，不是文件（可能需要登录）"
+  },
+  "error_mediaInfoMissing": {
+    "message": "媒体剪藏缺少 media 信息"
+  },
+  "error_streamInfoMissing": {
+    "message": "流媒体剪藏缺少 stream 信息"
+  },
+  "error_quoteInfoMissing": {
+    "message": "缺少摘录信息"
+  },
+  "error_sidecarMismatch": {
+    "message": "侧档 $path$ 不是这条剪藏（期望 id $expected$，实际 $actual$）",
+    "placeholders": {
+      "path": {
+        "content": "$1"
+      },
+      "expected": {
+        "content": "$2"
+      },
+      "actual": {
+        "content": "$3"
+      }
+    }
+  },
+  "error_quoteFileMismatch": {
+    "message": "文件 $file$ 不是这条摘录所在的摘录文件（期望 id $expected$，实际 $actual$）",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "expected": {
+        "content": "$2"
+      },
+      "actual": {
+        "content": "$3"
+      }
+    }
+  },
+  "error_clipFileMismatch": {
+    "message": "文件 $file$ 不是这条剪藏（期望 id $expected$，实际 $actual$）",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "expected": {
+        "content": "$2"
+      },
+      "actual": {
+        "content": "$3"
+      }
+    }
+  },
+  "error_idNone": {
+    "message": "无",
+    "description": "Shown as the actual id when the file has none"
+  },
+  "error_clipNotFound": {
+    "message": "找不到这条剪藏"
+  },
+  "error_noPermission": {
+    "message": "剪藏库没有写入权限（$state$）",
+    "placeholders": {
+      "state": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_emptyPath": {
+    "message": "路径为空：$path$",
+    "placeholders": {
+      "path": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_noLibrary": {
+    "message": "还没有选择剪藏库"
+  },
+  "error_noFrontmatter": {
+    "message": "文件开头没有 frontmatter 块"
+  },
+  "error_frontmatterUnclosed": {
+    "message": "frontmatter 块没有结束的 ---"
+  },
+  "error_frontmatterKeyMissing": {
+    "message": "frontmatter 里没有 $key$ 键",
+    "placeholders": {
+      "key": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_sidecarNotObject": {
+    "message": "元数据侧档不是 JSON 对象"
+  },
+  "error_quoteEntryNotFound": {
+    "message": "摘录文件里找不到这一条"
+  },
+  "ui_settings": {
+    "message": "设置",
+    "description": "Options page caption and the panel gear button aria-label"
+  },
+  "ui_savedTitle": {
+    "message": "已存入剪藏库"
+  },
+  "ui_fallbackTitle": {
+    "message": "已存为书签剪藏"
+  },
+  "ui_fallbackDesc": {
+    "message": "没能抽取正文，已保存标题、描述和封面"
+  },
+  "ui_nothingNew": {
+    "message": "本次没有写入"
+  },
+  "ui_failedTitle": {
+    "message": "没能写入剪藏库"
+  },
+  "ui_retry": {
+    "message": "重试"
+  },
+  "ui_needsPermissionTitle": {
+    "message": "需要重新授权剪藏库",
+    "description": "Panel, page notice and options page"
+  },
+  "ui_note": {
+    "message": "批注",
+    "description": "Note field label"
+  },
+  "ui_notePlaceholder": {
+    "message": "添加批注（可选）"
+  },
+  "dlg_label": {
+    "message": "Chrome 询问框示意",
+    "description": "aria-label of the permission prompt illustration"
+  },
+  "dlg_allowOnce": {
+    "message": "仅这次访问时允许",
+    "description": "Button in the permission prompt illustration"
+  },
+  "dlg_allowEvery": {
+    "message": "每次访问时都允许",
+    "description": "Button in the permission prompt illustration; also quoted in bold in the instructions"
+  },
+  "dlg_deny": {
+    "message": "不允许",
+    "description": "Button in the permission prompt illustration"
+  },
+  "opt_pageTitle": {
+    "message": "Alayo Get 设置",
+    "description": "Options page tab title"
+  },
+  "opt_setup": {
+    "message": "首次设置"
+  },
+  "opt_heading": {
+    "message": "把网页存成本地文件"
+  },
+  "opt_lead": {
+    "message": "Alayo Get 把文章、X 帖子、摘录、图片和视频存成文件，放进你选的本地文件夹。文章是 Markdown 格式，任何编辑器或笔记工具都能直接打开。"
+  },
+  "opt_stepLibrary": {
+    "message": "选择剪藏库文件夹"
+  },
+  "opt_done": {
+    "message": "已完成"
+  },
+  "opt_chooseFolder": {
+    "message": "选择文件夹…"
+  },
+  "opt_change": {
+    "message": "更换…"
+  },
+  "opt_folderSuggest": {
+    "message": "建议在本机硬盘上新建一个“Alayo Get”文件夹。",
+    "description": "Setup step 1, all systems"
+  },
+  "opt_folderICloud": {
+    "message": "不要放进 iCloud 云盘：开了“优化 Mac 存储空间”后，文件可能被替换成占位文件。",
+    "description": "Setup step 1, macOS only; follows opt_folderSuggest"
+  },
+  "opt_stepReauth": {
+    "message": "重启浏览器后，还要授权一次"
+  },
+  "opt_stepReauthBody": {
+    "message": "Chrome 对刚选的文件夹只授权到浏览器关闭为止。重启后第一次保存时，Alayo Get 会请你再授权一次。到时请选$choice$，以后就不用再授权了。",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "choice": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_dialogCaption": {
+    "message": "Chrome 询问框示意，按钮文字取自 M0 实测；其余文字以浏览器为准。"
+  },
+  "opt_getStarted": {
+    "message": "开始使用"
+  },
+  "opt_library": {
+    "message": "剪藏库"
+  },
+  "opt_waysTitle": {
+    "message": "保存方式"
+  },
+  "opt_wayToolbar": {
+    "message": "点工具栏图标"
+  },
+  "opt_wayToolbarDesc": {
+    "message": "保存当前页，并打开面板补标题、标签和批注"
+  },
+  "opt_wayShortcut": {
+    "message": "快捷键 $keys$",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "keys": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_wayShortcutDesc": {
+    "message": "直接保存当前页，右下角出提示"
+  },
+  "opt_shortcutNotSet": {
+    "message": "未设置",
+    "description": "The save-page shortcut was cleared at chrome://extensions/shortcuts"
+  },
+  "opt_wayMenu": {
+    "message": "右键菜单"
+  },
+  "opt_wayMenuDesc": {
+    "message": "当前页面、链接、图片、音视频，或选中的文字"
+  },
+  "opt_wayChangeShortcut": {
+    "message": "修改快捷键"
+  },
+  "opt_reauthBody": {
+    "message": "Chrome 重启后收回了写入“$folder$”文件夹的权限。点“授权…”，在弹出的询问框里选$choice$，以后重启就不用再授权。",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "folder": {
+        "content": "$1"
+      },
+      "choice": {
+        "content": "$2"
+      }
+    }
+  },
+  "opt_pending_one": {
+    "message": "授权后会补存 $n$ 条剪藏",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_pending_other": {
+    "message": "授权后会补存 $n$ 条剪藏",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_pendingMore": {
+    "message": "等 $n$ 条",
+    "description": "Pending list longer than the titles shown",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_authorize": {
+    "message": "授权…"
+  },
+  "opt_denied": {
+    "message": "没有获得授权。可以再点一次“授权…”。"
+  },
+  "opt_grantedSaving_one": {
+    "message": "已授权，正在补存 $n$ 条剪藏…",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_grantedSaving_other": {
+    "message": "已授权，正在补存 $n$ 条剪藏…",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_grantedSaved_one": {
+    "message": "已授权，补存了 $n$ 条剪藏",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_grantedSaved_other": {
+    "message": "已授权，补存了 $n$ 条剪藏",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_granted": {
+    "message": "已授权"
+  },
+  "opt_grantedHint": {
+    "message": "可以关掉这个页面，回去继续浏览。"
+  },
+  "wb_title": {
+    "message": "配合 Alayo Workbench 使用"
+  },
+  "wb_optional": {
+    "message": "可选"
+  },
+  "wb_summary": {
+    "message": "在用 Workbench 的话，把剪藏库加为监控目录，每存一条都会出现在待纳入里。"
+  },
+  "wb_newSpaceTitle": {
+    "message": "新建一个空间"
+  },
+  "wb_newSpacePath": {
+    "message": "菜单栏 $file$ › $newSpace$（$shortcut$），选中“Alayo Get”文件夹。空间名就是 Alayo Get。",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "newSpace": {
+        "content": "$2"
+      },
+      "shortcut": {
+        "content": "$3"
+      }
+    }
+  },
+  "wb_existingTitle": {
+    "message": "加到现有空间"
+  },
+  "wb_existingPath": {
+    "message": "$file$ › $editSpace$ › 监控目录 › $addFolder$，选中文件夹后点“加入监控目录”。",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "editSpace": {
+        "content": "$2"
+      },
+      "addFolder": {
+        "content": "$3"
+      }
+    }
+  },
+  "wb_menuFile": {
+    "message": "文件",
+    "description": "Workbench menu name"
+  },
+  "wb_menuNewSpace": {
+    "message": "新建工作空间…",
+    "description": "Workbench menu item"
+  },
+  "wb_menuEditSpace": {
+    "message": "编辑当前空间…",
+    "description": "Workbench menu item"
+  },
+  "wb_menuAddFolder": {
+    "message": "添加目录…",
+    "description": "Workbench button"
+  },
+  "wb_after": {
+    "message": "之后每存一条，Workbench 顶部会出现“来源有 1 个新文件”，点“查看”，在审阅收件箱里纳入。"
+  },
+  "panel_saving": {
+    "message": "正在保存…"
+  },
+  "panel_progress": {
+    "message": "保存进度",
+    "description": "Progress bar aria-label"
+  },
+  "panel_savingHintMedia": {
+    "message": "保存完成后可以补标签和批注。"
+  },
+  "panel_savingHint": {
+    "message": "保存完成后可以补标题、标签和批注。"
+  },
+  "panel_title": {
+    "message": "标题",
+    "description": "Field label"
+  },
+  "panel_tags": {
+    "message": "标签",
+    "description": "Field label"
+  },
+  "panel_autoWrite": {
+    "message": "关闭面板时自动写入"
+  },
+  "panel_duplicateTitle": {
+    "message": "已于 $date$ 保存过",
+    "placeholders": {
+      "date": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_duplicateNote": {
+    "message": "原文件可能已被移动或改过，所以不会覆盖它。需要当前版本时，可以另存一份新快照，文件名会加“ (2)”。"
+  },
+  "panel_saveSnapshot": {
+    "message": "另存一份新快照"
+  },
+  "panel_notSaved": {
+    "message": "本次内容还没有保存"
+  },
+  "panel_chooseAgain": {
+    "message": "重新选择文件夹…"
+  },
+  "panel_noLibrary": {
+    "message": "还没有选择剪藏库"
+  },
+  "panel_openSettings": {
+    "message": "去设置…"
+  },
+  "panel_revoked": {
+    "message": "Chrome 重启后收回了写入“$folder$”文件夹的权限。",
+    "placeholders": {
+      "folder": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_reauthHint": {
+    "message": "点下方按钮后，Chrome 会询问访问方式，请选$choice$。选了它，以后重启浏览器就不用再授权。",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "choice": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_authorizeAndSave": {
+    "message": "授权并保存…"
+  },
+  "toast_quoteSaved": {
+    "message": "已摘录"
+  },
+  "toast_duplicateTitle": {
+    "message": "已于 $date$保存过",
+    "placeholders": {
+      "date": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_needsPermissionDesc": {
+    "message": "本次没有保存，授权后会自动补存"
+  },
+  "toast_addNote": {
+    "message": "加批注"
+  },
+  "toast_saveSnapshot": {
+    "message": "另存新快照"
+  },
+  "toast_allowAccess": {
+    "message": "去授权…"
+  },
+  "toast_close": {
+    "message": "关闭",
+    "description": "Close button aria-label"
+  },
+  "toast_noteHint": {
+    "message": "回车或 Esc 收起时都会写入"
+  },
+  "toast_noteSave": {
+    "message": "写入"
+  },
+  "toast_noteFailed": {
+    "message": "没能写入批注：$reason$。可以再按回车试一次。",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_noteFailedFromWorker": {
+    "message": "没能写入批注：$reason$。可以再按回车试一次。",
+    "description": "ALAG-8: reason is a full sentence from the service worker; its trailing period is stripped before substitution",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_noteLostConnection": {
+    "message": "和扩展的连接断开了",
+    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
+  },
+  "toast_noteNoAck": {
+    "message": "没有收到扩展的确认",
+    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
+  },
+  "tag_placeholder": {
+    "message": "输入后回车"
+  },
+  "tag_remove": {
+    "message": "删除标签 $tag$",
+    "description": "aria-label of the × on a tag chip",
+    "placeholders": {
+      "tag": {
+        "content": "$1"
+      }
+    }
+  },
+  "tag_create": {
+    "message": "新建标签“$tag$”",
+    "placeholders": {
+      "tag": {
+        "content": "$1"
+      }
+    }
+  },
+  "tag_return": {
+    "message": "回车",
+    "description": "Hint next to the create-tag suggestion"
+  },
+  "tag_count_one": {
+    "message": "$n$ 条剪藏",
+    "description": "Clip count next to a tag suggestion",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "tag_count_other": {
+    "message": "$n$ 条剪藏",
+    "description": "Clip count next to a tag suggestion",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  }
+}

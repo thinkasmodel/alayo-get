@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+.output/
+.wxt/
+stats.html
+.claude/worktrees/
+
+# 本地过程文件，不入库（ADR-0007）
+handoffs/
+logs/
+tasks/
+.claude/
+.playwright-mcp/

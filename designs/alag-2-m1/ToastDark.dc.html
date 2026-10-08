@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>页面提示与角标 深色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-light{--accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--canvas:#F1F2F4;--panel:#FFFFFF;--island:rgba(255,255,255,.86);--hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);--t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;--shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);--tabs:#DEE1E6;--bar:#FFFFFF;--omni:#F1F3F4;--page:#FFFFFF;--sk:#E9EAEE;--sk2:#F2F3F5}
+.t-dark{--accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--canvas:#212228;--panel:#2B2D34;--island:rgba(43,45,52,.88);--hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);--t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;--shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);--tabs:#202124;--bar:#35363A;--omni:#202124;--page:#1C1C1F;--sk:#2C2D31;--sk2:#26272B}
+.board{box-sizing:border-box;width:1280px;height:1180px;display:flex;flex-direction:column;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1)}
+.tabs{height:34px;background:var(--tabs);display:flex;align-items:flex-end;padding:0 80px}
+.tab{width:220px;height:28px;border-radius:8px 8px 0 0;background:var(--bar);display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--t1);white-space:nowrap;overflow:hidden}
+.bar{height:44px;background:var(--bar);display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:.5px solid var(--hair)}
+.omni{flex:1;height:30px;border-radius:15px;background:var(--omni);display:flex;align-items:center;padding:0 14px;font-size:13px;color:var(--t2)}
+.ext{position:relative;width:28px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--accent)}
+.badge{position:absolute;right:-3px;bottom:-1px;min-width:14px;height:14px;border-radius:4px;padding:0 3px;box-sizing:border-box;font-size:10px;font-weight:700;line-height:14px;text-align:center;color:#FFFFFF}
+.view{position:relative;height:520px;background:var(--page);overflow:hidden}
+.art{width:640px;margin:48px auto 0;display:flex;flex-direction:column;gap:14px}
+.h{height:26px;border-radius:6px;background:var(--sk)}
+.l{height:12px;border-radius:4px;background:var(--sk2)}
+.toast{box-sizing:border-box;width:340px;border-radius:14px;background:var(--island);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:var(--shadow);padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px}
+.row svg.i{flex:none}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tt{font-size:13px;font-weight:600;line-height:18px}
+.ts{font-size:11px;line-height:15px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{flex:none;height:28px;border:0;border-radius:8px;padding:0 10px;background:transparent;color:var(--accent);font:inherit;font-size:12.5px;font-weight:600}
+.pbtn{flex:none;height:28px;border:0;border-radius:8px;padding:0 12px;background:var(--accent);color:var(--onAccent);font:inherit;font-size:12.5px;font-weight:600}
+.xbtn{flex:none;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--t3);display:flex;align-items:center;justify-content:center;padding:0}
+.inp{box-sizing:border-box;width:100%;min-height:56px;border-radius:9px;background:var(--panel);border:.5px solid var(--accent);box-shadow:0 0 0 3px var(--accentSoft);padding:7px 9px;font-size:12.5px;line-height:18px}
+.caret{display:inline-block;width:1.5px;height:15px;background:var(--accent);vertical-align:-3px;margin-left:1px}
+.hint{flex:1;font-size:11px;color:var(--t3)}
+.err{color:var(--danger)}
+.specs{flex:1;padding:40px 64px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:36px 40px;align-content:start}
+.spec{display:flex;flex-direction:column;gap:10px}
+.sl{font-size:13px;font-weight:600}
+.sl span{font-weight:400;color:var(--t2);margin-left:6px}
+.badges{display:flex;gap:28px;align-items:center;padding:14px 18px;border-radius:12px;background:var(--bar);box-shadow:var(--shadow);align-self:flex-start}
+.bcap{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:11px;color:var(--t2)}
+</style>
+</helmet>
+<div class="board t-dark">
+<div class="tabs"><div class="tab">为什么“安静”的界面更难做：从 Things 3…</div></div>
+<div class="bar">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t3)"><path d="M15 18l-6-6 6-6"></path></svg>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t3)"><path d="M9 18l6-6-6-6"></path></svg>
+<div class="omni">sspai.com/post/98214</div>
+<div class="ext" aria-label="Alayo Get，已保存"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg><span class="badge" style="background:var(--accent);color:var(--onAccent)">✓</span></div>
+</div>
+<div class="view">
+<div class="art">
+<div class="h" style="width:88%"></div>
+<div class="h" style="width:54%"></div>
+<div class="l" style="width:36%;margin-bottom:12px"></div>
+<div class="l" style="width:100%"></div>
+<div class="l" style="width:97%"></div>
+<div class="l" style="width:99%"></div>
+<div class="l" style="width:64%"></div>
+<div class="l" style="width:100%;margin-top:10px"></div>
+<div class="l" style="width:95%"></div>
+<div class="l" style="width:98%"></div>
+<div class="l" style="width:80%"></div>
+<div class="l" style="width:100%;margin-top:10px"></div>
+<div class="l" style="width:92%"></div>
+</div>
+<div class="toast" style="position:absolute;right:16px;bottom:16px">
+<div class="row">
+<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示</div></div>
+<button class="tbtn">加批注</button>
+</div>
+</div>
+</div>
+
+<div class="specs">
+<div class="spec">
+<div class="sl">加批注（展开）<span>悬停或输入时不消失</span></div>
+<div class="toast">
+<div class="row">
+<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存入剪藏库</div><div class="ts">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示</div></div>
+</div>
+<div class="inp">第三节“删掉提示”的论证可以拿去评 Workbench 的空态<span class="caret"></span></div>
+<div class="row"><span class="hint">回车或 Esc 收起时都会写入</span><button class="pbtn">写入</button></div>
+</div>
+</div>
+
+<div class="spec">
+<div class="sl">已存过<span>3 秒后消失</span></div>
+<div class="toast">
+<div class="row">
+<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+<div class="tx"><div class="tt">已于 9 月 28 日保存过</div><div class="ts">本次没有写入</div></div>
+<button class="tbtn">另存新快照</button>
+</div>
+</div>
+</div>
+
+<div class="spec">
+<div class="sl">退化为书签剪藏<span>3 秒后消失</span></div>
+<div class="toast">
+<div class="row">
+<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="tx"><div class="tt">已存为书签剪藏</div><div class="ts">没能抽取正文，已保存标题、描述和封面</div></div>
+<button class="tbtn">加批注</button>
+</div>
+</div>
+</div>
+
+<div class="spec">
+<div class="sl">失败<span>不自动消失</span></div>
+<div class="toast">
+<div class="row">
+<div class="tx"><div class="tt err">没能写入剪藏库</div><div class="ts">找不到文件夹“Alayo Get”，本次没有保存</div></div>
+<button class="tbtn">重试</button>
+<button class="xbtn" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+</div>
+</div>
+
+<div class="spec">
+<div class="sl">需要重新授权<span>不自动消失</span></div>
+<div class="toast">
+<div class="row">
+<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+<div class="tx"><div class="tt">需要重新授权剪藏库</div><div class="ts">本次没有保存，授权后会自动补存</div></div>
+<button class="tbtn">去授权…</button>
+<button class="xbtn" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+</div>
+</div>
+
+<div class="spec">
+<div class="sl">工具栏角标<span>快捷键或右键保存时</span></div>
+<div class="badges">
+<div class="bcap"><div class="ext"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></div>平时</div>
+<div class="bcap"><div class="ext"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg><span class="badge" style="background:var(--accent);color:var(--onAccent)">✓</span></div>已保存 3 秒</div>
+<div class="bcap"><div class="ext"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg><span class="badge" style="background:var(--danger)">!</span></div>失败 / 需授权</div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>工具栏面板 深色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-light{--accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--pill:rgba(66,87,181,.08);--canvas:#F1F2F4;--panel:#FFFFFF;--hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);--t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;--shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09)}
+.t-dark{--accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);--canvas:#212228;--panel:#2B2D34;--hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);--t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;--shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10)}
+.board{box-sizing:border-box;width:2840px;height:720px;padding:56px 64px;display:flex;gap:32px;align-items:flex-start;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1)}
+.col{width:360px;flex:none;display:flex;flex-direction:column;gap:12px}
+.lab{font-size:13px;font-weight:600;color:var(--t1)}
+.lab span{font-weight:400;color:var(--t2);margin-left:6px}
+.panel{width:360px;box-sizing:border-box;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.head{height:44px;box-sizing:border-box;padding:0 8px 0 16px;display:flex;align-items:center;gap:8px;border-bottom:.5px solid var(--hairSoft)}
+.brand{font-size:13px;font-weight:600;flex:1}
+.ibtn{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--t2);display:flex;align-items:center;justify-content:center;padding:0}
+.body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.status{display:flex;align-items:flex-start;gap:8px}
+.status svg{flex:none;margin-top:1px}
+.stext{display:flex;flex-direction:column;gap:2px;min-width:0}
+.st{font-size:13px;font-weight:600;line-height:18px}
+.sm{font-size:11px;line-height:15px;color:var(--t2)}
+.card{background:var(--region);border-radius:10px;padding:12px;display:flex;gap:10px;align-items:flex-start}
+.card .g{flex:none;color:var(--t3);margin-top:1px}
+.cc{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.ct{font-size:13px;font-weight:600;line-height:18px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pill{align-self:flex-start;display:flex;align-items:center;gap:4px;background:var(--pill);color:var(--accent);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:500;line-height:15px}
+.fn{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;line-height:14px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cover{flex:none;width:72px;height:48px;border-radius:6px;background:var(--region);border:.5px solid var(--hairSoft);display:flex;align-items:center;justify-content:center;color:var(--t3)}
+.field{display:flex;flex-direction:column;gap:6px}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.inp{box-sizing:border-box;width:100%;min-height:30px;border-radius:9px;background:var(--region);border:.5px solid var(--hairSoft);padding:6px 9px;font:inherit;font-size:12.5px;line-height:17px;color:var(--t1)}
+.inp.focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentSoft);background:var(--panel)}
+.ph{color:var(--t3)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;letter-spacing:.2px;line-height:15px;padding:2px 4px 2px 7px;border-radius:6px;background:var(--accentSoft);color:var(--accent)}
+.caret{display:inline-block;width:1.5px;height:15px;background:var(--accent);vertical-align:-3px;margin-left:1px}
+.drop{border-radius:10px;background:var(--panel);box-shadow:var(--shadow);padding:4px;display:flex;flex-direction:column}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:6px;font-size:12.5px;line-height:17px}
+.opt.on{background:var(--accentSoft)}
+.opt em{font-style:normal;font-size:11px;color:var(--t3)}
+.note{font-size:11px;line-height:16px;color:var(--t2)}
+.inset{background:var(--region);border-radius:9px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--t1)}
+.inset b{font-weight:600;color:var(--accent)}
+.mono{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;line-height:14px;color:var(--t2)}
+.mchip{align-self:flex-start;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10px;line-height:14px;padding:2px 6px;border-radius:6px;background:var(--region);color:var(--t2)}
+.bar{height:3px;border-radius:2px;background:var(--accentSoft);overflow:hidden}
+.bar div{height:3px;width:58%;background:var(--accent);border-radius:2px}
+.foot{display:flex;align-items:center;gap:8px;padding:10px 16px 12px;border-top:.5px solid var(--hairSoft)}
+.path{flex:1;min-width:0;display:flex;align-items:center;gap:5px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--t3);white-space:nowrap;overflow:hidden}
+.btn{height:30px;border:0;border-radius:9px;padding:0 14px;font:inherit;font-size:13px;font-weight:600;white-space:nowrap}
+.pri{background:var(--accent);color:var(--onAccent)}
+.sec{background:var(--accentSoft);color:var(--accent)}
+.dis{background:var(--accentSoft);color:var(--t3)}
+.wide{width:100%;height:34px}
+.err{color:var(--danger)}
+.auto{flex:none;font-size:11px;color:var(--t3)}
+</style>
+</helmet>
+<div class="board t-dark">
+
+<!-- 1 保存中 -->
+<div class="col">
+<div class="lab">1 保存中<span>点图标即开始保存</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="color:var(--accent)"><circle cx="12" cy="12" r="9" opacity=".25"></circle><path d="M21 12a9 9 0 0 0-9-9"></path></svg>
+<div class="stext"><div class="st">正在保存…</div><div class="sm">正文已抽取，正在下载图片 7 / 12</div></div>
+</div>
+<div class="bar"><div></div></div>
+<div class="card">
+<svg class="g" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h4"></path></svg>
+<div class="cc">
+<div class="ct">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示——一位产品设计师的复盘</div>
+<div class="pill">sspai.com</div>
+</div>
+</div>
+<div class="note">保存完成后可以补标题、标签和批注。</div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+</div>
+</div>
+</div>
+
+<!-- 2 已保存 -->
+<div class="col">
+<div class="lab">2 已保存<span>标签自由输入，回车成 chip</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存入剪藏库</div><div class="sm">文章剪藏 · 含 12 张图片</div></div>
+</div>
+<div class="fn">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与….md</div>
+<div class="field">
+<label class="fl">标题</label>
+<div class="inp" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示——一位产品设计师的复盘</div>
+</div>
+<div class="field">
+<label class="fl">标签</label>
+<div class="inp tags"><span class="chip">设计<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><span class="chip">界面文案<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><span class="ph">输入后回车</span></div>
+</div>
+<div class="field">
+<label class="fl">批注</label>
+<div class="inp focus" style="min-height:64px">第三节“删掉提示”的论证可以拿去评 Workbench 的空态<span class="caret"></span></div>
+</div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<!-- 2B 标签建议 -->
+<div class="col">
+<div class="lab">2B 已保存 · 标签带建议<span>备选：从历史标签里建议</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存入剪藏库</div><div class="sm">文章剪藏 · 含 12 张图片</div></div>
+</div>
+<div class="fn">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与….md</div>
+<div class="field">
+<label class="fl">标题</label>
+<div class="inp" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示——一位产品设计师的复盘</div>
+</div>
+<div class="field">
+<label class="fl">标签</label>
+<div class="inp tags focus"><span class="chip">界面文案<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><span>设<span class="caret"></span></span></div>
+<div class="drop">
+<div class="opt on"><span>设计</span><em>23 条剪藏</em></div>
+<div class="opt"><span>设计系统</span><em>6 条剪藏</em></div>
+<div class="opt"><span>新建标签“设”</span><em>回车</em></div>
+</div>
+</div>
+<div class="field">
+<label class="fl">批注</label>
+<div class="inp" style="min-height:44px"><span class="ph">添加批注（可选）</span></div>
+</div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<!-- 3 已存过 -->
+<div class="col">
+<div class="lab">3 已存过<span>默认不写入</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+<div class="stext"><div class="st">已于 2026-09-28 保存过</div><div class="sm">本次没有写入</div></div>
+</div>
+<div class="card">
+<svg class="g" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h4"></path></svg>
+<div class="cc">
+<div class="ct">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与提示——一位产品设计师的复盘</div>
+<div class="pill">sspai.com</div>
+<div class="fn">为什么“安静”的界面更难做：从 Things 3 到 Linear，十年间桌面工具里那些被删掉的按钮与….md</div>
+</div>
+</div>
+<div class="note">原文件可能已在 Workbench 里移动或改过，所以不会覆盖它。需要当前版本时，可以另存一份新快照，文件名会加“ (2)”。</div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<button class="btn sec">另存一份新快照</button>
+</div>
+</div>
+</div>
+
+<!-- 4 退化为书签 -->
+<div class="col">
+<div class="lab">4 退化为书签剪藏<span>保存不算失败</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+<div class="stext"><div class="st">已存为书签剪藏</div><div class="sm">没能抽取正文，已保存标题、描述和封面</div></div>
+</div>
+<div class="card">
+<div class="cover"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="m21 16-5-5-8 8"></path></svg></div>
+<div class="cc">
+<div class="ct">Config 2026 · 日程与讲者</div>
+<div class="pill">figma.com</div>
+<div class="mchip">extract: fallback</div>
+</div>
+</div>
+<div class="field">
+<label class="fl">标签</label>
+<div class="inp tags"><span class="ph">输入后回车</span></div>
+</div>
+<div class="field">
+<label class="fl">批注</label>
+<div class="inp" style="min-height:44px"><span class="ph">添加批注（可选）</span></div>
+</div>
+</div>
+<div class="foot">
+<div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Alayo Get</div>
+<span class="auto">关闭面板时自动写入</span>
+</div>
+</div>
+</div>
+
+<!-- 5 失败 -->
+<div class="col">
+<div class="lab">5 失败<span>只用 danger 色陈述一句</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="stext"><div class="st err">没能写入剪藏库</div><div class="sm">本次内容还没有保存</div></div>
+<div class="card">
+<svg class="g" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h4"></path></svg>
+<div class="cc">
+<div class="ct">Designing for calm: notes on interface restraint</div>
+<div class="pill">rauno.me</div>
+</div>
+</div>
+<div class="note" style="color:var(--t1);font-size:12px;line-height:18px">找不到剪藏库文件夹“Alayo Get”，它可能被移动、改名或删除了。</div>
+<div class="mono">NotFoundError · Alayo Get</div>
+</div>
+<div class="foot">
+<div class="path"></div>
+<button class="btn sec">重新选择文件夹…</button>
+<button class="btn pri">重试</button>
+</div>
+</div>
+</div>
+
+<!-- 6 需要重新授权 -->
+<div class="col">
+<div class="lab">6 需要重新授权<span>陈述事实 + 一个动作</span></div>
+<div class="panel">
+<div class="head">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span class="brand">Alayo Get</span>
+<button class="ibtn" aria-label="设置"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+</div>
+<div class="body">
+<div class="status">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--t2)"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+<div class="stext"><div class="st">需要重新授权剪藏库</div><div class="sm">本次内容还没有保存</div></div>
+</div>
+<div class="note" style="color:var(--t1);font-size:12px;line-height:18px">Chrome 重启后收回了写入“Alayo Get”文件夹的权限。</div>
+<div class="inset">点下方按钮后，Chrome 会询问访问方式，请选<b>“每次访问时都允许”</b>。选了它，以后重启浏览器就不用再授权。</div>
+</div>
+<div class="foot">
+<button class="btn pri wide">授权并保存…</button>
+</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2840,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>合成文章：如何写一个剪藏扩展 - 示例博客</title>
+  <meta name="description" content="一篇手写的合成文章，用来测试正文抽取。">
+  <meta property="og:image" content="/static/cover.jpg">
+  <meta property="og:site_name" content="示例博客">
+</head>
+<body>
+  <header><nav><a href="/">首页</a> <a href="/about">关于</a></nav></header>
+  <main>
+    <article>
+      <h1>合成文章：如何写一个剪藏扩展</h1>
+      <p>这是一篇为测试专门手写的合成文章，不是任何真实网页的副本。它的作用是让正文抽取有足够长的段落可以识别，同时带上一张相对路径的图片和一个相对路径的链接，检验地址是否被转成了绝对地址。</p>
+      <p>剪藏扩展的工作分成两部分：页面里负责抽取正文并转换成 Markdown，service worker 负责下载图片、写文件和维护已保存记录。这样分工的原因是转换需要页面环境，而写入需要扩展的权限。</p>
+      <figure>
+        <img src="images/figure-1.png" alt="示意图" width="800" height="450">
+        <figcaption>图 1：运行环境分工示意</figcaption>
+      </figure>
+      <p>更多背景可以参考<a href="../notes/design.html">设计笔记</a>。下面再写一段文字，让正文长度稳稳超过两百个字符的阈值，避免因为长度不足而被退化成书签剪藏。这一段没有别的用途，只是填充内容。</p>
+    </article>
+  </main>
+  <footer><p>版权所有 示例博客</p></footer>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings English dark</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.t-dark{--accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--canvas:#212228;--panel:#2B2D34;--hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);--t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--success:#30D158;--shadow:0 2px 8px rgba(0,0,0,.28),0 0 0 .5px rgba(255,255,255,.10);--dlg:#35363A}
+.page{box-sizing:border-box;width:100%;min-height:1300px;background:var(--canvas);font-family:-apple-system,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--t1);padding:48px 16px 64px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.top span{flex:1}
+.top em{font-style:normal;font-weight:400;color:var(--t3);font-size:12px}
+.card{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px;display:flex;gap:16px}
+.card.focus{box-shadow:0 0 0 1.5px var(--accent),0 2px 8px rgba(0,0,0,.28)}
+.ic{flex:none;width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--region);color:var(--t2)}
+.sc{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+.stt{font-size:15px;font-weight:600;line-height:26px}
+.p{margin:0;font-size:13px;line-height:21px;color:var(--t2)}
+.p b{color:var(--t1);font-weight:600}
+.dlg{align-self:flex-start;width:100%;max-width:420px;box-sizing:border-box;background:var(--dlg);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.4),0 0 0 .5px var(--hair);padding:16px;display:flex;flex-direction:column;gap:10px}
+.dl{height:10px;border-radius:4px;background:var(--region)}
+.dbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:4px}
+.dbtn{height:28px;border-radius:14px;padding:0 12px;border:.5px solid var(--hair);background:transparent;font:inherit;font-size:12px;color:var(--accent);display:inline-flex;align-items:center}
+.dbtn.hl{border:1.5px solid var(--accent);background:var(--accentSoft);font-weight:600}
+.pend{background:var(--region);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.pl{font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.pi{font-size:12.5px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{height:30px;border:0;border-radius:9px;padding:0 14px;font:inherit;font-size:13px;font-weight:600;white-space:nowrap}
+.pri{background:var(--accent);color:var(--onAccent)}
+.sec{background:var(--accentSoft);color:var(--accent)}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3);margin-top:8px;text-transform:uppercase}
+.chosen{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chosen code{flex:1;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;color:var(--t1)}
+.wb{background:var(--panel);border-radius:14px;box-shadow:var(--shadow)}
+.wb summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:16px 24px;min-height:44px;box-sizing:border-box;border-radius:14px}
+.wb summary::-webkit-details-marker{display:none}
+.wb summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wbt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wbt b{font-size:14px;font-weight:600;line-height:22px}
+.wbt b i{font-style:normal;font-weight:500;font-size:11px;color:var(--t2);background:var(--region);border-radius:5px;padding:1px 6px;margin-left:8px;vertical-align:1px}
+.wbt span{font-size:12.5px;line-height:19px;color:var(--t2)}
+.chev{flex:none;color:var(--t3);transition:transform .15s}
+.wb[open] .chev{transform:rotate(90deg)}
+.wbb{padding:0 24px 20px;display:flex;flex-direction:column;gap:12px}
+.ways{display:flex;flex-wrap:wrap;gap:12px}
+.way{flex:1 1 260px;background:var(--region);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.wt{font-size:13px;font-weight:600}
+.path{font-size:12.5px;line-height:22px;color:var(--t2)}
+.k{display:inline-block;font-size:12px;line-height:18px;padding:0 6px;border-radius:5px;background:var(--panel);border:.5px solid var(--hair);color:var(--t1);margin:0 1px}
+.keys{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:18px 24px;display:flex;flex-direction:column}
+.kr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:.5px solid var(--hairSoft);font-size:13px}
+.kr:last-child{border-bottom:0}
+.kr span{color:var(--t2)}
+.kr .none{color:var(--t3);margin-left:4px}
+</style>
+</helmet>
+<div class="page t-dark">
+<div class="wrap">
+<div class="top">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg>
+<span>Alayo Get</span><em>Settings</em>
+</div>
+
+<div class="card focus">
+<div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></div>
+<div class="sc">
+<div class="stt">Allow access to your library again</div>
+<p class="p">After restarting, Chrome removed permission to write to the “Alayo Get” folder. Click “Allow access…” and choose <b>“Allow on every visit”</b> in the prompt, so you won’t be asked again after future restarts.</p>
+<div class="dlg" role="img" aria-label="Illustration of Chrome’s permission prompt">
+<div class="dl" style="width:78%"></div>
+<div class="dl" style="width:52%"></div>
+<div class="dbtns">
+<span class="dbtn">Allow this time</span>
+<span class="dbtn hl">Allow on every visit</span>
+<span class="dbtn">Don’t allow</span>
+</div>
+</div>
+<div class="pend">
+<div class="pl">2 clips will be saved after you allow access</div>
+<div class="pi">Why calm interfaces are harder to build: a decade of removed buttons and alerts in desktop tools, from Things 3 to Linear</div>
+<div class="pi">为什么“安静”的界面更难做：一位产品设计师的复盘</div>
+</div>
+<div><button class="btn pri" type="button">Allow access…</button></div>
+</div>
+</div>
+
+<div class="fl">Library</div>
+<div class="card" style="padding:16px 24px">
+<div class="sc">
+<div class="chosen">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" style="color:var(--t2)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+<code>Alayo Get</code>
+<button class="btn sec" type="button">Change…</button>
+</div>
+</div>
+</div>
+
+<details class="wb">
+<summary>
+<div class="wbt"><b>Use with Alayo Workbench<i>Optional</i></b><span>If you use Workbench, add the library folder as a monitored folder. Each new clip will then show up for you to add.</span></div>
+<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg>
+</summary>
+<div class="wbb">
+<div class="ways">
+<div class="way">
+<div class="wt">Create a new space</div>
+<div class="path">In the menu bar, choose <span class="k">File</span> › <span class="k">New Space…</span> (<span class="k">⌘N</span>) and select the “Alayo Get” folder. The space will be named Alayo Get.</div>
+</div>
+<div class="way">
+<div class="wt">Add to an existing space</div>
+<div class="path"><span class="k">File</span> › <span class="k">Edit Current Space…</span> › Monitored Folders › <span class="k">Add Folder…</span>, select the folder, then click “Add to Monitored Folders”.</div>
+</div>
+</div>
+<p class="p">After that, each time you save, Workbench shows “The source has 1 new file” at the top. Click “View” and add it from the Review Inbox.</p>
+</div>
+</details>
+
+<div class="fl">Ways to save</div>
+<div class="keys">
+<div class="kr">Click the toolbar icon<span>Save this page and open the panel to edit title, tags and note</span></div>
+<div class="kr"><div>Shortcut <span class="none">Not set</span></div><span>Save this page directly; a notice appears at the bottom right</span></div>
+<div class="kr">Right-click menu<span>This page, a link, an image, audio or video, or selected text</span></div>
+<div class="kr">Change shortcut<span>chrome://extensions/shortcuts</span></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Clip files in English</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.wrap{box-sizing:border-box;width:1760px;height:1000px;padding:48px 64px;display:flex;gap:32px;align-items:flex-start;background:#F1F2F4;font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#23252C}
+.col{width:520px;flex:none;display:flex;flex-direction:column;gap:12px}
+.lab{font-size:13px;font-weight:600;line-height:18px}
+.lab span{font-weight:400;color:#6E7280;margin-left:6px}
+.card{background:#FFFFFF;border-radius:12px;box-shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);padding:16px 18px}
+.code{margin:0;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px;line-height:18px;color:#23252C;white-space:pre-wrap;word-break:break-all}
+.dim{color:#72767F}
+.hl{background:rgba(66,87,181,.10);color:#4257B5;border-radius:3px}
+.cap{font-size:11px;line-height:16px;color:#6E7280}
+</style>
+</helmet>
+<div class="wrap">
+
+<div class="col">
+<div class="lab">Stream clip<span>Rick Astley - Never Gonna Give You Up….md</span></div>
+<div class="card"><pre class="code"><span class="dim">---
+id: 01K6Z8M3Q4R5S6T7V8W9XAYBZC
+source: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+medium: video
+title: Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+author: Rick Astley
+published: 2009-10-25
+captured: 2026-10-07T16:20:00+08:00
+site: youtube.com
+tags: []
+note: ""
+extract: full
+platform: youtube
+video_id: dQw4w9WgXcQ
+embed: https://www.youtube.com/embed/dQw4w9WgXcQ
+duration: 213
+cover: .assets/01K6Z8M3Q4R5S6T7V8W9XAYBZC/cover.jpg
+---</span>
+
+# Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+
+<span class="hl">[Source]</span>(https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+
+![](.assets/01K6Z8M3Q4R5S6T7V8W9XAYBZC/cover.jpg)
+
+<span class="hl">▶ YouTube video</span> (3:33) · Rick Astley
+
+The official video for “Never Gonna Give You Up” by Rick Astley. …</pre></div>
+<div class="cap">高亮处是随语言变化的固定文字。frontmatter 的键和值（medium、platform 等）不翻译，中英文环境写出的一样。</div>
+</div>
+
+<div class="col">
+<div class="lab">Quote clip<span>Quotes - Thinking, Fast and Slow notes.md</span></div>
+<div class="card"><pre class="code"><span class="dim">---
+id: 01K6Z9A1B2C3D4E5F6G7H8J9KM
+source: https://example.com/thinking-fast-and-slow
+medium: quote
+title: Thinking, Fast and Slow notes
+author: ""
+published: ""
+site: example.com
+captured: 2026-10-07T16:31:00+08:00
+tags: []
+note: ""
+extract: ""
+---</span>
+
+# <span class="hl">Quotes -</span> Thinking, Fast and Slow notes
+
+<span class="hl">[Source]</span>(https://example.com/thinking-fast-and-slow)
+
+&gt; System 1 operates automatically and quickly,
+&gt; with little or no effort.
+
+2026-10-07 16:31 · <span class="hl">[Jump to source]</span>(https://example.com/thinking-fast-and-slow#:~:text=System%201%20operates)
+
+&gt; Nothing in life is as important as you think it is
+&gt; while you are thinking about it.
+
+2026-10-07 16:35 · <span class="hl">[Jump to source]</span>(https://example.com/thinking-fast-and-slow#:~:text=Nothing%20in%20life)
+
+Compare with the focusing illusion chapter</pre></div>
+<div class="cap">中文环境存的摘录文件，换到英文环境后，同一页面的新摘录照旧追加进原文件：时间行按形状识别，不看链接文字。新追加的那条用英文写。</div>
+</div>
+
+<div class="col" style="width: 448px">
+<div class="lab">X post（片段）<span>Jane Doe on X - ….md</span></div>
+<div class="card"><pre class="code"># Jane Doe on X
+
+<span class="hl">[Source]</span>(https://x.com/janedoe/status/1876543210)
+
+Shipping the new onboarding today. Two steps instead of three.
+
+<span class="hl">▶ Video</span> (0:42)
+
+&gt; **Alayo (@alayo)** · 2026-10-06 · <span class="hl">[Post]</span>(https://x.com/alayo/status/1876500000)
+&gt;
+&gt; A long quoted post that the timeline cuts off after a few lines… <span class="hl">[Full post]</span>(https://x.com/alayo/status/1876500000)</pre></div>
+<div class="cap">X 剪藏的正文结构不变，只换固定文字：视频标记、引用头的原帖链接、截断长帖的全文链接。</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1760,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

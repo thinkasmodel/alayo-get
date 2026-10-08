@@ -1,0 +1,126 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Main.dc.html": {
+      "h": 720,
+      "title": "工具栏面板 · 浅色",
+      "w": 2840,
+      "x": 0,
+      "y": 0
+    },
+    "Onboarding.dc.html": {
+      "expand": "fill",
+      "h": 1640,
+      "title": "首次使用引导页 · 浅色",
+      "w": 1280,
+      "x": 0,
+      "y": 3540
+    },
+    "OnboardingDark.dc.html": {
+      "expand": "fill",
+      "h": 1640,
+      "title": "首次使用引导页 · 深色",
+      "w": 1280,
+      "x": 1360,
+      "y": 3540
+    },
+    "PanelDark.dc.html": {
+      "h": 720,
+      "title": "工具栏面板 · 深色",
+      "w": 2840,
+      "x": 0,
+      "y": 840
+    },
+    "Toast.dc.html": {
+      "h": 1180,
+      "title": "页面提示与角标 · 浅色",
+      "w": 1280,
+      "x": 0,
+      "y": 1960
+    },
+    "ToastDark.dc.html": {
+      "h": 1180,
+      "title": "页面提示与角标 · 深色",
+      "w": 1280,
+      "x": 1360,
+      "y": 1960
+    },
+    "Reauth.dc.html": {
+      "x": 0,
+      "y": 5780,
+      "w": 1280,
+      "h": 1240,
+      "title": "选项页 · 重新授权 · 浅色",
+      "expand": "fill"
+    },
+    "ReauthDark.dc.html": {
+      "x": 1360,
+      "y": 5780,
+      "w": 1280,
+      "h": 1240,
+      "title": "选项页 · 重新授权 · 深色",
+      "expand": "fill"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-06T02:24:43Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "decide": {
+      "maxH": 720,
+      "text": "已定稿（2026-10-06）\n\n1. 视觉：沿用 Workbench 的“安静”风格。只有“失败”用 danger 色，其他状态只陈述事实。\n\n2. 标签：采用 2B，输入时从历史标签里给建议。\n\n3. 快捷键：⌥⇧S 直接保存当前页。\n\n4. 需要重新授权时，授权后自动补存。\n\n5. 面板里改的标题、标签、批注在关闭面板时自动写入，不设“写入修改”按钮。页面提示里的批注框，按回车或 Esc 收起时都会写入。\n\n规范见仓根 DESIGN.md。\n\n6. 改稿（2026-10-06）：Chrome 只在恢复已授权的文件夹时才弹“每次访问时都允许”询问框，首次选文件夹时不会弹。引导页第 2、3 步因此对调，“授权”改为提前说明；真正的授权在选项页的重新授权区块里做。扩展拿不到文件夹的完整路径，各处只显示文件夹名。",
+      "w": 440,
+      "x": 2960,
+      "y": 0
+    },
+    "rowOnboard": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "首次使用引导页",
+      "w": 240,
+      "x": 0,
+      "y": 3240
+    },
+    "rowPanel": {
+      "kind": "title1",
+      "maxW": 2840,
+      "text": "工具栏面板 · 6 种状态（2B 为标签建议备选）",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "rowToast": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "页面右下角提示 · 工具栏角标",
+      "w": 240,
+      "x": 0,
+      "y": 1660
+    },
+    "rowReauth": {
+      "x": 0,
+      "y": 5480,
+      "text": "选项页 · 重新授权（重启浏览器后）",
+      "kind": "title1",
+      "maxW": 2640
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "PanelDark.dc.html",
+    "Toast.dc.html",
+    "ToastDark.dc.html",
+    "Onboarding.dc.html",
+    "OnboardingDark.dc.html",
+    "Reauth.dc.html",
+    "ReauthDark.dc.html"
+  ],
+  "pages": [],
+  "title": "Alayo Get M1 设计稿"
+}

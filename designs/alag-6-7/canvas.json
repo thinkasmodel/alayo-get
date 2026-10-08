@@ -1,0 +1,122 @@
+{
+  "v": 3,
+  "attachments": {},
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-07T20:50:00+08:00"
+  },
+  "title": "ALAG-6/7 通用引导与中英文",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 1480,
+      "title": "首次设置 · 中文 · 浅色 · macOS（Workbench 小节收起）",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "OnboardingDark.dc.html": {
+      "x": 1360,
+      "y": 0,
+      "w": 1280,
+      "h": 1760,
+      "title": "首次设置 · 中文 · 深色 · macOS（Workbench 小节展开）",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "OnboardingEn.dc.html": {
+      "x": 2720,
+      "y": 0,
+      "w": 1280,
+      "h": 1240,
+      "title": "First-run setup · English · light · Windows（无 Workbench 小节）",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "SettingsEn.dc.html": {
+      "x": 0,
+      "y": 2100,
+      "w": 1280,
+      "h": 1300,
+      "title": "Settings · English · dark · macOS（需要重新授权；快捷键未设置）",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "PanelEn.dc.html": {
+      "x": 0,
+      "y": 3800,
+      "w": 2120,
+      "h": 1000,
+      "title": "Panel / page notice / context menu · English · light"
+    },
+    "FilesEn.dc.html": {
+      "x": 0,
+      "y": 4920,
+      "w": 1760,
+      "h": 1000,
+      "title": "英文环境下写出的剪藏文件"
+    },
+    "Strings.dc.html": {
+      "x": 2280,
+      "y": 3800,
+      "w": 1440,
+      "h": 4200,
+      "title": "英文文案表（中 → 英）",
+      "expand": "fill"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "OnboardingDark.dc.html",
+    "OnboardingEn.dc.html",
+    "SettingsEn.dc.html",
+    "PanelEn.dc.html",
+    "FilesEn.dc.html",
+    "Strings.dc.html"
+  ],
+  "notes": {
+    "rowOnboard": {
+      "x": 0,
+      "y": -300,
+      "w": 240,
+      "text": "首次设置页：Workbench 降为可选小节",
+      "kind": "title1",
+      "maxW": 4000
+    },
+    "rowSettings": {
+      "x": 0,
+      "y": 1800,
+      "w": 240,
+      "text": "设置页",
+      "kind": "title1",
+      "maxW": 2640
+    },
+    "rowI18n": {
+      "x": 0,
+      "y": 3500,
+      "text": "ALAG-7 英文版：面板、提示、文件、文案表",
+      "kind": "title1",
+      "maxW": 3720
+    },
+    "decide": {
+      "x": 4080,
+      "y": 0,
+      "w": 440,
+      "maxH": 900,
+      "text": "已定稿（2026-10-07）：首次设置页、设置页\n\n1. 首次设置从三步改为两步：选文件夹；重启浏览器后再授权一次。\n\n2. Workbench 的操作说明挪进“配合 Alayo Workbench 使用（可选）”小节，默认收起，点标题展开。首次设置页和设置页都放这一节。\n\n3. 标题改为“把网页存成本地文件”，导语不再提 Workbench。\n\n4. “保存方式”里右键菜单一行改为列出 ALAG-4 之后的全部入口。\n\n5. 英文版：Workbench 菜单名取自 31.1 的英文本地化；Chrome 询问框按钮文字取自 Chrome 官方说明。\n\n6. 语言跟随浏览器，页面上没有语言选项。"
+    },
+    "decide7": {
+      "x": 3800,
+      "y": 3800,
+      "w": 440,
+      "maxH": 1100,
+      "text": "ALAG-7 已定稿（2026-10-07，用户确认英文措辞与系统差异）\n\n1. 文案表是英文版的唯一来源，实现时逐条照抄。\n\n2. 剪藏文件里的固定文字跟随保存时的界面语言；frontmatter 的键不变。\n\n3. 摘录条目的识别改成看“时间 · [任意文字](链接)”这一行的形状，不看链接文字，中英文写的旧文件都能继续追加。\n\n4. 日期用浏览器语言格式化：中文“10 月 7 日”，英文“Oct 7”。\n\n5. 数量用单复数：1 clip / 2 clips。\n\n6. 系统差异：快捷键显示 chrome.commands.getAll() 返回的组合键（Mac ⌥⇧S，Windows Alt+Shift+S），被清空时显示“未设置”。文件夹建议不提“文稿”；iCloud 一句和 Workbench 小节只在 macOS 显示。\n\n7. Workbench 只有 macOS 版：非 Mac（chrome.runtime.getPlatformInfo().os ≠ mac）上不显示“配合 Alayo Workbench 使用”整节。"
+    }
+  },
+  "designSystems": []
+}

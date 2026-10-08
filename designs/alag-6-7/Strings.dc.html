@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<title>英文文案表</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.page{box-sizing:border-box;width:100%;background:#F1F2F4;font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#23252C;padding:48px 16px 64px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1{margin:0;font-size:26px;line-height:34px;font-weight:600}
+.lead{margin:0;font-size:14px;line-height:22px;color:#6E7280;max-width:860px}
+h2{margin:0 0 10px;font-size:15px;line-height:22px;font-weight:600}
+.box{background:#FFFFFF;border-radius:14px;box-shadow:0 2px 8px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);padding:8px 20px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;line-height:20px;min-width:720px}
+th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.6px;color:#72767F;padding:10px 12px 8px 0;border-bottom:.5px solid rgba(35,37,44,.09)}
+td{vertical-align:top;padding:8px 12px 8px 0;border-bottom:.5px solid rgba(35,37,44,.055)}
+tr:last-child td{border-bottom:0}
+td:first-child{width:40%;color:#23252C}
+td:nth-child(2){width:44%;color:#23252C}
+td:nth-child(3){color:#6E7280;font-size:12px}
+code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;background:rgba(35,37,44,.045);border-radius:4px;padding:0 4px}
+.v{color:#4257B5;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px}
+</style>
+</helmet>
+<div class="page">
+<div class="wrap">
+<h1>英文文案表</h1>
+<p class="lead">英文版的唯一来源。中文列是现在代码里的原文（ALAG-6 改过的按改后写）。<span class="v">{n}</span> 这类是占位值。带“单/复数”的条目按数量选形式。console 日志和代码注释不翻。首次设置页、设置页的英文见上方两张英文稿，这里不重复。</p>
+
+<div>
+<h2>扩展信息与右键菜单</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>把网页存成本地 Markdown 文件</td><td>Save web pages as local Markdown files</td><td>manifest description</td></tr>
+<tr><td>保存当前页</td><td>Save this page</td><td>快捷键命令说明</td></tr>
+<tr><td>存入 Alayo Get</td><td>Save to Alayo Get</td><td>右键：页面</td></tr>
+<tr><td>把链接存入 Alayo Get</td><td>Save link to Alayo Get</td><td>右键：链接</td></tr>
+<tr><td>把图片存入 Alayo Get</td><td>Save image to Alayo Get</td><td>右键：图片</td></tr>
+<tr><td>把视频存入 Alayo Get</td><td>Save video to Alayo Get</td><td>右键：视频</td></tr>
+<tr><td>把音频存入 Alayo Get</td><td>Save audio to Alayo Get</td><td>右键：音频</td></tr>
+<tr><td>摘录到 Alayo Get</td><td>Save quote to Alayo Get</td><td>右键：选中文字</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>选项页里设计稿没画到的状态</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>Alayo Get 设置</td><td>Alayo Get Settings</td><td>选项页标签页标题</td></tr>
+<tr><td>选择文件夹…</td><td>Choose folder…</td><td>首次设置，未选文件夹</td></tr>
+<tr><td>授权后会补存 <span class="v">{n}</span> 条剪藏</td><td>单：1 clip will be saved after you allow access<br>复：<span class="v">{n}</span> clips will be saved after you allow access</td><td>重新授权卡</td></tr>
+<tr><td>等 <span class="v">{n}</span> 条</td><td><span class="v">{n}</span> in total</td><td>待补存列表超过显示条数</td></tr>
+<tr><td>没有获得授权。可以再点一次“授权…”。</td><td>Access wasn’t allowed. You can click “Allow access…” again.</td><td>重新授权被拒</td></tr>
+<tr><td>已授权，正在补存 <span class="v">{n}</span> 条剪藏…</td><td>单：Access allowed. Saving 1 pending clip…<br>复：Access allowed. Saving <span class="v">{n}</span> pending clips…</td><td>授权成功，补写中</td></tr>
+<tr><td>已授权，补存了 <span class="v">{n}</span> 条剪藏</td><td>单：Access allowed. Saved 1 pending clip<br>复：Access allowed. Saved <span class="v">{n}</span> pending clips</td><td>补写结束</td></tr>
+<tr><td>已授权</td><td>Access allowed</td><td>补写 0 条或没收到回复</td></tr>
+<tr><td>可以关掉这个页面，回去继续浏览。</td><td>You can close this page and keep browsing.</td><td>授权成功</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>系统差异（选项页）</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>建议在本机硬盘上新建一个“Alayo Get”文件夹。</td><td>We suggest creating a new folder named “Alayo Get” on this computer’s hard drive.</td><td>首次设置，所有系统</td></tr>
+<tr><td>不要放进 iCloud 云盘：开了“优化 Mac 存储空间”后，文件可能被替换成占位文件。</td><td>Avoid iCloud Drive: with “Optimize Mac Storage” turned on, files may be replaced with placeholders.</td><td>接在上一句后，只在 macOS 显示</td></tr>
+<tr><td>快捷键 <span class="v">{组合键}</span></td><td>Shortcut <span class="v">{keys}</span></td><td>组合键取 <code>chrome.commands.getAll()</code> 返回值原样显示：Mac 上是 <code>⌥⇧S</code>，Windows 上是 <code>Alt+Shift+S</code>；用户改过就显示改后的</td></tr>
+<tr><td>未设置</td><td>Not set</td><td>用户在 chrome://extensions/shortcuts 清空了快捷键</td></tr>
+<tr><td>“配合 Alayo Workbench 使用”整节</td><td>“Use with Alayo Workbench” section</td><td>只在 macOS 显示（Workbench 只有 Mac 版）</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>工具栏面板</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>设置</td><td>Settings</td><td>齿轮按钮 aria-label</td></tr>
+<tr><td>标题 / 标签 / 批注</td><td>Title / Tags / Note</td><td>字段名</td></tr>
+<tr><td>添加批注（可选）</td><td>Add a note (optional)</td><td>批注占位</td></tr>
+<tr><td>输入后回车</td><td>Type and press Return</td><td>标签占位</td></tr>
+<tr><td>删除标签 <span class="v">{tag}</span></td><td>Remove tag <span class="v">{tag}</span></td><td>标签 × aria-label</td></tr>
+<tr><td>新建标签“<span class="v">{tag}</span>”</td><td>Create tag “<span class="v">{tag}</span>”</td><td>标签建议</td></tr>
+<tr><td>回车</td><td>Return</td><td>标签建议右侧提示</td></tr>
+<tr><td><span class="v">{n}</span> 条剪藏</td><td>单：1 clip　复：<span class="v">{n}</span> clips</td><td>标签建议右侧计数</td></tr>
+<tr><td>关闭面板时自动写入</td><td>Saved when you close the panel</td><td>底栏</td></tr>
+<tr><td>正在保存…</td><td>Saving…</td><td>保存中</td></tr>
+<tr><td>保存进度</td><td>Save progress</td><td>进度条 aria-label</td></tr>
+<tr><td>保存完成后可以补标签和批注。</td><td>You can add tags and a note once saving finishes.</td><td>媒体保存中</td></tr>
+<tr><td>保存完成后可以补标题、标签和批注。</td><td>You can edit the title, tags and note once saving finishes.</td><td>保存中</td></tr>
+<tr><td>已存入剪藏库</td><td>Saved to library</td><td>成功</td></tr>
+<tr><td>已存为书签剪藏</td><td>Saved as a bookmark</td><td>正文抽取失败</td></tr>
+<tr><td>没能抽取正文，已保存标题、描述和封面</td><td>Couldn’t extract the article. Saved the title, description and cover.</td><td>正文抽取失败</td></tr>
+<tr><td>已于 <span class="v">{date}</span> 保存过</td><td>Already saved on <span class="v">{date}</span>（面板日期两种语言都写 YYYY-MM-DD，2026-10-08 用户定）</td><td>重复保存</td></tr>
+<tr><td>本次没有写入</td><td>Nothing new was saved</td><td>重复保存</td></tr>
+<tr><td>原文件可能已被移动或改过，所以不会覆盖它。需要当前版本时，可以另存一份新快照，文件名会加“ (2)”。</td><td>The original file may have been moved or edited, so it won’t be overwritten. To keep the current version, save a new snapshot. Its file name will end in “ (2)”.</td><td>重复保存</td></tr>
+<tr><td>另存一份新快照</td><td>Save new snapshot</td><td>重复保存按钮</td></tr>
+<tr><td>没能写入剪藏库</td><td>Couldn’t save to library</td><td>失败</td></tr>
+<tr><td>本次内容还没有保存</td><td>This page hasn’t been saved yet</td><td>失败、未选库、需授权</td></tr>
+<tr><td>重新选择文件夹…</td><td>Choose folder again…</td><td>失败按钮</td></tr>
+<tr><td>重试</td><td>Retry</td><td>失败按钮</td></tr>
+<tr><td>还没有选择剪藏库</td><td>No library folder yet</td><td>未选库</td></tr>
+<tr><td>去设置…</td><td>Open settings…</td><td>未选库按钮</td></tr>
+<tr><td>需要重新授权剪藏库</td><td>Allow access to your library again</td><td>需授权（面板、页面提示、选项页同一句）</td></tr>
+<tr><td>Chrome 重启后收回了写入“<span class="v">{folder}</span>”文件夹的权限。</td><td>After restarting, Chrome removed permission to write to the “<span class="v">{folder}</span>” folder.</td><td>需授权</td></tr>
+<tr><td>点下方按钮后，Chrome 会询问访问方式，请选“每次访问时都允许”。选了它，以后重启浏览器就不用再授权。</td><td>Click the button below. When Chrome asks, choose “Allow on every visit” so you won’t be asked again after restarting.</td><td>需授权</td></tr>
+<tr><td>授权并保存…</td><td>Allow access and save…</td><td>需授权按钮</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>页面右下角提示</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>已存入剪藏库</td><td>Saved to library</td><td>成功</td></tr>
+<tr><td>已摘录</td><td>Quote saved</td><td>摘录成功</td></tr>
+<tr><td>已存为书签剪藏</td><td>Saved as a bookmark</td><td>正文抽取失败</td></tr>
+<tr><td>已于 <span class="v">{date}</span>保存过</td><td>Already saved on <span class="v">{date}</span></td><td>重复保存</td></tr>
+<tr><td>本次没有写入</td><td>Nothing new was saved</td><td>重复保存</td></tr>
+<tr><td>没能写入剪藏库</td><td>Couldn’t save to library</td><td>失败</td></tr>
+<tr><td>本次没有保存，授权后会自动补存</td><td>Not saved yet. It will be saved once you allow access.</td><td>需授权</td></tr>
+<tr><td>加批注</td><td>Add note</td><td>按钮</td></tr>
+<tr><td>另存新快照</td><td>Save new snapshot</td><td>按钮</td></tr>
+<tr><td>重试</td><td>Retry</td><td>按钮</td></tr>
+<tr><td>去授权…</td><td>Allow access…</td><td>按钮</td></tr>
+<tr><td>关闭</td><td>Close</td><td>× aria-label</td></tr>
+<tr><td>添加批注（可选）</td><td>Add a note (optional)</td><td>批注占位</td></tr>
+<tr><td>回车或 Esc 收起时都会写入</td><td>Saved when you press Return or Esc</td><td>批注提示</td></tr>
+<tr><td>写入</td><td>Save</td><td>批注按钮</td></tr>
+<tr><td>没能写入批注：<span class="v">{reason}</span>。可以再按回车试一次。</td><td>Couldn’t save the note: <span class="v">{reason}</span>. Press Return to try again.</td><td>批注失败</td></tr>
+<tr><td>和扩展的连接断开了</td><td>lost connection to the extension</td><td>批注失败原因（小写开头，接在冒号后）</td></tr>
+<tr><td>没有收到扩展的确认</td><td>the extension didn’t respond</td><td>批注失败原因</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>保存结果的说明行（面板与页面提示共用）</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td><span class="v">{M}</span> 月 <span class="v">{D}</span> 日</td><td>Oct 7（用 <code>Intl.DateTimeFormat</code> 按浏览器语言格式化）</td><td>日期</td></tr>
+<tr><td>正在抽取正文…</td><td>Extracting article…</td><td>进度</td></tr>
+<tr><td>正文已抽取，正在下载图片 <span class="v">{a}</span> / <span class="v">{b}</span></td><td>Article extracted. Downloading images <span class="v">{a}</span> / <span class="v">{b}</span></td><td>进度</td></tr>
+<tr><td>正在写入剪藏库…</td><td>Saving to library…</td><td>进度</td></tr>
+<tr><td>正在下载 <span class="v">{label}</span>，<span class="v">{size}</span></td><td>Downloading <span class="v">{label}</span>, <span class="v">{size}</span></td><td>进度</td></tr>
+<tr><td>文章剪藏 / 书签剪藏</td><td>Article / Bookmark</td><td>类型</td></tr>
+<tr><td>X 帖子 / X 长文 / X 剪藏</td><td>X post / X article / X clip</td><td>类型</td></tr>
+<tr><td>X 作者串 · <span class="v">{n}</span> 条</td><td>X thread · <span class="v">{n}</span> posts（单：1 post）</td><td>类型</td></tr>
+<tr><td>媒体剪藏 · <span class="v">{kind}</span> · <span class="v">{size}</span></td><td>Media · <span class="v">{kind}</span> · <span class="v">{size}</span></td><td>类型</td></tr>
+<tr><td>流媒体剪藏 · <span class="v">{platform}</span></td><td>Stream · <span class="v">{platform}</span></td><td>类型</td></tr>
+<tr><td> · 含 <span class="v">{n}</span> 张图片</td><td> · <span class="v">{n}</span> images（单：1 image）</td><td>后缀</td></tr>
+<tr><td> · <span class="v">{n}</span> 张没下载成功</td><td> · <span class="v">{n}</span> failed to download</td><td>后缀</td></tr>
+<tr><td>拿不到文件大小，没有下载，只记了链接。</td><td>Couldn’t get the file size, so it wasn’t downloaded. Only the link was saved.</td><td>超大直链</td></tr>
+<tr><td>文件有 <span class="v">{size}</span>，超过 100MB，没有下载，只记了链接。</td><td>The file is <span class="v">{size}</span>, over 100 MB, so it wasn’t downloaded. Only the link was saved.</td><td>超大直链</td></tr>
+<tr><td>拿不到<span class="v">{视频|音频}</span>大小，只记了链接和信息</td><td>Couldn’t get the <span class="v">{video|audio}</span> size. Saved the link and details only</td><td>流媒体</td></tr>
+<tr><td><span class="v">{视频|音频}</span>超过 100MB，只记了链接和信息</td><td><span class="v">{Video|Audio}</span> is over 100 MB. Saved the link and details only</td><td>流媒体</td></tr>
+<tr><td>原来的摘录文件不在了，新建了一个</td><td>The quotes file was missing, so a new one was created</td><td>摘录</td></tr>
+<tr><td>第 <span class="v">{n}</span> 条 · 没能定位到原文位置，链接只到页面</td><td>Quote <span class="v">{n}</span> · Couldn’t find the text on the page, so the link goes to the page</td><td>摘录</td></tr>
+<tr><td>第 <span class="v">{n}</span> 条 · <span class="v">{file}</span></td><td>Quote <span class="v">{n}</span> · <span class="v">{file}</span></td><td>摘录</td></tr>
+<tr><td>作者串超过 50 条，只存了前 50 条。</td><td>The thread has more than 50 posts. Saved the first 50.</td><td>X 部分保存（面板）</td></tr>
+<tr><td>15 秒内没有加载完，存下了已加载的 <span class="v">{n}</span> 条。</td><td>Loading didn’t finish within 15 seconds. Saved the <span class="v">{n}</span> posts loaded.</td><td>X 部分保存（面板）</td></tr>
+<tr><td>有 <span class="v">{n}</span> 条长帖在列表里只显示了开头，已在文中附上原帖链接。</td><td><span class="v">{n}</span> long posts showed only their beginning in the list. Links to the full posts are included.（单：1 long post showed…）</td><td>X 部分保存（面板）</td></tr>
+<tr><td>作者串超过 50 条，只存了前 50 条</td><td>Thread over 50 posts. Saved the first 50</td><td>X 部分保存（提示）</td></tr>
+<tr><td>15 秒内没加载完，存了 <span class="v">{n}</span> 条</td><td>Didn’t finish loading in 15 s. Saved <span class="v">{n}</span> posts</td><td>X 部分保存（提示）</td></tr>
+<tr><td>有 <span class="v">{n}</span> 条长帖只存了开头，附了原帖链接</td><td><span class="v">{n}</span> long posts cut off. Linked the full posts</td><td>X 部分保存（提示）</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>失败原因</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>找不到剪藏库文件夹“<span class="v">{folder}</span>”，它可能被移动、改名或删除了。</td><td>Can’t find the library folder “<span class="v">{folder}</span>”. It may have been moved, renamed or deleted.</td><td>面板</td></tr>
+<tr><td>写入时出错：<span class="v">{message}</span></td><td>Error while saving: <span class="v">{message}</span></td><td>面板</td></tr>
+<tr><td>找不到剪藏库文件夹，本次没有保存</td><td>Can’t find the library folder. Not saved</td><td>提示</td></tr>
+<tr><td>这条提示已过期，没有保存，请重新保存一次</td><td>This notice has expired and nothing was saved. Please save again</td><td>提示</td></tr>
+<tr><td>在时间线上认不出是哪条帖子，请打开帖子页再存</td><td>Can’t tell which post this is on the timeline. Open the post, then save again</td><td>提示</td></tr>
+<tr><td>这张图片没有可下载的地址，本次没有保存</td><td>This image has no downloadable address. Not saved</td><td>提示</td></tr>
+<tr><td>这张图片是内嵌数据，太大，没法暂存，请授权后重新保存</td><td>This image is embedded data and too large to hold. Allow access, then save again</td><td>提示</td></tr>
+<tr><td>写入时出错：<span class="v">{message}</span>，本次没有保存</td><td>Error while saving: <span class="v">{message}</span>. Not saved</td><td>提示</td></tr>
+<tr><td>下载失败（HTTP <span class="v">{status}</span>）</td><td>Download failed (HTTP <span class="v">{status}</span>)</td><td>message</td></tr>
+<tr><td>下载超时（<span class="v">{s}</span> 秒）</td><td>Download timed out (<span class="v">{s}</span> s)</td><td>message</td></tr>
+<tr><td>服务器返回的是网页，不是文件（可能需要登录）</td><td>The server returned a web page, not a file (you may need to sign in)</td><td>message</td></tr>
+<tr><td>这张图片的内嵌数据解不开</td><td>Couldn’t decode this image’s embedded data</td><td>message</td></tr>
+<tr><td>剪藏库没有写入权限（<span class="v">{state}</span>）</td><td>No permission to write to the library (<span class="v">{state}</span>)</td><td>message</td></tr>
+<tr><td>还没有选择剪藏库</td><td>No library folder yet</td><td>message</td></tr>
+<tr><td>找不到这条剪藏</td><td>Can’t find this clip</td><td>message</td></tr>
+<tr><td>摘录文件里找不到这一条</td><td>This quote isn’t in the quotes file</td><td>message</td></tr>
+<tr><td>认不出右键的这个视频属于哪条帖子</td><td>Can’t tell which post this video belongs to</td><td>message</td></tr>
+<tr><td>这条帖子里没有视频</td><td>This post has no video</td><td>message</td></tr>
+<tr><td>页面上找不到这条帖子</td><td>Can’t find this post on the page</td><td>message</td></tr>
+<tr><td>其余程序内部校验的 Error 文案（缺少 stream 信息、frontmatter 解析、侧档 id 不符等）</td><td>同样给英文，照字面直译，实现时补进本表</td><td>message</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>实现时补充（表外新增与单数补全，ALAG-7）</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td>这张图片没有可下载的地址</td><td>This image has no downloadable address</td><td>message（右键图片）</td></tr>
+<tr><td>这条提示对应的内容已过期</td><td>The content for this notice has expired</td><td>message</td></tr>
+<tr><td>媒体剪藏缺少 media 信息</td><td>Media clip is missing its media info</td><td>message</td></tr>
+<tr><td>流媒体剪藏缺少 stream 信息</td><td>Stream clip is missing its stream info</td><td>message</td></tr>
+<tr><td>缺少摘录信息</td><td>Missing quote info</td><td>message</td></tr>
+<tr><td>侧档 <span class="v">{path}</span> 不是这条剪藏（期望 id <span class="v">{expected}</span>，实际 <span class="v">{actual}</span>）</td><td>Sidecar <span class="v">{path}</span> is not this clip (expected id <span class="v">{expected}</span>, got <span class="v">{actual}</span>)</td><td>message</td></tr>
+<tr><td>文件 <span class="v">{file}</span> 不是这条摘录所在的摘录文件（期望 id …，实际 …）</td><td>File <span class="v">{file}</span> is not the quotes file of this quote (expected id …, got …)</td><td>message</td></tr>
+<tr><td>文件 <span class="v">{file}</span> 不是这条剪藏（期望 id …，实际 …）</td><td>File <span class="v">{file}</span> is not this clip (expected id …, got …)</td><td>message</td></tr>
+<tr><td>无（上面三条里“实际”的空值）</td><td>none</td><td>message</td></tr>
+<tr><td>路径为空：<span class="v">{path}</span></td><td>Empty path: <span class="v">{path}</span></td><td>message</td></tr>
+<tr><td>文件开头没有 frontmatter 块</td><td>No frontmatter block at the start of the file</td><td>message</td></tr>
+<tr><td>frontmatter 块没有结束的 ---</td><td>The frontmatter block has no closing ---</td><td>message</td></tr>
+<tr><td>frontmatter 里没有 <span class="v">{key}</span> 键</td><td>No <span class="v">{key}</span> key in the frontmatter</td><td>message</td></tr>
+<tr><td>元数据侧档不是 JSON 对象</td><td>The metadata sidecar is not a JSON object</td><td>message</td></tr>
+<tr><td>有 1 条长帖在列表里只显示了开头，已在文中附上原帖链接。</td><td>1 long post showed only its beginning in the list. A link to the full post is included.</td><td>X 部分保存（面板）单数</td></tr>
+<tr><td>有 <span class="v">{n}</span> 条长帖只存了开头，附了原帖链接</td><td>单：1 long post cut off. Linked the full post<br>复：<span class="v">{n}</span> long posts cut off. Linked the full posts</td><td>X 部分保存（提示）补单数</td></tr>
+<tr><td>15 秒内没加载完，存了 <span class="v">{n}</span> 条</td><td>单：Didn’t finish loading in 15 s. Saved 1 post<br>复：Didn’t finish loading in 15 s. Saved <span class="v">{n}</span> posts</td><td>X 部分保存（提示）补单数</td></tr>
+<tr><td>15 秒内没有加载完，存下了已加载的 <span class="v">{n}</span> 条。</td><td>单：Loading didn’t finish within 15 seconds. Saved the 1 post loaded.<br>复：… Saved the <span class="v">{n}</span> posts loaded.</td><td>X 部分保存（面板）补单数</td></tr>
+</table></div>
+</div>
+
+<div>
+<h2>写进剪藏文件的固定文字</h2>
+<div class="box"><table>
+<tr><th>中文</th><th>English</th><th>位置</th></tr>
+<tr><td><code>[原文](…)</code></td><td><code>[Source](…)</code></td><td>所有 Markdown 剪藏标题下</td></tr>
+<tr><td><code># 摘录 - {标题}</code>，文件名 <code>摘录 - {标题}.md</code></td><td><code># Quotes - {title}</code>，文件名 <code>Quotes - {title}.md</code></td><td>摘录剪藏</td></tr>
+<tr><td><code>[跳回原文](…)</code></td><td><code>[Jump to source](…)</code></td><td>每条摘录的时间行</td></tr>
+<tr><td><code>[图片](…)</code></td><td><code>[Image](…)</code></td><td>摘录里的图片链接</td></tr>
+<tr><td><code>未命名剪藏</code></td><td><code>Untitled clip</code></td><td>标题为空时的文件名</td></tr>
+<tr><td><code>▶ YouTube 视频 (3:33) · 作者</code></td><td><code>▶ YouTube video (3:33) · author</code></td><td>流媒体剪藏</td></tr>
+<tr><td><code>▶ X 视频 (0:42)</code></td><td><code>▶ X video (0:42)</code></td><td>流媒体剪藏</td></tr>
+<tr><td><code>▶ 视频直链 · 1.8 GB</code> / <code>▶ 音频直链</code></td><td><code>▶ Video link · 1.8 GB</code> / <code>▶ Audio link</code></td><td>流媒体剪藏</td></tr>
+<tr><td><code>来自 [页面标题](…)</code></td><td><code>From [page title](…)</code></td><td>直链流媒体剪藏</td></tr>
+<tr><td><code>▶ 视频 (0:42)</code> / <code>▶ 视频</code></td><td><code>▶ Video (0:42)</code> / <code>▶ Video</code></td><td>X 帖子正文里的视频</td></tr>
+<tr><td><code>… [全文](…)</code></td><td><code>… [Full post](…)</code></td><td>X 截断长帖</td></tr>
+<tr><td><code>[原帖](…)</code></td><td><code>[Post](…)</code></td><td>X 引用头</td></tr>
+<tr><td>平台名：YouTube、B 站、X 视频、百度网盘、115、夸克</td><td>YouTube, Bilibili, X video, Baidu Netdisk, 115, Quark</td><td>流媒体剪藏、说明行</td></tr>
+<tr><td>媒体类别：图片、音频、视频、PDF</td><td>Image, Audio, Video, PDF（句中用小写：image、audio、video）</td><td>说明行、下载进度</td></tr>
+</table></div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":4200}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

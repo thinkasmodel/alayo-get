@@ -1,0 +1,192 @@
+/* 页面提示（DESIGN.md §3.3，设计稿 Toast.dc.html）。注入 shadow root，令牌来自 tokens.css 的 :host。 */
+.toast {
+  box-sizing: border-box;
+  width: 340px;
+  border-radius: var(--rCard);
+  background: var(--island);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow);
+  padding: 12px 12px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  color: var(--t1);
+  text-align: left;
+  line-height: normal;
+  animation: toast-in 150ms ease-out;
+  transition: opacity 150ms ease-in;
+}
+
+.toast.out {
+  opacity: 0;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+    transition: none;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon {
+  flex: none;
+  display: flex;
+}
+
+.icon.success {
+  color: var(--success);
+}
+
+.icon.muted {
+  color: var(--t2);
+}
+
+.tx {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tt {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.tt.err {
+  color: var(--danger);
+}
+
+.ts {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--t2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  margin: 0;
+}
+
+.tbtn {
+  flex: none;
+  height: 28px;
+  border: 0;
+  border-radius: var(--rControl);
+  padding: 0 10px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tbtn:hover {
+  background: var(--accentSoft);
+}
+
+.pbtn {
+  flex: none;
+  height: 28px;
+  border: 0;
+  border-radius: var(--rControl);
+  padding: 0 12px;
+  background: var(--accent);
+  color: var(--onAccent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.xbtn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--rControl);
+  background: transparent;
+  color: var(--t3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.xbtn:hover {
+  background: var(--region);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.inp {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  resize: vertical;
+  border-radius: var(--rControl);
+  background: var(--panel);
+  border: 0.5px solid var(--accent);
+  box-shadow: 0 0 0 3px var(--accentSoft);
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--t1);
+  outline: none;
+}
+
+.inp::placeholder {
+  color: var(--t3);
+}
+
+.hint {
+  flex: 1;
+  font-size: 11px;
+  color: var(--t3);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 批注没写进去时的说明：陈述事实，不用 danger 色 */
+.noteerr {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--t2);
+}

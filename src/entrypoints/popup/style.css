@@ -1,0 +1,527 @@
+/* 工具栏面板（DESIGN.md §3.2，设计稿 Main.dc.html）。色值只取 tokens.css 的变量。 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--panel);
+}
+
+body {
+  width: 360px;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  color: var(--t1);
+}
+
+/* Chrome 的弹出窗口自带外框，面板本身不再叠圆角和阴影 */
+.panel {
+  width: 360px;
+  box-sizing: border-box;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+}
+
+.head {
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 8px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 0.5px solid var(--hairSoft);
+}
+
+.brandicon {
+  display: flex;
+  color: var(--accent);
+}
+
+.brand {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  margin: 0;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ibtn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--rControl);
+  background: transparent;
+  color: var(--t2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.ibtn:hover {
+  background: var(--region);
+}
+
+.body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sicon {
+  flex: none;
+  display: flex;
+  margin-top: 1px;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.success {
+  color: var(--success);
+}
+
+.muted {
+  color: var(--t2);
+}
+
+.spin svg {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin svg {
+    animation: none;
+  }
+}
+
+.stext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.st {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.sm {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--t2);
+}
+
+.err {
+  color: var(--danger);
+}
+
+.card {
+  background: var(--region);
+  border-radius: var(--rInset);
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.card .g {
+  flex: none;
+  display: flex;
+  color: var(--t3);
+  margin-top: 1px;
+}
+
+.cc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ct {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.pill {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--pill);
+  color: var(--accent);
+  border-radius: var(--rChip);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.fn {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 14px;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cover {
+  flex: none;
+  width: 72px;
+  height: 48px;
+  border-radius: var(--rChip);
+  background: var(--region);
+  border: 0.5px solid var(--hairSoft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--t3);
+}
+
+.cover .icon {
+  display: flex;
+}
+
+.fnrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.fnrow .fn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 设计稿方案 A：chip 和文件名在同一行垂直居中（卡片里的 chip 仍靠上） */
+.fnrow .mchip {
+  align-self: center;
+}
+
+.mchip {
+  flex: none;
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 14px;
+  padding: 2px 6px;
+  border-radius: var(--rChip);
+  background: var(--region);
+  color: var(--t2);
+}
+
+.bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accentSoft);
+  overflow: hidden;
+}
+
+.barfill {
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barfill {
+    transition: none;
+  }
+}
+
+.note {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--t2);
+}
+
+.reason {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--t1);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 14px;
+  color: var(--t2);
+}
+
+.inset {
+  background: var(--region);
+  border-radius: var(--rControl);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--t1);
+}
+
+.inset b {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* 字段 */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.fl {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--t3);
+}
+
+.inp {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 30px;
+  border-radius: var(--rControl);
+  background: var(--region);
+  border: 0.5px solid var(--hairSoft);
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--t1);
+  outline: none;
+}
+
+input.inp {
+  text-overflow: ellipsis;
+}
+
+textarea.inp {
+  display: block;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.inp::placeholder,
+.taginput::placeholder {
+  color: var(--t3);
+}
+
+.inp:focus,
+.inp:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accentSoft);
+  background: var(--panel);
+}
+
+/* 标签输入 */
+.tagfield {
+  position: relative;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  cursor: text;
+}
+
+.chips {
+  display: contents;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 15px;
+  padding: 2px 2px 2px 7px;
+  border-radius: var(--rChip);
+  background: var(--accentSoft);
+  color: var(--accent);
+}
+
+.chipx {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chipx .icon {
+  display: flex;
+}
+
+.taginput {
+  flex: 1;
+  min-width: 80px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--t1);
+}
+
+.drop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  border-radius: var(--rInset);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.drop[hidden] {
+  display: none;
+}
+
+.opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--rChip);
+  background: transparent;
+  color: var(--t1);
+  font-size: 12.5px;
+  line-height: 17px;
+  text-align: left;
+}
+
+.opt.on {
+  background: var(--accentSoft);
+}
+
+.optlabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opt em {
+  flex: none;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--t3);
+}
+
+/* 底栏 */
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 0.5px solid var(--hairSoft);
+}
+
+.path {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.path .icon {
+  display: flex;
+  flex: none;
+}
+
+.pathname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auto {
+  flex: none;
+  font-size: 11px;
+  color: var(--t3);
+}
+
+.btn {
+  height: 30px;
+  border: 0;
+  border-radius: var(--rControl);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pri {
+  background: var(--accent);
+  color: var(--onAccent);
+}
+
+.sec {
+  background: var(--accentSoft);
+  color: var(--accent);
+}
+
+.wide {
+  width: 100%;
+  height: 34px;
+}

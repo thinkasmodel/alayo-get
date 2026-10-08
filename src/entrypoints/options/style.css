@@ -1,0 +1,484 @@
+/* 选项页（DESIGN.md §3.5，设计稿 Onboarding.dc.html、Reauth.dc.html）。色值只取 tokens.css 的变量。 */
+html,
+body {
+  margin: 0;
+  background: var(--canvas);
+}
+
+body {
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  color: var(--t1);
+}
+
+#app {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 48px 16px 64px;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.top span {
+  flex: 1;
+}
+
+.top em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.brandicon {
+  display: flex;
+  color: var(--accent);
+}
+
+h1 {
+  margin: 20px 0 0;
+  font-size: 26px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--t2);
+}
+
+/* 引导页的步骤卡与设置页的卡片 */
+.step,
+.card {
+  background: var(--panel);
+  border-radius: var(--rCard);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+  display: flex;
+  gap: 16px;
+  scroll-margin-top: 24px;
+}
+
+.card.focus {
+  box-shadow: 0 0 0 1.5px var(--accent), var(--shadowDrop);
+}
+
+.card.compact {
+  padding: 16px 24px;
+}
+
+.num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.num .icon {
+  display: flex;
+}
+
+.n-done {
+  background: var(--accentSoft);
+  color: var(--accent);
+}
+
+.n-now {
+  background: var(--accent);
+  color: var(--onAccent);
+}
+
+.n-info {
+  background: var(--region);
+  color: var(--t2);
+}
+
+.ic {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--region);
+  color: var(--t2);
+}
+
+.ic.ok {
+  background: transparent;
+  color: var(--success);
+}
+
+.sc {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stt {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.stt span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--t3);
+  margin-left: 8px;
+}
+
+.p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--t2);
+}
+
+.p b {
+  color: var(--t1);
+  font-weight: 600;
+}
+
+.chosen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chosen.inset {
+  background: var(--region);
+  border-radius: var(--rControl);
+  padding: 8px 8px 8px 12px;
+}
+
+.chosen .muted {
+  display: flex;
+  color: var(--t2);
+}
+
+.chosen code {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t1);
+  overflow-wrap: anywhere;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  margin: 0;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn {
+  height: 30px;
+  border: 0;
+  border-radius: var(--rControl);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pri {
+  background: var(--accent);
+  color: var(--onAccent);
+}
+
+.sec {
+  background: var(--accentSoft);
+  color: var(--accent);
+}
+
+.btn:disabled {
+  background: var(--accentSoft);
+  color: var(--t3);
+  cursor: default;
+}
+
+/* Chrome 询问框示意图 */
+.dlg {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  background: var(--dlg);
+  border-radius: var(--rPanel);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dl {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--region);
+}
+
+.dbtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.dbtn {
+  box-sizing: border-box;
+  height: 28px;
+  border-radius: 14px;
+  padding: 0 12px;
+  border: 0.5px solid var(--hair);
+  font-size: 12px;
+  line-height: 27px;
+  color: var(--accent);
+}
+
+.dbtn.hl {
+  border: 1.5px solid var(--accent);
+  background: var(--accentSoft);
+  font-weight: 600;
+  line-height: 25px;
+}
+
+.cap {
+  font-size: 11px;
+  color: var(--t3);
+  line-height: 16px;
+}
+
+/* 待补存列表 */
+.pend {
+  background: var(--region);
+  border-radius: var(--rInset);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pl {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--t3);
+}
+
+.pi {
+  font-size: 12.5px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pi.more {
+  color: var(--t2);
+}
+
+/* Workbench 小节里的两条路径 */
+.ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.way {
+  flex: 1 1 260px;
+  background: var(--region);
+  border-radius: var(--rInset);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wt {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.path {
+  font-size: 12.5px;
+  line-height: 22px;
+  color: var(--t2);
+}
+
+.k {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--panel);
+  border: 0.5px solid var(--hair);
+  color: var(--t1);
+  margin: 0 1px;
+}
+
+/* 保存方式 */
+.fl {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--t3);
+}
+
+.fl.section {
+  margin-top: 8px;
+  scroll-margin-top: 24px;
+}
+
+.keys {
+  background: var(--panel);
+  border-radius: var(--rCard);
+  box-shadow: var(--shadow);
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.kr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--hairSoft);
+  font-size: 13px;
+}
+
+.kr:last-child {
+  border-bottom: 0;
+}
+
+.kr > span {
+  color: var(--t2);
+}
+
+.kr .none {
+  color: var(--t3);
+  margin-left: 4px;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 配合 Alayo Workbench 使用（可选，默认收起；首次设置页与设置页共用） */
+.wb {
+  background: var(--panel);
+  border-radius: var(--rCard);
+  box-shadow: var(--shadow);
+}
+
+.wb summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  min-height: 44px;
+  box-sizing: border-box;
+  border-radius: var(--rCard);
+}
+
+.wb summary::-webkit-details-marker {
+  display: none;
+}
+
+.wb summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wbt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wbt b {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.wbt b i {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--t2);
+  background: var(--region);
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
+.wbt span {
+  font-size: 12.5px;
+  line-height: 19px;
+  color: var(--t2);
+}
+
+.wb .chev {
+  flex: none;
+  display: flex;
+  color: var(--t3);
+  transition: transform 0.15s;
+}
+
+.wb[open] .chev {
+  transform: rotate(90deg);
+}
+
+.wbb {
+  padding: 0 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

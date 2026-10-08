@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Synthetic post with a code block</title>
+</head>
+<body>
+  <article>
+    <h1>Synthetic post with a code block</h1>
+    <p>This is a hand-written synthetic article used only for tests. It explains a tiny function and then shows the code in a fenced block, so that the Markdown conversion can be checked for fenced code output.</p>
+    <p>The function below adds two numbers. It is deliberately trivial; the point of the fixture is the structure of the page, not the content of the code itself.</p>
+    <pre><code class="language-js">function add(a, b) {
+  return a + b;
+}
+console.log(add(1, 2));</code></pre>
+    <p>After the code block there is one more paragraph, which keeps the article long enough to be treated as a full article rather than a bookmark.</p>
+  </article>
+</body>
+</html>

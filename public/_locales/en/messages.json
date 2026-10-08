@@ -1,0 +1,1001 @@
+{
+  "uiLang": {
+    "message": "en",
+    "description": "Language of this message set: en or zh. currentLang() reads it."
+  },
+  "extName": {
+    "message": "Alayo Get"
+  },
+  "extDescription": {
+    "message": "Save web pages as local Markdown files"
+  },
+  "cmd_savePage": {
+    "message": "Save this page",
+    "description": "Shortcut command description"
+  },
+  "menu_savePage": {
+    "message": "Save to Alayo Get"
+  },
+  "menu_saveLink": {
+    "message": "Save link to Alayo Get"
+  },
+  "menu_saveImage": {
+    "message": "Save image to Alayo Get"
+  },
+  "menu_saveVideo": {
+    "message": "Save video to Alayo Get"
+  },
+  "menu_saveAudio": {
+    "message": "Save audio to Alayo Get"
+  },
+  "menu_saveQuote": {
+    "message": "Save quote to Alayo Get"
+  },
+  "file_source": {
+    "message": "Source",
+    "description": "Link text under the title of every Markdown clip: [Source](url)"
+  },
+  "file_jumpToSource": {
+    "message": "Jump to source",
+    "description": "Link text on the time line of each quote"
+  },
+  "file_quotesTitle": {
+    "message": "Quotes - $title$",
+    "description": "Quote file heading and file name",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_untitled": {
+    "message": "Untitled clip",
+    "description": "File name when the title is empty"
+  },
+  "file_from": {
+    "message": "From $link$",
+    "description": "Direct-link stream clip: the page the link came from (link is Markdown)",
+    "placeholders": {
+      "link": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_fullPost": {
+    "message": "Full post",
+    "description": "X: link at the end of a truncated post"
+  },
+  "file_post": {
+    "message": "Post",
+    "description": "X: link in the quote header"
+  },
+  "file_image": {
+    "message": "Image",
+    "description": "Quote: link text replacing an image"
+  },
+  "file_xVideo": {
+    "message": "Video",
+    "description": "X: video marker in the post body (▶ Video (0:42))"
+  },
+  "kind_image": {
+    "message": "Image",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kind_audio": {
+    "message": "Audio",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kind_video": {
+    "message": "Video",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kind_pdf": {
+    "message": "PDF",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
+  "kindInline_image": {
+    "message": "image",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_audio": {
+    "message": "audio",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_video": {
+    "message": "video",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_pdf": {
+    "message": "PDF",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "platform_youtube": {
+    "message": "YouTube"
+  },
+  "platform_bilibili": {
+    "message": "Bilibili"
+  },
+  "platform_x": {
+    "message": "X video"
+  },
+  "platform_baidupan": {
+    "message": "Baidu Netdisk"
+  },
+  "platform_115": {
+    "message": "115"
+  },
+  "platform_quark": {
+    "message": "Quark"
+  },
+  "platform_directVideo": {
+    "message": "Video link"
+  },
+  "platform_directAudio": {
+    "message": "Audio link"
+  },
+  "date_monthDay": {
+    "message": "$month$/$day$",
+    "description": "Toast date. English does not use this message: it formats with Intl.DateTimeFormat (Oct 7).",
+    "placeholders": {
+      "month": {
+        "content": "$1"
+      },
+      "day": {
+        "content": "$2"
+      }
+    }
+  },
+  "saving_extract": {
+    "message": "Extracting article…"
+  },
+  "saving_images": {
+    "message": "Article extracted. Downloading images $done$ / $total$",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "saving_write": {
+    "message": "Saving to library…"
+  },
+  "saving_download": {
+    "message": "Downloading $label$, $size$",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      },
+      "size": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_xPost": {
+    "message": "X post"
+  },
+  "desc_xArticle": {
+    "message": "X article"
+  },
+  "desc_xClip": {
+    "message": "X clip"
+  },
+  "desc_xThread_one": {
+    "message": "X thread · $n$ post",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "desc_xThread_other": {
+    "message": "X thread · $n$ posts",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "desc_media": {
+    "message": "Media · $kind$ · $size$",
+    "placeholders": {
+      "kind": {
+        "content": "$1"
+      },
+      "size": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_stream": {
+    "message": "Stream · $platform$",
+    "placeholders": {
+      "platform": {
+        "content": "$1"
+      }
+    }
+  },
+  "desc_bookmark": {
+    "message": "Bookmark"
+  },
+  "desc_article": {
+    "message": "Article"
+  },
+  "desc_withImages_one": {
+    "message": "$label$ · $n$ image",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "label": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_withImages_other": {
+    "message": "$label$ · $n$ images",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "label": {
+        "content": "$2"
+      }
+    }
+  },
+  "desc_imageFailures": {
+    "message": "$text$ · $n$ failed to download",
+    "placeholders": {
+      "text": {
+        "content": "$1"
+      },
+      "n": {
+        "content": "$2"
+      }
+    }
+  },
+  "oversize_noSize": {
+    "message": "Couldn’t get the file size, so it wasn’t downloaded. Only the link was saved."
+  },
+  "oversize_tooBig": {
+    "message": "The file is $size$, over 100 MB, so it wasn’t downloaded. Only the link was saved.",
+    "placeholders": {
+      "size": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_videoNoSize": {
+    "message": "Couldn’t get the video size. Saved the link and details only"
+  },
+  "toast_audioNoSize": {
+    "message": "Couldn’t get the audio size. Saved the link and details only"
+  },
+  "toast_videoTooBig": {
+    "message": "Video is over 100 MB. Saved the link and details only"
+  },
+  "toast_audioTooBig": {
+    "message": "Audio is over 100 MB. Saved the link and details only"
+  },
+  "quote_recreated": {
+    "message": "The quotes file was missing, so a new one was created"
+  },
+  "quote_noFragment": {
+    "message": "Quote $n$ · Couldn’t find the text on the page, so the link goes to the page",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "quote_entry": {
+    "message": "Quote $n$ · $file$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "file": {
+        "content": "$2"
+      }
+    }
+  },
+  "partial_limit": {
+    "message": "The thread has more than 50 posts. Saved the first 50."
+  },
+  "partial_timeout_one": {
+    "message": "Loading didn’t finish within 15 seconds. Saved the $n$ post loaded.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "partial_timeout_other": {
+    "message": "Loading didn’t finish within 15 seconds. Saved the $n$ posts loaded.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "partial_truncated_one": {
+    "message": "$n$ long post showed only its beginning in the list. A link to the full post is included.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "partial_truncated_other": {
+    "message": "$n$ long posts showed only their beginning in the list. Links to the full posts are included.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_limit": {
+    "message": "Thread over 50 posts. Saved the first 50"
+  },
+  "toastPartial_timeout_one": {
+    "message": "Didn’t finish loading in 15 s. Saved $n$ post",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_timeout_other": {
+    "message": "Didn’t finish loading in 15 s. Saved $n$ posts",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_truncated_one": {
+    "message": "$n$ long post cut off. Linked the full post",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastPartial_truncated_other": {
+    "message": "$n$ long posts cut off. Linked the full posts",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "fail_notFound": {
+    "message": "Can’t find the library folder “$folder$”. It may have been moved, renamed or deleted.",
+    "placeholders": {
+      "folder": {
+        "content": "$1"
+      }
+    }
+  },
+  "fail_writeError": {
+    "message": "Error while saving: $message$",
+    "placeholders": {
+      "message": {
+        "content": "$1"
+      }
+    }
+  },
+  "toastFail_notFound": {
+    "message": "Can’t find the library folder. Not saved"
+  },
+  "toastFail_expired": {
+    "message": "This notice has expired and nothing was saved. Please save again"
+  },
+  "toastFail_noDownloadableUrl": {
+    "message": "This image has no downloadable address. Not saved"
+  },
+  "toastFail_writeError": {
+    "message": "Error while saving: $message$. Not saved",
+    "placeholders": {
+      "message": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_xVideoTimeline": {
+    "message": "Can’t tell which post this is on the timeline. Open the post, then save again",
+    "description": "XVideoNeedsPost from the context menu; also the toast text"
+  },
+  "error_dataUrlTooLarge": {
+    "message": "This image is embedded data and too large to hold. Allow access, then save again",
+    "description": "DataUrlTooLarge; also the toast text"
+  },
+  "error_noDownloadableUrl": {
+    "message": "This image has no downloadable address"
+  },
+  "error_expiredRequest": {
+    "message": "The content for this notice has expired"
+  },
+  "error_xVideoOwnerUnknown": {
+    "message": "Can’t tell which post this video belongs to"
+  },
+  "error_xPostNoVideo": {
+    "message": "This post has no video"
+  },
+  "error_xPostNotFound": {
+    "message": "Can’t find this post on the page"
+  },
+  "error_dataUrlDecode": {
+    "message": "Couldn’t decode this image’s embedded data"
+  },
+  "error_httpStatus": {
+    "message": "Download failed (HTTP $status$)",
+    "placeholders": {
+      "status": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_downloadTimeout": {
+    "message": "Download timed out ($seconds$ s)",
+    "placeholders": {
+      "seconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_notAFile": {
+    "message": "The server returned a web page, not a file (you may need to sign in)"
+  },
+  "error_mediaInfoMissing": {
+    "message": "Media clip is missing its media info"
+  },
+  "error_streamInfoMissing": {
+    "message": "Stream clip is missing its stream info"
+  },
+  "error_quoteInfoMissing": {
+    "message": "Missing quote info"
+  },
+  "error_sidecarMismatch": {
+    "message": "Sidecar $path$ is not this clip (expected id $expected$, got $actual$)",
+    "placeholders": {
+      "path": {
+        "content": "$1"
+      },
+      "expected": {
+        "content": "$2"
+      },
+      "actual": {
+        "content": "$3"
+      }
+    }
+  },
+  "error_quoteFileMismatch": {
+    "message": "File $file$ is not the quotes file of this quote (expected id $expected$, got $actual$)",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "expected": {
+        "content": "$2"
+      },
+      "actual": {
+        "content": "$3"
+      }
+    }
+  },
+  "error_clipFileMismatch": {
+    "message": "File $file$ is not this clip (expected id $expected$, got $actual$)",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "expected": {
+        "content": "$2"
+      },
+      "actual": {
+        "content": "$3"
+      }
+    }
+  },
+  "error_idNone": {
+    "message": "none",
+    "description": "Shown as the actual id when the file has none"
+  },
+  "error_clipNotFound": {
+    "message": "Can’t find this clip"
+  },
+  "error_noPermission": {
+    "message": "No permission to write to the library ($state$)",
+    "placeholders": {
+      "state": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_emptyPath": {
+    "message": "Empty path: $path$",
+    "placeholders": {
+      "path": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_noLibrary": {
+    "message": "No library folder yet"
+  },
+  "error_noFrontmatter": {
+    "message": "No frontmatter block at the start of the file"
+  },
+  "error_frontmatterUnclosed": {
+    "message": "The frontmatter block has no closing ---"
+  },
+  "error_frontmatterKeyMissing": {
+    "message": "No $key$ key in the frontmatter",
+    "placeholders": {
+      "key": {
+        "content": "$1"
+      }
+    }
+  },
+  "error_sidecarNotObject": {
+    "message": "The metadata sidecar is not a JSON object"
+  },
+  "error_quoteEntryNotFound": {
+    "message": "This quote isn’t in the quotes file"
+  },
+  "ui_settings": {
+    "message": "Settings",
+    "description": "Options page caption and the panel gear button aria-label"
+  },
+  "ui_savedTitle": {
+    "message": "Saved to library"
+  },
+  "ui_fallbackTitle": {
+    "message": "Saved as a bookmark"
+  },
+  "ui_fallbackDesc": {
+    "message": "Couldn’t extract the article. Saved the title, description and cover."
+  },
+  "ui_nothingNew": {
+    "message": "Nothing new was saved"
+  },
+  "ui_failedTitle": {
+    "message": "Couldn’t save to library"
+  },
+  "ui_retry": {
+    "message": "Retry"
+  },
+  "ui_needsPermissionTitle": {
+    "message": "Allow access to your library again",
+    "description": "Panel, page notice and options page"
+  },
+  "ui_note": {
+    "message": "Note",
+    "description": "Note field label"
+  },
+  "ui_notePlaceholder": {
+    "message": "Add a note (optional)"
+  },
+  "dlg_label": {
+    "message": "Illustration of Chrome’s permission prompt",
+    "description": "aria-label of the permission prompt illustration"
+  },
+  "dlg_allowOnce": {
+    "message": "Allow this time",
+    "description": "Button in the permission prompt illustration"
+  },
+  "dlg_allowEvery": {
+    "message": "Allow on every visit",
+    "description": "Button in the permission prompt illustration; also quoted in bold in the instructions"
+  },
+  "dlg_deny": {
+    "message": "Don’t allow",
+    "description": "Button in the permission prompt illustration"
+  },
+  "opt_pageTitle": {
+    "message": "Alayo Get Settings",
+    "description": "Options page tab title"
+  },
+  "opt_setup": {
+    "message": "Setup"
+  },
+  "opt_heading": {
+    "message": "Save web pages as local files"
+  },
+  "opt_lead": {
+    "message": "Alayo Get saves articles, X posts, quotes, images and videos as files in a local folder you choose. Articles are saved as Markdown, so any editor or notes app can open them."
+  },
+  "opt_stepLibrary": {
+    "message": "Choose a library folder"
+  },
+  "opt_done": {
+    "message": "Done"
+  },
+  "opt_chooseFolder": {
+    "message": "Choose folder…"
+  },
+  "opt_change": {
+    "message": "Change…"
+  },
+  "opt_folderSuggest": {
+    "message": "We suggest creating a new folder named “Alayo Get” on this computer’s hard drive.",
+    "description": "Setup step 1, all systems"
+  },
+  "opt_folderICloud": {
+    "message": "Avoid iCloud Drive: with “Optimize Mac Storage” turned on, files may be replaced with placeholders.",
+    "description": "Setup step 1, macOS only; follows opt_folderSuggest"
+  },
+  "opt_stepReauth": {
+    "message": "After restarting the browser, allow access once more"
+  },
+  "opt_stepReauthBody": {
+    "message": "Chrome keeps access to a newly chosen folder only until the browser closes. The first time you save after a restart, Alayo Get will ask for access again. Choose $choice$ and you won’t be asked again.",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "choice": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_dialogCaption": {
+    "message": "Illustration of Chrome’s prompt. The exact wording depends on your browser."
+  },
+  "opt_getStarted": {
+    "message": "Get started"
+  },
+  "opt_library": {
+    "message": "Library"
+  },
+  "opt_waysTitle": {
+    "message": "Ways to save"
+  },
+  "opt_wayToolbar": {
+    "message": "Click the toolbar icon"
+  },
+  "opt_wayToolbarDesc": {
+    "message": "Save this page and open the panel to edit title, tags and note"
+  },
+  "opt_wayShortcut": {
+    "message": "Shortcut $keys$",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "keys": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_wayShortcutDesc": {
+    "message": "Save this page directly; a notice appears at the bottom right"
+  },
+  "opt_shortcutNotSet": {
+    "message": "Not set",
+    "description": "The save-page shortcut was cleared at chrome://extensions/shortcuts"
+  },
+  "opt_wayMenu": {
+    "message": "Right-click menu"
+  },
+  "opt_wayMenuDesc": {
+    "message": "This page, a link, an image, audio or video, or selected text"
+  },
+  "opt_wayChangeShortcut": {
+    "message": "Change shortcut"
+  },
+  "opt_reauthBody": {
+    "message": "After restarting, Chrome removed permission to write to the “$folder$” folder. Click “Allow access…” and choose $choice$ in the prompt, so you won’t be asked again after future restarts.",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "folder": {
+        "content": "$1"
+      },
+      "choice": {
+        "content": "$2"
+      }
+    }
+  },
+  "opt_pending_one": {
+    "message": "$n$ clip will be saved after you allow access",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_pending_other": {
+    "message": "$n$ clips will be saved after you allow access",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_pendingMore": {
+    "message": "$n$ in total",
+    "description": "Pending list longer than the titles shown",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_authorize": {
+    "message": "Allow access…"
+  },
+  "opt_denied": {
+    "message": "Access wasn’t allowed. You can click “Allow access…” again."
+  },
+  "opt_grantedSaving_one": {
+    "message": "Access allowed. Saving $n$ pending clip…",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_grantedSaving_other": {
+    "message": "Access allowed. Saving $n$ pending clips…",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_grantedSaved_one": {
+    "message": "Access allowed. Saved $n$ pending clip",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_grantedSaved_other": {
+    "message": "Access allowed. Saved $n$ pending clips",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_granted": {
+    "message": "Access allowed"
+  },
+  "opt_grantedHint": {
+    "message": "You can close this page and keep browsing."
+  },
+  "wb_title": {
+    "message": "Use with Alayo Workbench"
+  },
+  "wb_optional": {
+    "message": "Optional"
+  },
+  "wb_summary": {
+    "message": "If you use Workbench, add the library folder as a monitored folder. Each new clip will then show up for you to add."
+  },
+  "wb_newSpaceTitle": {
+    "message": "Create a new space"
+  },
+  "wb_newSpacePath": {
+    "message": "In the menu bar, choose $file$ › $newSpace$ ($shortcut$) and select the “Alayo Get” folder. The space will be named Alayo Get.",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "newSpace": {
+        "content": "$2"
+      },
+      "shortcut": {
+        "content": "$3"
+      }
+    }
+  },
+  "wb_existingTitle": {
+    "message": "Add to an existing space"
+  },
+  "wb_existingPath": {
+    "message": "$file$ › $editSpace$ › Monitored Folders › $addFolder$, select the folder, then click “Add to Monitored Folders”.",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      },
+      "editSpace": {
+        "content": "$2"
+      },
+      "addFolder": {
+        "content": "$3"
+      }
+    }
+  },
+  "wb_menuFile": {
+    "message": "File",
+    "description": "Workbench menu name"
+  },
+  "wb_menuNewSpace": {
+    "message": "New Space…",
+    "description": "Workbench menu item"
+  },
+  "wb_menuEditSpace": {
+    "message": "Edit Current Space…",
+    "description": "Workbench menu item"
+  },
+  "wb_menuAddFolder": {
+    "message": "Add Folder…",
+    "description": "Workbench button"
+  },
+  "wb_after": {
+    "message": "After that, each time you save, Workbench shows “The source has 1 new file” at the top. Click “View” and add it from the Review Inbox."
+  },
+  "panel_saving": {
+    "message": "Saving…"
+  },
+  "panel_progress": {
+    "message": "Save progress",
+    "description": "Progress bar aria-label"
+  },
+  "panel_savingHintMedia": {
+    "message": "You can add tags and a note once saving finishes."
+  },
+  "panel_savingHint": {
+    "message": "You can edit the title, tags and note once saving finishes."
+  },
+  "panel_title": {
+    "message": "Title",
+    "description": "Field label"
+  },
+  "panel_tags": {
+    "message": "Tags",
+    "description": "Field label"
+  },
+  "panel_autoWrite": {
+    "message": "Saved when you close the panel"
+  },
+  "panel_duplicateTitle": {
+    "message": "Already saved on $date$",
+    "placeholders": {
+      "date": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_duplicateNote": {
+    "message": "The original file may have been moved or edited, so it won’t be overwritten. To keep the current version, save a new snapshot. Its file name will end in “ (2)”."
+  },
+  "panel_saveSnapshot": {
+    "message": "Save new snapshot"
+  },
+  "panel_notSaved": {
+    "message": "This page hasn’t been saved yet"
+  },
+  "panel_chooseAgain": {
+    "message": "Choose folder again…"
+  },
+  "panel_noLibrary": {
+    "message": "No library folder yet"
+  },
+  "panel_openSettings": {
+    "message": "Open settings…"
+  },
+  "panel_revoked": {
+    "message": "After restarting, Chrome removed permission to write to the “$folder$” folder.",
+    "placeholders": {
+      "folder": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_reauthHint": {
+    "message": "Click the button below. When Chrome asks, choose $choice$ so you won’t be asked again after restarting.",
+    "description": "Placeholders other than counts are DOM elements (key caps, bold) inserted by richT().",
+    "placeholders": {
+      "choice": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_authorizeAndSave": {
+    "message": "Allow access and save…"
+  },
+  "toast_quoteSaved": {
+    "message": "Quote saved"
+  },
+  "toast_duplicateTitle": {
+    "message": "Already saved on $date$",
+    "placeholders": {
+      "date": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_needsPermissionDesc": {
+    "message": "Not saved yet. It will be saved once you allow access."
+  },
+  "toast_addNote": {
+    "message": "Add note"
+  },
+  "toast_saveSnapshot": {
+    "message": "Save new snapshot"
+  },
+  "toast_allowAccess": {
+    "message": "Allow access…"
+  },
+  "toast_close": {
+    "message": "Close",
+    "description": "Close button aria-label"
+  },
+  "toast_noteHint": {
+    "message": "Saved when you press Return or Esc"
+  },
+  "toast_noteSave": {
+    "message": "Save"
+  },
+  "toast_noteFailed": {
+    "message": "Couldn’t save the note: $reason$. Press Return to try again.",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_noteFailedFromWorker": {
+    "message": "Couldn’t save the note. $reason$. Press Return to try again.",
+    "description": "ALAG-8: reason is a full sentence from the service worker; its trailing period is stripped before substitution",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "toast_noteLostConnection": {
+    "message": "lost connection to the extension",
+    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
+  },
+  "toast_noteNoAck": {
+    "message": "the extension didn’t respond",
+    "description": "Reason in toast_noteFailed (lowercase, follows a colon)"
+  },
+  "tag_placeholder": {
+    "message": "Type and press Return"
+  },
+  "tag_remove": {
+    "message": "Remove tag $tag$",
+    "description": "aria-label of the × on a tag chip",
+    "placeholders": {
+      "tag": {
+        "content": "$1"
+      }
+    }
+  },
+  "tag_create": {
+    "message": "Create tag “$tag$”",
+    "placeholders": {
+      "tag": {
+        "content": "$1"
+      }
+    }
+  },
+  "tag_return": {
+    "message": "Return",
+    "description": "Hint next to the create-tag suggestion"
+  },
+  "tag_count_one": {
+    "message": "$n$ clip",
+    "description": "Clip count next to a tag suggestion",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "tag_count_other": {
+    "message": "$n$ clips",
+    "description": "Clip count next to a tag suggestion",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  }
+}
