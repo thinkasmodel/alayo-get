@@ -578,6 +578,59 @@ describe('saveClip：附件大小上限与总预算', () => {
     expect(skippedCalls.every((c) => c.res?.bodyUsed === false && c.state.pulled === 0)).toBe(true);
   });
 
+  // codex review 第 1 轮：gzip/br 响应的 content-length 是压缩长度，流已解压，不能当读取上限；预算按实际字节扣
+  it('gzip 压缩的 SVG（content-length 139、实际 14046 字节）：正常保存，预算按实际字节扣', async () => {
+    const SVG = 'https://img.example.com/logo.svg';
+    const PNG = 'https://img.example.com/after.png';
+    const svgBytes = 14_046;
+    const pngBytes = 1000;
+    // SVG 读完（流关闭、downloadImage 修正完预算）之后才放出第二张图的响应，让两张图的预算判断有先后
+    let svgDone!: () => void;
+    const afterSvg = new Promise<void>((resolve) => (svgDone = resolve));
+    const calls: string[] = [];
+    const fn: FetchLike = async (url) => {
+      calls.push(url);
+      if (url === SVG) {
+        let pulls = 0;
+        const body = new ReadableStream<Uint8Array>(
+          {
+            pull(controller) {
+              if (pulls++ === 0) {
+                controller.enqueue(new Uint8Array(svgBytes));
+                return;
+              }
+              controller.close();
+              setTimeout(svgDone, 0);
+            },
+            // 被判超限取消时也放行，回归时以断言失败而不是超时暴露
+            cancel() {
+              setTimeout(svgDone, 0);
+            },
+          },
+          { highWaterMark: 0 },
+        );
+        return new Response(body, { headers: { 'content-type': 'image/svg+xml', 'content-encoding': 'gzip', 'content-length': '139' } });
+      }
+      if (url === PNG) {
+        await afterSvg;
+        return new Response(new Uint8Array(pngBytes), { headers: { 'content-type': 'image/png', 'content-length': String(pngBytes) } });
+      }
+      throw new TypeError('Failed to fetch');
+    };
+    const capture = articleCapture({ markdown: `![标志](${SVG})\n\n![后一张](${PNG})` });
+    // 预算 = SVG 实际字节 + 500：按实际字节扣后剩 500，放不下 1000 字节的第二张；若只扣 139 则两张都能存
+    const outcome = await saveClip({ capture, snapshot: false }, makeDeps(fn, { imageTotalMaxBytes: svgBytes + 500 }));
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    expect(calls).toEqual([SVG, PNG]);
+    expect(outcome.clip.imageCount).toBe(1);
+    expect(outcome.clip.imageFailures).toBe(1);
+    expect((library.files.get(`.assets/${ID}/1.svg`) as Uint8Array).byteLength).toBe(svgBytes);
+    const md = library.text(outcome.clip.file) ?? '';
+    expect(md).toContain(`![标志](.assets/${ID}/1.svg)`);
+    expect(md).toContain(`![后一张](${PNG})`);
+  });
+
   it('链接目标页超过 4MB：按抓取失败处理，返回 partial（fetched: false），不抛错', async () => {
     const { fn } = fakeFetch({ 'https://target.example.com/huge': { type: 'text/html; charset=utf-8', body: `<title>大页</title>${'x'.repeat(4 * MB)}` } });
     const capture = await captureLink('https://target.example.com/huge', '链接文字', fn);

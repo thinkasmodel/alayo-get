@@ -148,9 +148,10 @@ function declaredLength(res: Response): number | null {
 /**
  * 下载一张图片；失败、超时、超过 20MB、定不出扩展名、附件预算不够都返回 null。
  * 响应体边读边计数，超过上限就取消读取（ALAG-17）。
- * 预算按预留制：有 content-length 时读之前先预留声明的大小（读取失败退还），这样并发下也是确定的；
- * 没有 content-length 时以开始读时的剩余预算为上限，读完再扣。并发 IMAGE_CONCURRENCY 路都是未知长度时，
- * 总量最多超出预算 IMAGE_CONCURRENCY × IMAGE_MAX_BYTES——这是有意接受的上界。
+ * 预算按预留制：fetch 返回后在同一个同步段里判断并预留 content-length 声明的大小，这样并发下也是确定的。
+ * content-length 在 gzip/br 响应里是压缩后的长度、响应流已解压，所以它只用于预检与预留，不当读取上限：
+ * 读取上限一律是 min(IMAGE_MAX_BYTES, 开始读时的剩余预算)，读完按实际字节修正预留（可扣成负数），失败退还。
+ * 并发 IMAGE_CONCURRENCY 路各按快照判断，总量最多超出预算 IMAGE_CONCURRENCY × IMAGE_MAX_BYTES——这是有意接受的上界。
  */
 async function downloadImage(fetchFn: FetchLike, url: string, budget: ImageBudget): Promise<Downloaded | null> {
   if (budget.remaining <= 0) {
@@ -162,6 +163,7 @@ async function downloadImage(fetchFn: FetchLike, url: string, budget: ImageBudge
   let reserved = 0;
   try {
     const res = await fetchFn(url, { credentials: 'omit', signal: controller.signal });
+    // 从这里到预留之间不能有 await：并发下按 fetch 返回顺序确定地占用预算
     if (!res.ok) return null;
     const declared = declaredLength(res);
     if (declared !== null && declared > IMAGE_MAX_BYTES) {
@@ -171,21 +173,17 @@ async function downloadImage(fetchFn: FetchLike, url: string, budget: ImageBudge
     const contentType = res.headers.get('content-type');
     const ext = extFromContentType(contentType, url);
     if (!ext) return null;
-    let cap: number;
+    const avail = budget.remaining;
+    if (avail <= 0 || (declared !== null && declared > avail)) {
+      controller.abort();
+      console.warn('[Alayo Get] 本次剪藏的附件已超过总预算，不再下载，保留远程地址', url);
+      return null;
+    }
     if (declared !== null) {
-      if (declared > budget.remaining) {
-        controller.abort();
-        console.warn('[Alayo Get] 本次剪藏的附件已超过总预算，不再下载，保留远程地址', url);
-        return null;
-      }
       budget.remaining -= declared;
       reserved = declared;
-      // 实际字节超过声明也算超限
-      cap = declared;
-    } else {
-      cap = Math.min(IMAGE_MAX_BYTES, budget.remaining);
     }
-    const body = await readBodyCapped(res, cap);
+    const body = await readBodyCapped(res, Math.min(IMAGE_MAX_BYTES, avail));
     if (body.kind === 'too-large') {
       controller.abort();
       budget.remaining += reserved;
@@ -193,8 +191,8 @@ async function downloadImage(fetchFn: FetchLike, url: string, budget: ImageBudge
       console.warn('[Alayo Get] 图片超过大小上限或附件预算，保留远程地址', url);
       return null;
     }
-    if (declared === null) budget.remaining -= body.bytes;
-    // 成功：预留转为实扣，不再退还
+    // 成功：按实际字节修正（预留多了退差额，少了补扣）
+    budget.remaining += reserved - body.bytes;
     reserved = 0;
     return { data: new Blob(body.chunks as Uint8Array<ArrayBuffer>[], { type: contentType ?? '' }), ext };
   } catch (err) {
