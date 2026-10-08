@@ -9,6 +9,8 @@ export default defineConfig({
   test: {
     // 文案语言固定为 zh_CN，测试里用 useLocale 切换（ALAG-7）；两个 project 经 extends 继承
     setupFiles: ['./tests/setup/i18n.ts'],
+    // 页面侧的采集测试走真实计时器（collect.dom.test.ts 单例 2～3 秒），GitHub Actions 的机器慢一倍以上，默认 5 秒会超时（ALAG-19）
+    testTimeout: 20_000,
     projects: [
       {
         extends: true,
