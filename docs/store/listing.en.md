@@ -57,5 +57,6 @@ Open source under the Apache License 2.0: https://github.com/thinkasmodel/alayo-
 ## Links for the listing form
 
 - Privacy policy URL: https://alayo.ai/en/get/privacy
-- Homepage / support URL: https://github.com/thinkasmodel/alayo-get
+- Homepage URL: https://github.com/thinkasmodel/alayo-get
+- Support URL: https://alayo.ai/en/get/help
 - Support email: hello@alayo.ai

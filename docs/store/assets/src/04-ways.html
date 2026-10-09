@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screenshot 4 · Ways to save</title>
+<link rel="stylesheet" href="store.css">
+<style>
+.ways{position:absolute;left:80px;top:244px;display:flex;flex-direction:column;gap:18px;width:300px}
+.way{display:flex;gap:14px;align-items:flex-start}
+.way .ic{flex:none;width:40px;height:40px;border-radius:10px;background:var(--accentSoft);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.way .ic svg{width:22px;height:22px}
+.way h3{margin:6px 0 4px;font-size:18px;line-height:24px;font-weight:600}
+.way p{margin:0;font-size:14.5px;line-height:21px;color:var(--t2)}
+.keys{display:flex;gap:8px;align-items:center;margin-top:8px}
+.keys span.plus{color:var(--t3);font-size:14px}
+.browser.r{left:440px;right:80px;top:252px;height:560px}
+.selp{color:var(--t2);font-size:15px;line-height:24px;margin:0}
+.selp mark{background:rgba(66,87,181,.22);color:var(--t1);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="shot">
+  <div class="hd">
+    <h1>Toolbar, shortcut or right-click</h1>
+    <p>Save the page, a link, an image, a video, or just the text you selected. After saving, add a title, tags and a note.</p>
+  </div>
+
+  <div class="ways">
+    <div class="way"><div class="ic"><svg viewBox="0 0 64 64" fill="none"><rect x="3" y="3" width="58" height="58" rx="17" fill="#4257B5"/><path d="M32 14v24M21 28l11 11 11-11" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="50" r="4.5" fill="#FFFFFF"/></svg></div><div><h3>Toolbar button</h3><p>Click once to save the page you are on.</p></div></div>
+    <div class="way"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg></div><div><h3>Keyboard shortcut</h3><div class="keys"><span class="kbd">Alt</span><span class="plus">+</span><span class="kbd">Shift</span><span class="plus">+</span><span class="kbd">S</span></div></div></div>
+    <div class="way"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="5"/><path d="M12 3v6M7 9h10"/></svg></div><div><h3>Right-click menu</h3><p>Page, link, image, video, audio or selected text.</p></div></div>
+  </div>
+
+  <div class="browser r">
+    <div class="bar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="omni">books.example.com/thinking-fast-and-slow/notes</div>
+      <div class="ext"><svg viewBox="0 0 64 64" fill="none"><rect x="3" y="3" width="58" height="58" rx="17" fill="#4257B5"/><path d="M32 14v24M21 28l11 11 11-11" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="50" r="4.5" fill="#FFFFFF"/></svg></div>
+    </div>
+    <div class="art" style="width:560px;margin-left:56px;margin-top:40px">
+      <h2 style="font-size:24px;line-height:32px">Thinking, Fast and Slow — reading notes</h2>
+      <div class="l" style="width:92%"></div><div class="l" style="width:70%"></div>
+      <p class="selp" style="margin-top:8px"><mark>System 1 operates automatically and quickly, with little or no effort and no sense of voluntary control.</mark> System 2 allocates attention to the effortful mental activities that demand it.</p>
+      <div class="l" style="margin-top:6px"></div><div class="l" style="width:95%"></div><div class="l" style="width:64%"></div>
+      <div class="l" style="margin-top:10px"></div><div class="l" style="width:88%"></div>
+    </div>
+    <div class="menu" style="position:absolute;left:300px;top:206px;zoom:1.25;width:300px">
+      <div class="mi">Copy</div>
+      <div class="mi">Search Google for “System 1 operates…”</div>
+      <div class="sep"></div>
+      <div class="mi on">Save quote to Alayo Get</div>
+      <div class="sep"></div>
+      <div class="mi">Inspect</div>
+    </div>
+    <div class="toast" style="position:absolute;right:20px;bottom:20px;zoom:1.25">
+      <div class="row">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg>
+        <div class="tx"><div class="tt">Quote saved</div><div class="ts">#3 · Quotes - Thinking, Fast and Slow notes.md</div></div>
+        <span class="tbtn">Add note…</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

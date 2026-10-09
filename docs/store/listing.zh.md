@@ -53,5 +53,6 @@ Alayo Get 把你在网上看到的内容存成电脑上一个文件夹里的普�
 ## 表单里的链接
 
 - 隐私政策网址：https://alayo.ai/zh/get/privacy（商店只填一个隐私政策网址时用英文页 https://alayo.ai/en/get/privacy）
-- 主页 / 支持网址：https://github.com/thinkasmodel/alayo-get
+- 主页网址：https://github.com/thinkasmodel/alayo-get
+- 支持网址：https://alayo.ai/en/get/help
 - 支持邮箱：hello@alayo.ai

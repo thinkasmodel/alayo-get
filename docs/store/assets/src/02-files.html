@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screenshot 2 · Files</title>
+<link rel="stylesheet" href="store.css">
+<style>
+.finder{position:absolute;left:80px;top:252px;width:560px;height:560px;background:var(--page);border-radius:14px 14px 0 0;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.ftitle{height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:.5px solid var(--hair);background:var(--bar)}
+.ftitle .name{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--t1)}
+.cols{display:flex;padding:8px 18px 6px;font-size:11.5px;font-weight:600;color:var(--t3);border-bottom:.5px solid var(--hairSoft)}
+.frow{display:flex;align-items:center;gap:10px;padding:0 18px;height:40px;font-size:13.5px;color:var(--t1)}
+.frow:nth-child(odd){background:var(--region)}
+.frow .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frow .k{width:118px;color:var(--t2);font-size:12.5px}
+.frow .d{width:96px;color:var(--t2);font-size:12.5px}
+.frow svg{flex:none;width:18px;height:18px;color:var(--t3)}
+.frow.dir svg{color:var(--accent)}
+.frow.dim{color:var(--t3)}
+.mdcard{position:absolute;left:672px;top:252px;width:528px;height:560px;border-radius:14px 14px 0 0;overflow:hidden;padding:18px 20px}
+</style>
+</head>
+<body>
+<div class="shot">
+  <div class="hd">
+    <h1>Plain files, in your folder</h1>
+    <p>Markdown with YAML frontmatter; images, video and PDFs kept as the original file. Open them with any editor, or none at all.</p>
+  </div>
+
+  <div class="finder">
+    <div class="ftitle"><div class="dots"><i></i><i></i><i></i></div><div class="name">Alayo Get</div><div style="width:46px"></div></div>
+    <div class="cols"><div style="flex:1">Name</div><div style="width:96px">Modified</div><div style="width:118px">Kind</div></div>
+    <div class="frow dir dim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div class="n">.assets</div><div class="d">Today</div><div class="k">Folder</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">Designing for calm - notes on interface restraint.md</div><div class="d">Today</div><div class="k">Markdown</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">naval on X - How to get rich without getting lucky.md</div><div class="d">Today</div><div class="k">Markdown</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">Quotes - Thinking, Fast and Slow notes.md</div><div class="d">Yesterday</div><div class="k">Markdown</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 5-5 4 4 3-3 4 4"/><circle cx="15.5" cy="9.5" r="1.5"/></svg><div class="n">Field notes - IMG_4821.jpg</div><div class="d">Yesterday</div><div class="k">JPEG image</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><div class="n">Attention Is All You Need - 1706.03762v7.pdf</div><div class="d">Oct 6</div><div class="k">PDF</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">Rick Astley - Never Gonna Give You Up (Official Video).md</div><div class="d">Oct 6</div><div class="k">Markdown</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">The Verge - Why every app wants to be a notebook.md</div><div class="d">Oct 5</div><div class="k">Markdown</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">Alayo Workbench - Download.md</div><div class="d">Oct 5</div><div class="k">Markdown</div></div>
+    <div class="frow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><div class="n">Stripe Docs - Idempotent requests.md</div><div class="d">Oct 4</div><div class="k">Markdown</div></div>
+  </div>
+
+  <div class="card mdcard"><pre class="code"><span class="dim">---
+id: 01K71B4PNG6S9XQ2H3M5V7W8YZ
+source: https://calm-interfaces.example.com/essays/designing-for-calm
+medium: article
+title: Designing for calm: notes on interface restraint
+author: Mara Lindqvist
+published: 2026-09-28
+captured: 2026-10-09T15:12:00+08:00
+site: calm-interfaces.example.com
+tags: [design, reading]
+note: Re-read before the Q4 review
+extract: full
+---</span>
+
+# Designing for calm: notes on interface restraint
+
+<span class="hl">[Source]</span>(https://calm-interfaces.example.com/essays/designing-for-calm)
+
+Most interfaces ask for attention. A calm one earns it back:
+it tells you what happened, offers one next step, and gets out
+of the way.
+
+![](.assets/01K71B4PNG6S9XQ2H3M5V7W8YZ/01.jpg)
+
+## Restraint is a feature
+
+Every control you remove is a decision the reader no longer
+has to make. …</pre></div>
+</div>
+</body>
+</html>
