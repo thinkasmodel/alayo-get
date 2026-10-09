@@ -75,8 +75,7 @@ No account, no server. All network requests go to the site of the page being sav
 
 ## 6. 提交后
 
-- [ ] `logs/ops.md` 记：提交日期、版本 `0.1.0`、zip SHA-256、后台 item ID / 链接。
-- [ ] Linear ALAG-14 评论同上；ALAG-12 置 Done。
+- [x] 2026-10-09 17:15 左右用户提交审核。后台 item `jfjpdjepihaifdfgflodadkdgidnpecg`，控制台 https://chrome.google.com/webstore/devconsole/21b428b5-1203-4cdb-818c-12ddcb5c7925/jfjpdjepihaifdfgflodadkdgidnpecg/ ；过审后商店链接为 https://chromewebstore.google.com/detail/jfjpdjepihaifdfgflodadkdgidnpecg 。提交时弹「Broad Host Permissions」深度审核提示，照常提交。`logs/ops.md`、Linear ALAG-14 已记；ALAG-12 已 Done。
 - [ ] 审核被拒：把拒绝邮件原文记入 ALAG-14 评论；修正后 `version` 递增重提；要求改权限则另开实现票。
 - [ ] 过审（状态 Published，unlisted）：
   - README 的 `<!-- CWS_URL -->` 占位：`grep -n CWS_URL README.md README.zh-CN.md`，共四处，换成商店链接并去掉「Coming soon / 即将上架」。
