@@ -19,7 +19,7 @@
 | 字段 | 填什么 | 来源 |
 |---|---|---|
 | Title | 取自 manifest，不可改 | — |
-| Summary | 取自 manifest description | — |
+| Summary | 由 manifest 的 `extDescription` 决定（`Save web pages as local Markdown files`），用了 `__MSG_` 本地化键后后台不可手改；`listing.*.md` 的「Short description」段用不上。要换成那段 116 字符的版本得改 `public/_locales/*/messages.json`，属代码改动，本票不做 | — |
 | Description | `listing.en.md`「Detailed description」整段 `text` 块 | `docs/store/listing.en.md` |
 | Category | Productivity | — |
 | Language | English；再在语言切换处添加 **中文（简体）**，Description 用 `listing.zh.md` 的 `text` 块 | `docs/store/listing.zh.md` |
@@ -79,7 +79,7 @@ No account, no server. All network requests go to the site of the page being sav
 - [ ] Linear ALAG-14 评论同上；ALAG-12 置 Done。
 - [ ] 审核被拒：把拒绝邮件原文记入 ALAG-14 评论；修正后 `version` 递增重提；要求改权限则另开实现票。
 - [ ] 过审（状态 Published，unlisted）：
-  - README 的 `<!-- CWS_URL -->` 占位共四处：`README.md` 第 16、58 行，`README.zh-CN.md` 第 16、58 行，换成商店链接并去掉「Coming soon / 即将上架」。
+  - README 的 `<!-- CWS_URL -->` 占位：`grep -n CWS_URL README.md README.zh-CN.md`，共四处，换成商店链接并去掉「Coming soon / 即将上架」。
   - 用链接装一次，完成一次保存（票面判据）。
   - ALAG-14 Done；切 public 归 ALAG-15。
 
