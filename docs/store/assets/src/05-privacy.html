@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screenshot 5 · Privacy</title>
+<link rel="stylesheet" href="store.css">
+<style>
+.facts{position:absolute;left:80px;right:80px;top:268px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.fact{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:26px 28px 28px;display:flex;flex-direction:column;gap:12px;min-height:236px}
+.fact .ic{width:44px;height:44px;border-radius:11px;background:var(--accentSoft);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.fact .ic svg{width:24px;height:24px}
+.fact h3{margin:6px 0 0;font-size:22px;line-height:28px;font-weight:600;text-wrap:balance}
+.fact p{margin:0;font-size:15px;line-height:22px;color:var(--t2)}
+.flow{position:absolute;left:80px;right:80px;top:560px;display:flex;align-items:center;gap:18px}
+.node{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:14px 18px;font-size:15px;font-weight:600}
+.node svg{width:22px;height:22px;color:var(--accent)}
+.node small{display:block;font-weight:400;font-size:13px;color:var(--t2);margin-top:2px}
+.line{flex:1;height:.5px;background:var(--hair);position:relative}
+.line::after{content:"";position:absolute;right:-1px;top:-4px;width:8px;height:8px;border-right:1.5px solid var(--t3);border-top:1.5px solid var(--t3);transform:rotate(45deg)}
+.line span{position:absolute;left:50%;top:-24px;transform:translateX(-50%);font-size:12.5px;color:var(--t3);white-space:nowrap}
+.foot-note{position:absolute;left:80px;top:690px;font-size:14.5px;color:var(--t2)}
+.foot-note code{font-family:var(--mono);font-size:13px;color:var(--t1)}
+</style>
+</head>
+<body>
+<div class="shot">
+  <div class="hd">
+    <h1>Nothing leaves your computer</h1>
+    <p>No account, no analytics, no telemetry. The extension only talks to the sites you are saving from, and only when you save.</p>
+  </div>
+  <div class="facts">
+    <div class="fact"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><h3>Written to a folder you choose</h3><p>Straight to your disk through the browser's file access, not to a download folder and not to a server.</p></div>
+    <div class="fact"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg></div><h3>No account, no tracking</h3><p>Nothing to sign up for. The extension keeps no analytics and sends nothing to its developer.</p></div>
+    <div class="fact"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7 3 12l5 5"/><path d="m16 7 5 5-5 5"/><path d="M14 4 10 20"/></svg></div><h3>Open source</h3><p>Apache License 2.0. Read the code, build it yourself, or check the privacy policy at alayo.ai.</p></div>
+  </div>
+  <div class="flow">
+    <div class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><div>The page you are saving<small>and the images or video it refers to</small></div></div>
+    <div class="line"><span>fetched when you click save</span></div>
+    <div class="node"><svg viewBox="0 0 64 64" fill="none"><rect x="3" y="3" width="58" height="58" rx="17" fill="#4257B5"/><path d="M32 14v24M21 28l11 11 11-11" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="50" r="4.5" fill="#FFFFFF"/></svg><div>Alayo Get<small>converts to Markdown in your browser</small></div></div>
+    <div class="line"><span>written locally</span></div>
+    <div class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div>Your library folder<small>ordinary files on your disk</small></div></div>
+  </div>
+  <div class="foot-note">Privacy policy: <code>alayo.ai/en/get/privacy</code> · Source: <code>github.com/thinkasmodel/alayo-get</code></div>
+</div>
+</body>
+</html>

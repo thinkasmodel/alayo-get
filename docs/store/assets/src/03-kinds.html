@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Screenshot 3 · Kinds</title>
+<link rel="stylesheet" href="store.css">
+<style>
+.grid{position:absolute;left:80px;right:80px;top:268px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.kind{min-width:0;background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px 24px;display:flex;flex-direction:column;gap:12px;min-height:214px}
+.kind .ic{width:40px;height:40px;border-radius:10px;background:var(--accentSoft);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.kind .ic svg{width:22px;height:22px}
+.kind h3{margin:4px 0 0;font-size:19px;line-height:26px;font-weight:600}
+.kind p{margin:0;font-size:14.5px;line-height:21px;color:var(--t2)}
+.kind .fn{font-family:var(--mono);font-size:11.5px;color:var(--t3);margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<div class="shot">
+  <div class="hd">
+    <h1>Articles, threads, bookmarks, media, videos and quotes</h1>
+    <p>Six kinds of clips, each a file you can read without the extension.</p>
+  </div>
+  <div class="grid">
+    <div class="kind"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></div><h3>Article</h3><p>The page's main text converted to Markdown, with its images downloaded next to it.</p><div class="fn">Designing for calm - notes on interface restraint.md</div></div>
+    <div class="kind"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg></div><h3>X post or thread</h3><p>Single posts, X Articles and quoted posts. An author's thread of self-replies becomes one file.</p><div class="fn">naval on X - How to get rich without getting lucky.md</div></div>
+    <div class="kind"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 1 0-5.7l2.3-2.3a4 4 0 0 1 5.7 5.7l-1 1"/><path d="M14 10a4 4 0 0 1 0 5.7l-2.3 2.3a4 4 0 0 1-5.7-5.7l1-1"/></svg></div><h3>Bookmark</h3><p>Link, title, description and cover. When a page's text can't be extracted, the save falls back to this instead of failing.</p><div class="fn">Alayo Workbench - Download.md</div></div>
+    <div class="kind"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 5-5 4 4 3-3 4 4"/><circle cx="15.5" cy="9.5" r="1.5"/></svg></div><h3>Image, audio, video, PDF</h3><p>Saved as the original file, with a small metadata file that records the page it came from.</p><div class="fn">Attention Is All You Need - 1706.03762v7.pdf</div></div>
+    <div class="kind"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/></svg></div><h3>Online video</h3><p>YouTube, Bilibili, X video and cloud-drive pages: cover, duration, author, description and link in one Markdown file.</p><div class="fn">Rick Astley - Never Gonna Give You Up (Official Video).md</div></div>
+    <div class="kind"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v3a3 3 0 0 1-3 3"/><path d="M19 7h-3a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v3a3 3 0 0 1-3 3"/></svg></div><h3>Quote</h3><p>Select text and save it. Quotes from one page collect in one file, each linking back to the exact passage.</p><div class="fn">Quotes - Thinking, Fast and Slow notes.md</div></div>
+  </div>
+</div>
+</body>
+</html>
