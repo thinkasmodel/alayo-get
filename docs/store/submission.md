@@ -41,7 +41,7 @@
 | Remote code | **No**，说明用「Remote code」一段 | 同上 |
 | Privacy policy URL | `https://alayo.ai/en/get/privacy` | NKS-663 |
 
-**Data usage（数据使用勾选区）**——这一项需要用户定，两种填法都站得住，区别见下：
+**Data usage（数据使用勾选区）**——用户 2026-10-09 定：**按填法 A，只勾 Website content**。三种填法的依据保留如下：
 
 - 事实：扩展不把任何数据传出设备；但在 `chrome.storage.local` 里保存「已保存记录」（用户主动保存过的页面 URL、标题、文件名、标签、批注、保存时间），并把网页内容写进用户选的本地文件夹。商店 User Data FAQ 把「handle」定义为 collecting、transmitting、using、sharing，并写明即使只在设备本地处理或存储也要披露（`https://developer.chrome.com/docs/webstore/program-policies/user-data-faq`）；没有找到「本地存储不算 collect」的原文。
 - **填法 A（建议）**：只勾 **Website content**（保存的就是网页正文、图片、链接；Obsidian Clipper 与 Notion Web Clipper 的商店页也只披露这一项）。商店页会显示「handles the following: Website content」加三项声明，与隐私政策「What is stored on your device」一段一致。
