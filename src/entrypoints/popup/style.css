@@ -537,6 +537,7 @@ textarea.inp {
 }
 
 .draft {
+  box-sizing: border-box;
   background: var(--panel);
   border: 0.5px solid var(--hairSoft);
   border-radius: var(--rControl);
@@ -558,6 +559,7 @@ textarea.inp {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.6px;
+  text-transform: uppercase;
   color: var(--t3);
 }
 
