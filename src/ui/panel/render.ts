@@ -1,7 +1,8 @@
 // 工具栏面板（DESIGN.md §3.2，设计稿 designs/alag-2-m1/Main.dc.html）：按状态整体重渲染。
 // 本地编辑只发 draft，不触发重渲染；重渲染只在收到 service worker 推来的新状态时发生。
+import { lostEditReason } from '@/core/lostEditFile';
 import { t } from '@/shared/i18n';
-import type { ClipSummary, EditFields, PanelState, Preview, SavedIndexData } from '@/shared/types';
+import type { ClipSummary, EditFields, LostEdit, LostEditNotice, PanelState, Preview, SavedIndexData } from '@/shared/types';
 import { h, iconEl, richT, type Child } from '../dom';
 import { failureDetail, failureReason, formatDate, oversizeNote, partialNote, quoteToastText, savedDescription, savingPercent, savingText } from '../format';
 import type { IconName } from '../icons';
@@ -11,6 +12,10 @@ export interface PanelView {
   state: PanelState;
   /** 剪藏库文件夹名（`handle.name`）；null 表示还没有选择剪藏库。 */
   folderName: string | null;
+  /** 写回失败留下的草稿：正文末尾每条一个恢复块（ALAG-20）。 */
+  lostEdits?: LostEdit[];
+  /** 本次面板会话里已处理完的草稿：每条一行小字。 */
+  lostNotices?: LostEditNotice[];
 }
 
 export interface PanelActions {
@@ -26,6 +31,8 @@ export interface PanelActions {
   closePanel(): void;
   /** 读已保存记录（标签建议用）。 */
   loadIndex(): Promise<SavedIndexData>;
+  /** 恢复块上的按钮（ALAG-20）。 */
+  lostEdit(action: 'retry' | 'file' | 'discard', id: string): void;
 }
 
 function statusRow(iconName: IconName | null, iconClass: string, title: string, sub: string, titleClass = 'st'): HTMLElement {
@@ -120,6 +127,54 @@ function editFields(clip: ClipSummary, withTitle: boolean, actions: PanelActions
 
 function button(label: string, className: string, onclick: () => void): HTMLButtonElement {
   return h('button', { type: 'button', class: `btn ${className}`, onclick }, label);
+}
+
+/** 文件不在、已被替换、摘录找不到、其他写入错误四种原因句（恢复块用，ALAG-20）。 */
+function fileReason(error: { name: string }, file: string): string {
+  switch (lostEditReason(error)) {
+    case 'missing':
+      return t('panel_fileMissing', [file]);
+    case 'replaced':
+      return t('panel_fileReplaced', [file]);
+    case 'entry-missing':
+      return t('panel_quoteEntryMissing', [file]);
+    case 'other':
+      return t('panel_writeFailed', [file]);
+  }
+}
+
+/** 恢复块（ALAG-20，设计稿 designs/alag-20-lost-edit B 版）：danger 标题、原因、只读的改动字段、三个文字按钮。 */
+function lostEditBlock(edit: LostEdit, folderName: string, actions: PanelActions): HTMLElement {
+  const { fields } = edit;
+  const rows: HTMLElement[] = [];
+  const row = (label: string, value: string) => h('div', { class: 'dl' }, [h('div', { class: 'dk' }, label), h('div', { class: 'dv' }, value)]);
+  if (fields.title !== undefined) rows.push(row(t('panel_title'), fields.title));
+  if (fields.tags !== undefined) rows.push(row(t('panel_tags'), fields.tags.join(t('panel_tagJoin'))));
+  if (fields.note !== undefined) rows.push(row(t('ui_note'), fields.note));
+  const textButton = (label: string, className: string, action: 'retry' | 'file' | 'discard') =>
+    h('button', { type: 'button', class: className, onclick: () => actions.lostEdit(action, edit.id) }, label);
+  return h('div', { class: 'lost', 'data-lost-edit': edit.id }, [
+    h('div', { class: 'stext' }, [h('div', { class: 'st err' }, t('panel_lostEditTitle')), h('div', { class: 'sm' }, fileReason(edit.error, edit.clip.file))]),
+    lostEditReason(edit.error) === 'other' ? h('div', { class: 'mono' }, failureDetail(edit.error, folderName)) : null,
+    h('div', { class: 'draft' }, rows),
+    h('div', { class: 'acts' }, [
+      textButton(t('panel_lostEditDiscard'), 'tbtn quiet', 'discard'),
+      textButton(t('panel_lostEditFile'), 'tbtn', 'file'),
+      textButton(t('ui_retry'), 'tbtn', 'retry'),
+    ]),
+  ]);
+}
+
+/** 「没能打开这条剪藏」的原因句：missing、entry-missing 各自的文案，其余按已被替换。 */
+function unavailableReason(error: { name: string }, file: string): string {
+  const reason = lostEditReason(error);
+  if (reason === 'missing') return t('panel_fileMissing', [file]);
+  if (reason === 'entry-missing') return t('panel_quoteEntryMissing', [file]);
+  return t('panel_fileReplaced', [file]);
+}
+
+function lostNotice(notice: LostEditNotice): HTMLElement {
+  return h('div', { class: 'sm' }, notice.kind === 'filed' ? t('panel_lostEditFiled', [notice.file]) : t('panel_lostEditWritten', [notice.file]));
 }
 
 export function renderPanel(root: HTMLElement, view: PanelView, actions: PanelActions): void {
@@ -219,7 +274,22 @@ export function renderPanel(root: HTMLElement, view: PanelView, actions: PanelAc
       }
       break;
     }
+    case 'clip-unavailable': {
+      // 从页面提示「加批注…」进入前核对文件，文件不在或已被替换（ALAG-20）：没有输入框，也没有按钮
+      body.push(
+        h('div', { class: 'stext' }, [h('div', { class: 'st err' }, t('panel_clipUnavailableTitle')), h('div', { class: 'sm' }, t('panel_nothingChanged'))]),
+        // 这个状态只带文件不在、已被替换、摘录找不到三种错误
+        h('div', { class: 'reason' }, unavailableReason(state.error, state.clip.file)),
+        h('div', { class: 'mono' }, `${state.error.name} · ${state.clip.file}`),
+      );
+      foot = [folderPath(folderName)];
+      break;
+    }
   }
+
+  // 写回失败留下的草稿与本次会话已处理完的通知，放在正文最后（ALAG-20）
+  for (const edit of view.lostEdits ?? []) body.push(lostEditBlock(edit, name, actions));
+  for (const notice of view.lostNotices ?? []) body.push(lostNotice(notice));
 
   const panel = h('div', { class: 'panel', 'data-state': state.state }, [
     h('header', { class: 'head' }, [

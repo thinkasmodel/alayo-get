@@ -1,5 +1,5 @@
 // 消息与 Port 协议的字面量和类型。冻结于 tasks/briefs/ALAG-2A.md「协议」段，Brief B 依赖，不改字面量。
-import type { Capture, EditFields, PanelState, QuoteCaptureInfo, SaveOutcome } from './types';
+import type { Capture, EditFields, LostEdit, LostEditNotice, PanelState, QuoteCaptureInfo, SaveOutcome } from './types';
 
 // ---- 页面内消息（tabs.sendMessage / runtime.onMessage）
 
@@ -79,11 +79,22 @@ export const PANEL_PORT = 'panel';
 export type PanelToSw =
   | { type: 'start'; tabId: number }
   | { type: 'snapshot' }
-  | { type: 'draft'; fields: EditFields }
-  /** 面板仍开着、service worker 被终止导致断线后，面板重连并接着编辑同一条剪藏（不重新保存）。 */
-  | { type: 'resume'; clipId: string };
+  /** baseline：面板表单所依据的 state 的基线号（ALAG-20）；与 service worker 当前基线不同的旧表单 draft 被丢弃。 */
+  | { type: 'draft'; fields: EditFields; baseline?: number }
+  /**
+   * 面板仍开着、service worker 被终止导致断线后，面板重连并接着编辑同一条剪藏（不重新保存）。
+   * baseline：面板记下的基线号，service worker 从它接着数；baselineFields：这个号对应的表单基线（三个字段），
+   * service worker 登记下来，按它从这个号的 draft 里提取用户改过的字段（ALAG-20）。
+   */
+  | { type: 'resume'; clipId: string; baseline?: number; baselineFields?: Required<EditFields> }
+  /** 恢复块上的按钮：对 id 这条写回失败的草稿重试、存为草稿文件或丢弃（ALAG-20）。 */
+  | { type: 'lost-edit'; action: 'retry' | 'file' | 'discard'; id: string };
 
-export type SwToPanel = { type: 'state'; state: PanelState };
+export type SwToPanel =
+  /** saved / fallback 时带基线号：每推一次编辑态的 state 加一，面板之后的 draft 带回它（ALAG-20）。 */
+  | { type: 'state'; state: PanelState; baseline?: number }
+  /** 写回失败留下的草稿全量与本次面板会话里已处理完的通知；连接后立刻推一次，之后每次变化都推（ALAG-20）。 */
+  | { type: 'lost-edits'; edits: LostEdit[]; notices: LostEditNotice[] };
 
 export function isCaptureError(r: CaptureResponse): r is CaptureError {
   return typeof (r as CaptureError).error === 'string';

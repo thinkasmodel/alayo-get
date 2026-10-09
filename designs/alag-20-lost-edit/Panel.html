@@ -1,0 +1,367 @@
+<title>Alayo Get 面板写回失败态</title>
+<style>
+/* 布局：一列画板，每块是一个 360 宽的工具栏面板；令牌照抄 DESIGN.md §2，面板样式照搬 src/entrypoints/popup/style.css */
+:root{
+  --accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);--pill:rgba(66,87,181,.08);
+  --canvas:#F1F2F4;--panel:#FFFFFF;
+  --hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);
+  --t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;
+  --shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);
+  --font:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);
+  --canvas:#212228;--panel:#2B2D34;
+  --hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);
+  --t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;
+  --shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);--pill:rgba(123,140,222,.14);
+  --canvas:#212228;--panel:#2B2D34;
+  --hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);
+  --t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;
+  --shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--t1);font-family:var(--font);-webkit-font-smoothing:antialiased;padding:0 16px;padding-block:24px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:18px;font-weight:600;margin:0;text-wrap:balance}
+.sub{font-size:12.5px;color:var(--t2);margin:4px 0 0;max-width:66ch;line-height:18px}
+.ctl{display:flex;gap:8px;flex-wrap:wrap}
+.ctl button{font:inherit;font-size:12px;font-weight:600;height:28px;padding:0 10px;border-radius:9px;border:.5px solid var(--hair);background:var(--panel);color:var(--t1);cursor:pointer}
+.ctl button[aria-pressed="true"]{background:var(--accent);color:var(--onAccent);border-color:transparent}
+.ctl button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+section{display:flex;flex-direction:column;gap:12px}
+.sh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sh h2{font-size:13px;font-weight:600;margin:0}
+.sh .tag{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+.sh .rec{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);background:var(--accentSoft);padding:2px 7px;border-radius:6px}
+.note{font-size:12px;color:var(--t2);line-height:17px;margin:0;max-width:76ch}
+.note code{font-family:var(--mono);font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;align-items:start}
+.frame{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cap{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+/* 面板：照搬 popup/style.css */
+.panel{width:360px;max-width:100%;background:var(--panel);border-radius:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.head{height:44px;padding:0 8px 0 16px;display:flex;align-items:center;gap:8px;border-bottom:.5px solid var(--hairSoft)}
+.brandicon{display:flex;color:var(--accent)}
+.brand{font-size:13px;font-weight:600;flex:1}
+.ibtn{width:28px;height:28px;border:0;border-radius:9px;background:transparent;color:var(--t2);display:flex;align-items:center;justify-content:center;padding:0}
+.body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.status{display:flex;align-items:flex-start;gap:8px}
+.sicon{flex:none;display:flex;margin-top:1px}
+.success{color:var(--success)}.muted{color:var(--t2)}
+.stext{display:flex;flex-direction:column;gap:2px;min-width:0}
+.st{font-size:13px;font-weight:600;line-height:18px}
+.sm{font-size:11px;line-height:15px;color:var(--t2)}
+.err{color:var(--danger)}
+.fn{font-family:var(--mono);font-size:10.5px;line-height:14px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reason{font-size:12px;line-height:18px;color:var(--t1)}
+.mono{font-family:var(--mono);font-size:10.5px;line-height:14px;color:var(--t2);overflow-wrap:anywhere}
+.inset{background:var(--region);border-radius:9px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--t1)}
+.inset b{font-weight:600;color:var(--accent)}
+.field{display:flex;flex-direction:column;gap:6px}
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.inp{width:100%;min-height:30px;border-radius:9px;background:var(--region);border:.5px solid var(--hairSoft);padding:6px 9px;font-size:12.5px;line-height:17px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inp.ta{min-height:64px;white-space:normal}
+.inp.focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentSoft);background:var(--panel)}
+.ph{color:var(--t3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;white-space:normal}
+.chip{font-size:11px;font-weight:600;letter-spacing:.2px;line-height:15px;padding:2px 7px;border-radius:6px;background:var(--accentSoft);color:var(--accent)}
+.caret{display:inline-block;width:1px;height:14px;background:var(--t1);vertical-align:-2px;margin-left:1px}
+.foot{display:flex;align-items:center;gap:8px;padding:10px 16px 12px;border-top:.5px solid var(--hairSoft)}
+.path{flex:1;min-width:0;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;color:var(--t3);white-space:nowrap;overflow:hidden}
+.auto{flex:none;font-size:11px;color:var(--t3)}
+.btn{height:30px;border:0;border-radius:9px;padding:0 14px;font:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer}
+.pri{background:var(--accent);color:var(--onAccent)}.sec{background:var(--accentSoft);color:var(--accent)}.wide{width:100%;height:34px}
+/* 本票新增：恢复块（放在正文最后，--region 内嵌块） */
+.lost{background:var(--region);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.lost .st{font-size:13px}
+.draft{background:var(--panel);border:.5px solid var(--hairSoft);border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;max-height:132px;overflow:auto}
+.dl{display:flex;flex-direction:column;gap:2px}
+.dk{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.dv{font-size:12.5px;line-height:17px;color:var(--t1);white-space:pre-wrap;overflow-wrap:anywhere}
+.acts{display:flex;justify-content:flex-end;gap:2px;margin:0 -6px -4px 0}
+.tbtn{height:28px;border:0;border-radius:9px;padding:0 10px;background:transparent;color:var(--accent);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.tbtn.quiet{color:var(--t2)}
+.tbtn:hover{background:var(--accentSoft)}
+/* 文件示意 */
+.file{background:var(--panel);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px;font-family:var(--mono);font-size:11px;line-height:17px;color:var(--t1);white-space:pre-wrap;overflow-wrap:anywhere;max-width:560px}
+.file .c{color:var(--t3)}
+/* 表 */
+.tw{overflow-x:auto}
+table{border-collapse:collapse;font-size:12px;line-height:17px;min-width:560px}
+th,td{text-align:left;vertical-align:top;padding:6px 10px 6px 0;border-bottom:.5px solid var(--hair)}
+th{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+/* 中英切换 */
+[lang-en]{display:none}
+:root[data-lang="en"] [lang-en]{display:revert}
+:root[data-lang="en"] [lang-zh]{display:none}
+:root[data-lang="en"] span[lang-en]{display:inline}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1 lang-zh>工具栏面板：写回失败要可见，草稿要可恢复（ALAG-20）</h1>
+    <h1 lang-en>Toolbar panel: visible write failures, recoverable drafts (ALAG-20)</h1>
+    <p class="sub" lang-zh>两处新增。① 点页面提示「加批注…」进编辑态前先核对文件，文件不在或已被替换时显示失败态而不是编辑框。② 关闭面板写回失败时草稿存进扩展本地存储，下次打开面板在正文末尾显示恢复块；A、B 两版只差恢复块里的那个动作。</p>
+    <p class="sub" lang-en>Two additions. ① Before entering edit mode from the toast's "Add note…", the file is checked; if it's missing or replaced, the panel shows a failure state instead of the fields. ② When the write on close fails, the draft is kept in extension storage and the next panel shows a recovery block at the end of the body. A and B differ only in that block's middle action.</p>
+  </div>
+  <div class="ctl" role="group" aria-label="预览设置">
+    <button type="button" id="lang-zh" aria-pressed="true">中文</button>
+    <button type="button" id="lang-en" aria-pressed="false">English</button>
+    <button type="button" id="th-light" aria-pressed="false"><span lang-zh>浅色</span><span lang-en>Light</span></button>
+    <button type="button" id="th-dark" aria-pressed="false"><span lang-zh>深色</span><span lang-en>Dark</span></button>
+    <button type="button" id="th-sys" aria-pressed="true"><span lang-zh>跟随系统</span><span lang-en>System</span></button>
+  </div>
+</header>
+
+<section>
+  <div class="sh"><h2 lang-zh>① 进编辑态失败：点「加批注…」后文件已不在原处</h2><h2 lang-en>① Edit mode refused: the file moved after "Add note…"</h2><span class="tag" lang-zh>两版相同 · 不改现有失败态版式</span><span class="tag" lang-en>Same in A and B · reuses the failure layout</span></div>
+  <p class="note" lang-zh>版式照「失败」态（DESIGN §1 第 2 条：只有失败用 danger，一句红字标题，配一句原因，不加图标），下面是等宽字的错误名和文件名。没有动作按钮：扩展没法找回被移走的文件，「另存新快照」要重新采集，这里没有采集结果。底栏只显示文件夹名。两种原因分开写。</p>
+  <p class="note" lang-en>Same layout as the existing failure state (DESIGN §1.2: danger only for failures, one red title plus one reason line, no icon), then the error name and file name in monospace. No action button: the extension cannot find a moved file, and "save a new snapshot" needs a capture that edit mode doesn't have. The footer shows only the folder name. The two causes get separate copy.</p>
+  <div class="grid">
+    <div class="frame">
+      <span class="cap" lang-zh>文件不在了（NotFoundError）</span><span class="cap" lang-en>File missing (NotFoundError)</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="stext"><div class="st err" lang-zh>没能打开这条剪藏</div><div class="st err" lang-en>Couldn’t open this clip</div><div class="sm" lang-zh>没有改动任何文件</div><div class="sm" lang-en>Nothing was changed</div></div>
+          <div class="reason" lang-zh>「为什么“安静”的界面更难做.md」不在剪藏库里，可能已被移动或改名。</div>
+          <div class="reason" lang-en>“Why quiet interfaces are harder.md” isn’t in the library. It may have been moved or renamed.</div>
+          <div class="mono"><span lang-zh>NotFoundError · 为什么“安静”的界面更难做.md</span><span lang-en>NotFoundError · Why quiet interfaces are harder.md</span></div>
+        </div>
+        <div class="foot"><div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg><span>Alayo Get</span></div></div>
+      </div>
+    </div>
+    <div class="frame">
+      <span class="cap" lang-zh>原路径已是别的文件（ClipMismatchError）</span><span class="cap" lang-en>Path now holds another file (ClipMismatchError)</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="stext"><div class="st err" lang-zh>没能打开这条剪藏</div><div class="st err" lang-en>Couldn’t open this clip</div><div class="sm" lang-zh>没有改动任何文件</div><div class="sm" lang-en>Nothing was changed</div></div>
+          <div class="reason" lang-zh>「为什么“安静”的界面更难做.md」现在是另一个文件，不会改动它。</div>
+          <div class="reason" lang-en>“Why quiet interfaces are harder.md” is now a different file, so it won’t be changed.</div>
+          <div class="mono"><span lang-zh>ClipMismatchError · 为什么“安静”的界面更难做.md</span><span lang-en>ClipMismatchError · Why quiet interfaces are harder.md</span></div>
+        </div>
+        <div class="foot"><div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg><span>Alayo Get</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2 lang-zh>② 恢复块：下次打开面板时，正文末尾多一块</h2><h2 lang-en>② Recovery block: appended to the body the next time the panel opens</h2><span class="tag" lang-zh>与任何状态并存 · 不替代「打开即保存」</span><span class="tag" lang-en>Coexists with any state · never replaces save-on-open</span></div>
+  <p class="note" lang-zh>面板照常保存当前页（这里是一篇新文章，已进入编辑态、光标在批注框），恢复块放在正文最后，<code>--region</code> 内嵌块。块内：danger 色标题「上次的修改没能写入」（这是失败，数据有风险），11 号原因行带文件名，然后是一个 <code>--panel</code> 底的只读区显示没写进去的字段（只列改过的：这例标题、标签、批注都改了；长批注在块内滚动，最高约 6 行），最后一行文字按钮。「丢弃」用 <code>--t2</code>，另两个用 accent。工具栏角标在此期间显示 <b>!</b>（§3.4），下一次保存成功的 ✓ 3 秒后回到 !，直到草稿处理完。</p>
+  <p class="note" lang-en>The panel saves the current page as usual (a new article here, already in edit mode with the note focused). The block sits last in the body as a <code>--region</code> inset. Inside: a danger title "Last edit wasn’t saved" (this is a failure and data is at risk), an 11px reason line with the file name, a read-only <code>--panel</code> area listing only the fields that changed (title, tags and note here; long notes scroll, about 6 lines max), and a row of text buttons. "Discard" uses <code>--t2</code>, the other two use accent. The toolbar badge shows <b>!</b> meanwhile (§3.4); a later save’s ✓ returns to ! after 3 s until the drafts are dealt with.</p>
+  <div class="grid">
+    <div class="frame">
+      <span class="cap" lang-zh>A 版 · 丢弃 / 复制 / 重试</span><span class="cap" lang-en>Version A · Discard / Copy / Retry</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="status"><span class="sicon success"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span><div class="stext"><div class="st" lang-zh>已存入剪藏库</div><div class="st" lang-en>Saved to library</div><div class="sm" lang-zh>文章剪藏 · 含 3 张图片</div><div class="sm" lang-en>Article · 3 images</div></div></div>
+          <div class="fn" lang-zh>Things 3 的十年：一个待办应用怎样一直不加功能.md</div><div class="fn" lang-en>Ten years of Things 3 - how a to-do app kept saying no.md</div>
+          <div class="field"><div class="fl" lang-zh>标题</div><div class="fl" lang-en>TITLE</div><div class="inp" lang-zh>Things 3 的十年：一个待办应用怎样一直不加功能</div><div class="inp" lang-en>Ten years of Things 3: how a to-do app kept saying no</div></div>
+          <div class="field"><div class="fl" lang-zh>标签</div><div class="fl" lang-en>TAGS</div><div class="inp chips"><span class="ph" lang-zh>添加标签</span><span class="ph" lang-en>Add tag</span></div></div>
+          <div class="field"><div class="fl" lang-zh>批注</div><div class="fl" lang-en>NOTE</div><div class="inp ta focus"><span class="ph" lang-zh>添加批注（可选）</span><span class="ph" lang-en>Add a note (optional)</span><span class="caret"></span></div></div>
+          <div class="lost">
+            <div class="stext"><div class="st err" lang-zh>上次的修改没能写入</div><div class="st err" lang-en>Last edit wasn’t saved</div><div class="sm" lang-zh>「为什么“安静”的界面更难做.md」不在剪藏库里，可能已被移动或改名。</div><div class="sm" lang-en>“Why quiet interfaces are harder.md” isn’t in the library. It may have been moved or renamed.</div></div>
+            <div class="draft">
+              <div class="dl"><div class="dk" lang-zh>标题</div><div class="dk" lang-en>TITLE</div><div class="dv" lang-zh>安静的界面为什么更难做（Things 3 → Linear）</div><div class="dv" lang-en>Why quiet interfaces are harder (Things 3 → Linear)</div></div>
+              <div class="dl"><div class="dk" lang-zh>标签</div><div class="dk" lang-en>TAGS</div><div class="dv" lang-zh>设计、工具、产品</div><div class="dv" lang-en>design, tools, product</div></div>
+              <div class="dl"><div class="dk" lang-zh>批注</div><div class="dk" lang-en>NOTE</div><div class="dv" lang-zh>核心论点：每删一个按钮都要有人替它说话，所以「安静」是组织问题，不是审美问题。
+和 Workbench 的「审阅收件箱」对照：我们现在的提示条有 6 种状态，能不能砍到 3 种？
+周四和设计组过一遍，先把「已存过」这条的另存按钮拿掉看一周。</div><div class="dv" lang-en>Core claim: every removed button needs someone to defend its absence, so "quiet" is an organisational problem, not a taste problem.
+Compare with the Workbench review inbox: our toast has 6 states; could it be 3?
+Walk the design group through it Thursday; try removing the snapshot button from "already saved" for a week.</div></div>
+            </div>
+            <div class="acts"><button type="button" class="tbtn quiet"><span lang-zh>丢弃</span><span lang-en>Discard</span></button><button type="button" class="tbtn"><span lang-zh>复制</span><span lang-en>Copy</span></button><button type="button" class="tbtn"><span lang-zh>重试</span><span lang-en>Retry</span></button></div>
+          </div>
+        </div>
+        <div class="foot"><div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg><span>Alayo Get</span></div><span class="auto" lang-zh>关闭面板时自动写入</span><span class="auto" lang-en>Saved when you close the panel</span></div>
+      </div>
+      <p class="note" lang-zh>「复制」把只读区的内容按「标题 / 标签 / 批注」三行原样写进剪贴板。之后用户要自己找到被移走的文件再粘进去。</p>
+      <p class="note" lang-en>"Copy" puts the read-only area on the clipboard as title / tags / note lines. The user then has to find the moved file and paste it in.</p>
+    </div>
+    <div class="frame">
+      <span class="cap" lang-zh>B 版 · 丢弃 / 存为草稿文件 / 重试</span><span class="cap" lang-en>Version B · Discard / Save as draft file / Retry</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="status"><span class="sicon success"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span><div class="stext"><div class="st" lang-zh>已存入剪藏库</div><div class="st" lang-en>Saved to library</div><div class="sm" lang-zh>文章剪藏 · 含 3 张图片</div><div class="sm" lang-en>Article · 3 images</div></div></div>
+          <div class="fn" lang-zh>Things 3 的十年：一个待办应用怎样一直不加功能.md</div><div class="fn" lang-en>Ten years of Things 3 - how a to-do app kept saying no.md</div>
+          <div class="field"><div class="fl" lang-zh>标题</div><div class="fl" lang-en>TITLE</div><div class="inp" lang-zh>Things 3 的十年：一个待办应用怎样一直不加功能</div><div class="inp" lang-en>Ten years of Things 3: how a to-do app kept saying no</div></div>
+          <div class="field"><div class="fl" lang-zh>标签</div><div class="fl" lang-en>TAGS</div><div class="inp chips"><span class="ph" lang-zh>添加标签</span><span class="ph" lang-en>Add tag</span></div></div>
+          <div class="field"><div class="fl" lang-zh>批注</div><div class="fl" lang-en>NOTE</div><div class="inp ta focus"><span class="ph" lang-zh>添加批注（可选）</span><span class="ph" lang-en>Add a note (optional)</span><span class="caret"></span></div></div>
+          <div class="lost">
+            <div class="stext"><div class="st err" lang-zh>上次的修改没能写入</div><div class="st err" lang-en>Last edit wasn’t saved</div><div class="sm" lang-zh>「为什么“安静”的界面更难做.md」不在剪藏库里，可能已被移动或改名。</div><div class="sm" lang-en>“Why quiet interfaces are harder.md” isn’t in the library. It may have been moved or renamed.</div></div>
+            <div class="draft">
+              <div class="dl"><div class="dk" lang-zh>标题</div><div class="dk" lang-en>TITLE</div><div class="dv" lang-zh>安静的界面为什么更难做（Things 3 → Linear）</div><div class="dv" lang-en>Why quiet interfaces are harder (Things 3 → Linear)</div></div>
+              <div class="dl"><div class="dk" lang-zh>标签</div><div class="dk" lang-en>TAGS</div><div class="dv" lang-zh>设计、工具、产品</div><div class="dv" lang-en>design, tools, product</div></div>
+              <div class="dl"><div class="dk" lang-zh>批注</div><div class="dk" lang-en>NOTE</div><div class="dv" lang-zh>核心论点：每删一个按钮都要有人替它说话，所以「安静」是组织问题，不是审美问题。
+和 Workbench 的「审阅收件箱」对照：我们现在的提示条有 6 种状态，能不能砍到 3 种？
+周四和设计组过一遍，先把「已存过」这条的另存按钮拿掉看一周。</div><div class="dv" lang-en>Core claim: every removed button needs someone to defend its absence, so "quiet" is an organisational problem, not a taste problem.
+Compare with the Workbench review inbox: our toast has 6 states; could it be 3?
+Walk the design group through it Thursday; try removing the snapshot button from "already saved" for a week.</div></div>
+            </div>
+            <div class="acts"><button type="button" class="tbtn quiet"><span lang-zh>丢弃</span><span lang-en>Discard</span></button><button type="button" class="tbtn"><span lang-zh>存为草稿文件</span><span lang-en>Save as draft file</span></button><button type="button" class="tbtn"><span lang-zh>重试</span><span lang-en>Retry</span></button></div>
+          </div>
+        </div>
+        <div class="foot"><div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg><span>Alayo Get</span></div><span class="auto" lang-zh>关闭面板时自动写入</span><span class="auto" lang-en>Saved when you close the panel</span></div>
+      </div>
+      <p class="note" lang-zh>「存为草稿文件」把没写进去的字段写成剪藏库根目录里的一个新 Markdown 文件（见下），和剪藏放在一起，Workbench 用户会在收件箱里看到它。比复制多一步文件写入，但用户不用再找地方粘贴；文件被移走、被替换两种情况都能用。写入失败（比如权限丢了）块保持原样并换成下面「其他原因」的文案。</p>
+      <p class="note" lang-en>"Save as draft file" writes the unsaved fields to a new Markdown file in the library root (below), next to the clips; Workbench users see it in their inbox. One more file write than copying, but nothing to paste anywhere, and it works for both the moved and the replaced case. If the write fails (for example after losing permission) the block stays, with the "other error" copy below.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2 lang-zh>B 版 · 「存为草稿文件」之后</h2><h2 lang-en>Version B · After "Save as draft file"</h2><span class="rec" lang-zh>推荐</span><span class="rec" lang-en>Recommended</span></div>
+  <p class="note" lang-zh>块被一行 11 号 <code>--t2</code> 小字替换，写上新文件名；这一行只在本次面板会话里显示，角标的 ! 随即清掉。「重试」成功时同样换成一行「已写入「文件名」」；「丢弃」直接把块移走，不留文字。草稿文件的内容在右边：没有 frontmatter，不会被当成剪藏（已保存记录按出处 URL 记，这个文件不登记），标题用「批注草稿 - 原标题」，只写改过的字段。</p>
+  <p class="note" lang-en>The block is replaced by one 11px <code>--t2</code> line naming the new file; the line lasts for this panel session only, and the ! badge clears. A successful "Retry" likewise becomes "Written to “file”"; "Discard" removes the block with no text. The draft file is on the right: no frontmatter, so it is not treated as a clip (the saved index is keyed by source URL and this file is not registered); its heading is "Note draft - original title" and it lists only the fields that changed.</p>
+  <div class="grid">
+    <div class="frame">
+      <span class="cap" lang-zh>已存为草稿文件</span><span class="cap" lang-en>Saved as draft file</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="status"><span class="sicon success"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span><div class="stext"><div class="st" lang-zh>已存入剪藏库</div><div class="st" lang-en>Saved to library</div><div class="sm" lang-zh>文章剪藏 · 含 3 张图片</div><div class="sm" lang-en>Article · 3 images</div></div></div>
+          <div class="fn" lang-zh>Things 3 的十年：一个待办应用怎样一直不加功能.md</div><div class="fn" lang-en>Ten years of Things 3 - how a to-do app kept saying no.md</div>
+          <div class="field"><div class="fl" lang-zh>标题</div><div class="fl" lang-en>TITLE</div><div class="inp" lang-zh>Things 3 的十年：一个待办应用怎样一直不加功能</div><div class="inp" lang-en>Ten years of Things 3: how a to-do app kept saying no</div></div>
+          <div class="field"><div class="fl" lang-zh>标签</div><div class="fl" lang-en>TAGS</div><div class="inp chips"><span class="ph" lang-zh>添加标签</span><span class="ph" lang-en>Add tag</span></div></div>
+          <div class="field"><div class="fl" lang-zh>批注</div><div class="fl" lang-en>NOTE</div><div class="inp ta focus"><span class="ph" lang-zh>添加批注（可选）</span><span class="ph" lang-en>Add a note (optional)</span><span class="caret"></span></div></div>
+          <div class="sm" lang-zh>上次的修改已存为「批注草稿 - 为什么“安静”的界面更难做.md」</div>
+          <div class="sm" lang-en>Last edit saved as “Note draft - Why quiet interfaces are harder.md”</div>
+        </div>
+        <div class="foot"><div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg><span>Alayo Get</span></div><span class="auto" lang-zh>关闭面板时自动写入</span><span class="auto" lang-en>Saved when you close the panel</span></div>
+      </div>
+    </div>
+    <div class="frame">
+      <span class="cap" lang-zh>草稿文件 · 批注草稿 - 为什么“安静”的界面更难做.md</span><span class="cap" lang-en>Draft file · Note draft - Why quiet interfaces are harder.md</span>
+      <div class="file" lang-zh># 批注草稿 - 为什么“安静”的界面更难做
+
+<span class="c">这是 2026-10-08 21:40 在工具栏面板里写的修改，没能写进「为什么“安静”的界面更难做.md」（文件不在剪藏库里，可能已被移动或改名）。</span>
+
+[原文](https://sspai.com/post/98214)
+
+## 标题
+
+安静的界面为什么更难做（Things 3 → Linear）
+
+## 标签
+
+设计、工具、产品
+
+## 批注
+
+核心论点：每删一个按钮都要有人替它说话，所以「安静」是组织问题，不是审美问题。
+和 Workbench 的「审阅收件箱」对照：我们现在的提示条有 6 种状态，能不能砍到 3 种？
+周四和设计组过一遍，先把「已存过」这条的另存按钮拿掉看一周。</div>
+      <div class="file" lang-en># Note draft - Why quiet interfaces are harder
+
+<span class="c">Edits made in the toolbar panel on 2026-10-08 21:40 that couldn’t be written to “Why quiet interfaces are harder.md” (the file isn’t in the library; it may have been moved or renamed).</span>
+
+[Source](https://sspai.com/post/98214)
+
+## Title
+
+Why quiet interfaces are harder (Things 3 → Linear)
+
+## Tags
+
+design, tools, product
+
+## Note
+
+Core claim: every removed button needs someone to defend its absence, so "quiet" is an organisational problem, not a taste problem.
+Compare with the Workbench review inbox: our toast has 6 states; could it be 3?
+Walk the design group through it Thursday; try removing the snapshot button from "already saved" for a week.</div>
+      <p class="note" lang-zh>文件名重名时沿用剪藏的规则加「 (2)」。说明句用 <code>--t3</code> 色只是示意，文件里就是普通一段。</p>
+      <p class="note" lang-en>Name clashes get " (2)" like clips do. The grey explanatory sentence is plain text in the file; the color here is only for the mockup.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2 lang-zh>边界</h2><h2 lang-en>Edge cases</h2><span class="tag" lang-zh>两版相同</span><span class="tag" lang-en>Same in A and B</span></div>
+  <p class="note" lang-zh>左：面板本身是「需要重新授权」态，恢复块照常显示在正文末尾（权限没回来之前「重试」「存为草稿文件」都会失败，失败时块不动、原因行换成「其他原因」文案并在下面加等宽字错误名）。右：两条草稿叠放，上面一条只改了标签、原因是文件被替换，下面一条是其他错误（权限）；块按失败时间先后排，最多保留 10 条，再多的丢最旧。</p>
+  <p class="note" lang-en>Left: the panel itself is in the "needs permission" state; the block still appears at the end of the body (until permission returns, "Retry" and "Save as draft file" fail; the block stays, the reason line switches to the "other error" copy with the error name in monospace below). Right: two drafts stacked, the first changed only tags and failed because the file was replaced, the second failed for another reason (permission). Blocks are ordered by failure time; at most 10 are kept, oldest dropped first.</p>
+  <div class="grid">
+    <div class="frame">
+      <span class="cap" lang-zh>需要重新授权 + 恢复块</span><span class="cap" lang-en>Needs permission + recovery block</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="status"><span class="sicon muted"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1.5"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><div class="stext"><div class="st" lang-zh>需要重新授权剪藏库</div><div class="st" lang-en>Library access needed again</div><div class="sm" lang-zh>本次内容还没有保存</div><div class="sm" lang-en>This page hasn’t been saved yet</div></div></div>
+          <div class="reason" lang-zh>Chrome 重启后收回了写入“Alayo Get”文件夹的权限。</div>
+          <div class="reason" lang-en>After restarting, Chrome withdrew write access to the “Alayo Get” folder.</div>
+          <div class="inset" lang-zh>点下方按钮后，Chrome 会询问访问方式，请选<b>“每次访问时都允许”</b>。选了它，以后重启浏览器就不用再授权。</div>
+          <div class="inset" lang-en>After you click below, Chrome asks how to allow access. Choose <b>“Allow on every visit”</b> so you won’t be asked again after restarts.</div>
+          <div class="lost">
+            <div class="stext"><div class="st err" lang-zh>上次的修改没能写入</div><div class="st err" lang-en>Last edit wasn’t saved</div><div class="sm" lang-zh>「为什么“安静”的界面更难做.md」不在剪藏库里，可能已被移动或改名。</div><div class="sm" lang-en>“Why quiet interfaces are harder.md” isn’t in the library. It may have been moved or renamed.</div></div>
+            <div class="draft"><div class="dl"><div class="dk" lang-zh>批注</div><div class="dk" lang-en>NOTE</div><div class="dv" lang-zh>和 Workbench 的「审阅收件箱」对照：提示条 6 种状态能不能砍到 3 种？</div><div class="dv" lang-en>Compare with the Workbench review inbox: could the toast’s 6 states be 3?</div></div></div>
+            <div class="acts"><button type="button" class="tbtn quiet"><span lang-zh>丢弃</span><span lang-en>Discard</span></button><button type="button" class="tbtn"><span lang-zh>存为草稿文件</span><span lang-en>Save as draft file</span></button><button type="button" class="tbtn"><span lang-zh>重试</span><span lang-en>Retry</span></button></div>
+          </div>
+        </div>
+        <div class="foot"><button type="button" class="btn pri wide"><span lang-zh>授权并保存…</span><span lang-en>Grant access and save…</span></button></div>
+      </div>
+    </div>
+    <div class="frame">
+      <span class="cap" lang-zh>两条草稿 · 只改了标签 / 其他原因</span><span class="cap" lang-en>Two drafts · tags only / other error</span>
+      <div class="panel">
+        <div class="head"><span class="brandicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="brand">Alayo Get</span><span class="ibtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></span></div>
+        <div class="body">
+          <div class="status"><span class="sicon muted"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><div class="stext"><div class="st" lang-zh>已于 2026-10-07 保存过</div><div class="st" lang-en>Already saved on Oct 7</div><div class="sm" lang-zh>本次没有写入</div><div class="sm" lang-en>Nothing new was written</div></div></div>
+          <div class="lost">
+            <div class="stext"><div class="st err" lang-zh>上次的修改没能写入</div><div class="st err" lang-en>Last edit wasn’t saved</div><div class="sm" lang-zh>「Attention Is All You Need (arXiv 1706.03762v7, NeurIPS 2017 camera-ready).pdf」现在是另一个文件，不会改动它。</div><div class="sm" lang-en>“Attention Is All You Need (arXiv 1706.03762v7, NeurIPS 2017 camera-ready).pdf” is now a different file, so it won’t be changed.</div></div>
+            <div class="draft"><div class="dl"><div class="dk" lang-zh>标签</div><div class="dk" lang-en>TAGS</div><div class="dv" lang-zh>论文、Transformer</div><div class="dv" lang-en>paper, transformer</div></div></div>
+            <div class="acts"><button type="button" class="tbtn quiet"><span lang-zh>丢弃</span><span lang-en>Discard</span></button><button type="button" class="tbtn"><span lang-zh>存为草稿文件</span><span lang-en>Save as draft file</span></button><button type="button" class="tbtn"><span lang-zh>重试</span><span lang-en>Retry</span></button></div>
+          </div>
+          <div class="lost">
+            <div class="stext"><div class="st err" lang-zh>上次的修改没能写入</div><div class="st err" lang-en>Last edit wasn’t saved</div><div class="sm" lang-zh>写入「摘录 - 慢思考.md」时出错。</div><div class="sm" lang-en>Couldn’t write to “Quotes - Slow thinking.md”.</div></div>
+            <div class="mono">NotAllowedError · Alayo Get</div>
+            <div class="draft"><div class="dl"><div class="dk" lang-zh>批注</div><div class="dk" lang-en>NOTE</div><div class="dv" lang-zh>第 3 条：这里的「慢」是指延迟回应，不是速度。</div><div class="dv" lang-en>#3: "slow" here means delaying the response, not speed.</div></div></div>
+            <div class="acts"><button type="button" class="tbtn quiet"><span lang-zh>丢弃</span><span lang-en>Discard</span></button><button type="button" class="tbtn"><span lang-zh>存为草稿文件</span><span lang-en>Save as draft file</span></button><button type="button" class="tbtn"><span lang-zh>重试</span><span lang-en>Retry</span></button></div>
+          </div>
+        </div>
+        <div class="foot"><div class="path"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg><span>Alayo Get</span></div><button type="button" class="btn sec"><span lang-zh>另存一份新快照</span><span lang-en>Save a new snapshot</span></button></div>
+      </div>
+      <p class="note" lang-zh>摘录的草稿只有批注一个字段（摘录没有标题、标签）；草稿文件标题用「批注草稿 - 摘录 - 慢思考」，正文第一行写「第 3 条」。</p>
+      <p class="note" lang-en>A quote draft has only the note field (quotes have no title or tags); its draft file is "Note draft - Quotes - Slow thinking" with "#3" as the first line.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><h2 lang-zh>改动清单</h2><h2 lang-en>Change list</h2></div>
+  <div class="tw"><table>
+    <tr><th lang-zh>项</th><th lang-en>Item</th><th lang-zh>现状</th><th lang-en>Today</th><th lang-zh>改后</th><th lang-en>After</th></tr>
+    <tr><td lang-zh>点「加批注…」进编辑态</td><td lang-en>Edit mode via "Add note…"</td><td lang-zh>读文件失败也沿用缓存、照常进编辑态</td><td lang-en>Read failures fall back to cache; edit mode opens anyway</td><td lang-zh>先核对文件存在且 id 一致；不符显示「没能打开这条剪藏」</td><td lang-en>Verify the file exists and the id matches; otherwise "Couldn’t open this clip"</td></tr>
+    <tr><td lang-zh>关闭面板写回失败</td><td lang-en>Write fails on close</td><td lang-zh>只记 console.error，草稿丢</td><td lang-en>console.error only; the draft is lost</td><td lang-zh>草稿存 storage.local（封顶 10 条）；角标 !；下次打开面板显示恢复块</td><td lang-en>Draft kept in storage.local (cap 10); ! badge; recovery block next time</td></tr>
+    <tr><td lang-zh>恢复块动作</td><td lang-en>Block actions</td><td lang-zh>无</td><td lang-en>n/a</td><td lang-zh>A：丢弃 / 复制 / 重试；B：丢弃 / 存为草稿文件 / 重试</td><td lang-en>A: Discard / Copy / Retry; B: Discard / Save as draft file / Retry</td></tr>
+    <tr><td lang-zh>角标</td><td lang-en>Badge</td><td lang-zh>只随保存结果变</td><td lang-en>Follows save outcomes only</td><td lang-zh>有未处理草稿时保持 !，✓ 显示 3 秒后回到 !</td><td lang-en>Stays ! while drafts remain; ✓ shows 3 s then returns to !</td></tr>
+    <tr><td lang-zh>DESIGN.md §3.2</td><td lang-en>DESIGN.md §3.2</td><td lang-zh>无这两态</td><td lang-en>Neither state exists</td><td lang-zh>状态表加「没能打开这条剪藏」行；「关闭即写入」段补写回失败与恢复块</td><td lang-en>Add the "Couldn’t open this clip" row; extend "write on close" with failure and recovery</td></tr>
+    <tr><td lang-zh>剪藏库里的文件</td><td lang-en>Files in the library</td><td lang-zh>只有剪藏与 .assets / .meta</td><td lang-en>Clips plus .assets / .meta only</td><td lang-zh>B 版多一种「批注草稿 - …md」，不登记为剪藏</td><td lang-en>B adds "Note draft - ….md", not registered as a clip</td></tr>
+  </table></div>
+</section>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function press(ids,on){ids.forEach(function(id){var b=document.getElementById(id);if(b)b.setAttribute('aria-pressed',id===on?'true':'false');});}
+  function setLang(l){if(l==='en')root.setAttribute('data-lang','en');else root.removeAttribute('data-lang');press(['lang-zh','lang-en'],'lang-'+l);try{localStorage.setItem('alag20-lang',l);}catch(e){}}
+  function setTheme(t){if(t==='sys')root.removeAttribute('data-theme');else root.setAttribute('data-theme',t);press(['th-light','th-dark','th-sys'],'th-'+t);try{localStorage.setItem('alag20-theme',t);}catch(e){}}
+  document.getElementById('lang-zh').onclick=function(){setLang('zh');};
+  document.getElementById('lang-en').onclick=function(){setLang('en');};
+  document.getElementById('th-light').onclick=function(){setTheme('light');};
+  document.getElementById('th-dark').onclick=function(){setTheme('dark');};
+  document.getElementById('th-sys').onclick=function(){setTheme('sys');};
+  var l='zh',t='sys';try{l=localStorage.getItem('alag20-lang')||'zh';t=localStorage.getItem('alag20-theme')||'sys';}catch(e){}
+  setLang(l);setTheme(t);
+})();
+</script>

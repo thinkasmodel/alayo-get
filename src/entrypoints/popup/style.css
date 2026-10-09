@@ -525,3 +525,74 @@ textarea.inp {
   width: 100%;
   height: 34px;
 }
+
+/* 写回失败的恢复块（ALAG-20，设计稿 designs/alag-20-lost-edit B 版） */
+.lost {
+  background: var(--region);
+  border-radius: var(--rInset);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.draft {
+  box-sizing: border-box;
+  background: var(--panel);
+  border: 0.5px solid var(--hairSoft);
+  border-radius: var(--rControl);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 132px;
+  overflow: auto;
+}
+
+.dl {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dk {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+.dv {
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--t1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  margin: 0 -6px -4px 0;
+}
+
+.tbtn {
+  height: 28px;
+  border: 0;
+  border-radius: var(--rControl);
+  padding: 0 10px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tbtn.quiet {
+  color: var(--t2);
+}
+
+.tbtn:hover {
+  background: var(--accentSoft);
+}

@@ -1,5 +1,6 @@
 // 面板或页面提示的修改写回：改 frontmatter 对应行；改了标题就同步正文标题行并改文件名（不用 move()，先写新文件再删旧文件）。
 import { updateDisplayedTitle } from '@/core/document';
+import { changedFields, hasChanges, sameTags } from '@/core/editFields';
 import { clipBaseName, sameFileName, uniqueFileName } from '@/core/filename';
 import { readEditableFields, updateFrontmatter } from '@/core/frontmatter';
 import { isMediaKind, mediaMetaPath, parseMediaMeta, serializeMediaMeta } from '@/core/media';
@@ -22,7 +23,8 @@ export function isMediaClip(clip: Pick<ClipRef, 'file' | 'media' | 'medium'>): b
   return isMediaKind(clip.medium) && !/\.md$/i.test(clip.file);
 }
 
-function mismatch(message: string): Error {
+/** 文件不是这条剪藏时拒绝修改的错误（name 为 ClipMismatchError）；进入编辑态前的核对也用它（ALAG-20）。 */
+export function mismatch(message: string): Error {
   const err = new Error(message);
   err.name = 'ClipMismatchError';
   return err;
@@ -48,10 +50,6 @@ export function frontmatterId(md: string): string | null {
   }
 }
 
-function sameTags(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((tag, i) => tag === b[i]);
-}
-
 /**
  * 文件已是目标内容时，补齐已保存记录：上一次写回可能文件写成功、提交记录失败，重试时文件已无改动，
  * 不补就永远停在旧值（codex review 合并前复审）。记录已被更新的快照覆盖时不动；提交失败照常抛出。
@@ -63,18 +61,8 @@ async function reconcileIndex(clip: ClipRef, actual: ClipRef, index: SavedIndex)
   await index.updateById(clip.source, clip.id, { file: clip.file, title: actual.title, tags: actual.tags });
 }
 
-/** 只留下与已存内容不同的字段。 */
-export function changedFields(clip: ClipRef, fields: EditFields): EditFields {
-  const changes: EditFields = {};
-  if (fields.title !== undefined && fields.title !== clip.title) changes.title = fields.title;
-  if (fields.tags !== undefined && !sameTags(fields.tags, clip.tags)) changes.tags = [...fields.tags];
-  if (fields.note !== undefined && fields.note !== clip.note) changes.note = fields.note;
-  return changes;
-}
-
-export function hasChanges(clip: ClipRef, fields: EditFields): boolean {
-  return Object.keys(changedFields(clip, fields)).length > 0;
-}
+// 字段比较挪到 src/core/editFields.ts（面板表单合并也用，ALAG-20）；这里照旧导出，现有 import 路径不变。
+export { changedFields, hasChanges };
 
 /**
  * 把修改写回剪藏文件。字段没有变化时不写文件；只在已保存记录与文件不一致时补齐记录。
@@ -92,6 +80,12 @@ export async function applyEdits<T extends ClipRef>(clip: T, fields: EditFields,
  * 写回侧档；已保存记录只更新 tags。
  */
 async function applyMediaEditsLocked<T extends ClipRef>(clip: T, fields: EditFields, deps: EditDeps): Promise<T> {
+  // 媒体文件本身被移走时不算写成：只改侧档会让写回“成功”、草稿被清掉（codex review ALAG-20 第 3 轮）
+  if (!(await deps.library.exists(clip.file))) {
+    const err = new Error(t('error_clipNotFound'));
+    err.name = 'NotFoundError';
+    throw err;
+  }
   const path = mediaMetaPath(clip.id);
   const meta = parseMediaMeta(await deps.library.readText(path));
   if (meta.id !== clip.id) throw mismatch(t('error_sidecarMismatch', [path, clip.id, meta.id || t('error_idNone')]));

@@ -979,5 +979,105 @@
         "content": "$1"
       }
     }
+  },
+  "panel_clipUnavailableTitle": {
+    "message": "没能打开这条剪藏"
+  },
+  "panel_nothingChanged": {
+    "message": "没有改动任何文件"
+  },
+  "panel_fileMissing": {
+    "message": "「$file$」不在剪藏库里，可能已被移动或改名。",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_fileReplaced": {
+    "message": "「$file$」现在是另一个文件，不会改动它。",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_writeFailed": {
+    "message": "写入「$file$」时出错。",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_lostEditTitle": {
+    "message": "上次的修改没能写入"
+  },
+  "panel_lostEditDiscard": {
+    "message": "丢弃"
+  },
+  "panel_lostEditFile": {
+    "message": "存为草稿文件"
+  },
+  "panel_lostEditFiled": {
+    "message": "上次的修改已存为「$file$」",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_lostEditWritten": {
+    "message": "上次的修改已写入「$file$」",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_tagJoin": {
+    "message": "、"
+  },
+  "file_noteDraft": {
+    "message": "批注草稿"
+  },
+  "file_noteDraftIntro": {
+    "message": "这是 $time$ 在工具栏面板里写的修改，没能写进「$file$」（$reason$）。",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      },
+      "file": {
+        "content": "$2"
+      },
+      "reason": {
+        "content": "$3"
+      }
+    }
+  },
+  "file_noteDraftReasonMissing": {
+    "message": "文件不在剪藏库里，可能已被移动或改名"
+  },
+  "file_noteDraftReasonReplaced": {
+    "message": "原路径现在是另一个文件"
+  },
+  "file_noteDraftQuoteEntry": {
+    "message": "第 $n$ 条",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "panel_quoteEntryMissing": {
+    "message": "「$file$」里找不到这条摘录，可能已被删除或改动。",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "file_noteDraftReasonEntryMissing": {
+    "message": "摘录文件里找不到这一条"
   }
 }

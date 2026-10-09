@@ -13,6 +13,9 @@ import { createClipBook, type ClipBook } from './clips';
 import { handlePanelPort, type PortLike } from './ports';
 import { quoteCapture } from './route';
 import { saveClip } from './saveClip';
+import { buildLostEditFile, lostEditFileName } from '@/core/lostEditFile';
+import { mediaMetaPath, serializeMediaMeta } from '@/core/media';
+import { createLostEdits, type LostEditStore } from '@/io/lostEdits';
 
 const PAGE = 'https://sspai.com/post/90001';
 const FILE = '摘录 - 慢思考.md';
@@ -72,7 +75,8 @@ async function commitNote(book: ClipBook, clipId: string, note: string): Promise
   });
   port.send({ type: 'start', tabId: TAB_ID });
   for (let i = 0; i < 50 && port.sent.length === 0; i++) await new Promise((r) => setTimeout(r, 0));
-  const state = port.sent[0]?.state;
+  const first = port.sent[0];
+  const state = first?.type === 'state' ? first.state : undefined;
   if (state?.state !== 'saved' || state.clip.id !== clipId) throw new Error('面板没有进入这条剪藏的编辑态');
   port.send({ type: 'draft', fields: { title: state.clip.title, tags: state.clip.tags, note } });
   port.disconnect();
@@ -163,5 +167,335 @@ describe('页面提示「加批注…」→ 面板编辑态 → 摘录文件（�
     const book = createClipBook({ index, quotes: createQuoteEntries(), quoteOps, library: () => library });
     expect(await commitNote(book, outcome.clip.id, 'abc')).toBe('abc');
     expect(library.text(FILE)).toContain('\n\nabc');
+  });
+});
+
+// ---- ALAG-20：进入编辑态前严格核对；写回失败留下草稿、存为草稿文件
+
+/** 存一篇文章剪藏并记进 book（如同 afterOutcome）。 */
+async function saveArticle(book: ClipBook, url: string, title: string): Promise<ClipSummary> {
+  const deps = { library, index, pending: createPendingQueue(), fetch: async () => new Response(), now: () => new Date(), newId: () => `ID${++n}` };
+  const outcome = await saveClip(
+    { capture: { url, title, site: '', author: '', published: '', description: '', coverUrl: '', markdown: '正文。', textLength: 300, kind: 'page' }, snapshot: false },
+    deps,
+  );
+  if (outcome.state !== 'saved') throw new Error('没有存成功');
+  await book.remember(outcome.clip, library);
+  return outcome.clip;
+}
+
+describe('ClipBook.checkClip：进入编辑态前严格核对（ALAG-20）', () => {
+  it('.md 剪藏：文件在且 id 一致 → ok，按文件刷新', async () => {
+    const book = newBook();
+    const saved = await saveArticle(book, PAGE, '文章');
+    library.files.set(saved.file, (library.text(saved.file) ?? '').replace('note: ""', 'note: "文件里的批注"'));
+    const result = await book.checkClip(saved.id);
+    expect(result?.ok).toBe(true);
+    expect(result?.clip).toMatchObject({ id: saved.id, file: saved.file, note: '文件里的批注' });
+  });
+
+  it('摘录剪藏：摘录文件 id 与记录一致 → ok', async () => {
+    const book = newBook();
+    const [, second] = await saveThree(book);
+    if (!second) throw new Error('缺少摘录');
+    const result = await book.checkClip(second.id);
+    expect(result).toEqual({ ok: true, clip: second });
+  });
+
+  it('媒体剪藏：侧档 id 一致 → ok，按侧档刷新标签与批注', async () => {
+    const book = newBook();
+    const media: ClipSummary = {
+      id: 'MEDIA1',
+      file: 'paper.pdf',
+      title: 'paper',
+      medium: 'pdf',
+      site: 'arxiv.org',
+      source: 'https://arxiv.org/pdf/1',
+      extract: 'full',
+      imageCount: 0,
+      imageFailures: 0,
+      tags: [],
+      note: '',
+      savedAt: '2026-10-08T00:00:00.000Z',
+      media: { kind: 'pdf', bytes: 10 },
+    };
+    library.files.set('paper.pdf', new Uint8Array([1, 2, 3]));
+    library.files.set(
+      mediaMetaPath('MEDIA1'),
+      serializeMediaMeta({ id: 'MEDIA1', file: 'paper.pdf', source: media.source, media_url: media.source, medium: 'pdf', title: 'paper', site: 'arxiv.org', captured: '', bytes: 10, mime: 'application/pdf', tags: ['论文'], note: '侧档批注' }),
+    );
+    await book.remember(media, library);
+    const result = await book.checkClip('MEDIA1');
+    expect(result?.ok).toBe(true);
+    expect(result?.clip).toMatchObject({ id: 'MEDIA1', tags: ['论文'], note: '侧档批注' });
+  });
+
+  it('文件被移走 → ok: false，NotFoundError', async () => {
+    const book = newBook();
+    const saved = await saveArticle(book, PAGE, '文章');
+    await library.remove(saved.file);
+    const result = await book.checkClip(saved.id);
+    expect(result?.ok).toBe(false);
+    if (result?.ok !== false) return;
+    expect(result.clip.id).toBe(saved.id);
+    expect(result.error.name).toBe('NotFoundError');
+  });
+
+  it('同一路径被写成另一条剪藏 → ok: false，ClipMismatchError，文件内容不变', async () => {
+    const book = newBook();
+    const a = await saveArticle(book, PAGE, '文章');
+    const b = await saveArticle(book, 'https://example.com/b', '另一篇');
+    const other = library.text(b.file) ?? '';
+    library.files.set(a.file, other);
+    const result = await book.checkClip(a.id);
+    expect(result?.ok).toBe(false);
+    if (result?.ok !== false) return;
+    expect(result.error.name).toBe('ClipMismatchError');
+    expect(library.text(a.file)).toBe(other);
+  });
+
+  it('媒体剪藏：侧档还在、媒体文件被移走 → ok: false，NotFoundError（codex review 第 2 轮）', async () => {
+    const book = newBook();
+    const media: ClipSummary = {
+      id: 'MEDIA2',
+      file: 'photo.jpg',
+      title: 'photo',
+      medium: 'image',
+      site: 'example.com',
+      source: 'https://example.com/p',
+      extract: 'full',
+      imageCount: 0,
+      imageFailures: 0,
+      tags: [],
+      note: '',
+      savedAt: '2026-10-08T00:00:00.000Z',
+      media: { kind: 'image', bytes: 3 },
+    };
+    library.files.set('photo.jpg', new Uint8Array([1, 2, 3]));
+    library.files.set(
+      mediaMetaPath('MEDIA2'),
+      serializeMediaMeta({ id: 'MEDIA2', file: 'photo.jpg', source: media.source, media_url: media.source, medium: 'image', title: 'photo', site: 'example.com', captured: '', bytes: 3, mime: 'image/jpeg', tags: [], note: '' }),
+    );
+    await book.remember(media, library);
+    expect(await library.exists('photo.jpg')).toBe(true);
+    expect((await book.checkClip('MEDIA2'))?.ok).toBe(true);
+
+    await library.remove('photo.jpg');
+    expect(await library.exists('photo.jpg')).toBe(false);
+    expect(await library.exists(mediaMetaPath('MEDIA2'))).toBe(true);
+    const result = await book.checkClip('MEDIA2');
+    expect(result?.ok).toBe(false);
+    if (result?.ok !== false) return;
+    expect(result.error.name).toBe('NotFoundError');
+  });
+
+  it('摘录剪藏：这一条的 anchor 行被删掉或重复 → ok: false，QuoteEntryNotFound（codex review 第 2 轮）', async () => {
+    const book = newBook();
+    const [, second] = await saveThree(book);
+    if (!second?.quote) throw new Error('缺少摘录');
+    const original = library.text(FILE) ?? '';
+    const anchorLine = `${second.quote.anchor}\n`;
+    expect(original).toContain(anchorLine);
+
+    library.files.set(FILE, original.replace(anchorLine, ''));
+    const removed = await book.checkClip(second.id);
+    expect(removed?.ok).toBe(false);
+    if (removed?.ok !== false) return;
+    expect(removed.error.name).toBe('QuoteEntryNotFound');
+
+    library.files.set(FILE, original.replace(anchorLine, `${anchorLine}\n${anchorLine}`));
+    const duplicated = await book.checkClip(second.id);
+    expect(duplicated?.ok).toBe(false);
+    if (duplicated?.ok !== false) return;
+    expect(duplicated.error.name).toBe('QuoteEntryNotFound');
+  });
+
+  it('任何来源都找不到 → undefined', async () => {
+    expect(await newBook().checkClip('NOPE')).toBeUndefined();
+  });
+});
+
+describe('「加批注…」→ 文件不在或被替换 / 写回失败 → 草稿 → 存为草稿文件（端到端，ALAG-20）', () => {
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const until = async (done: () => boolean | Promise<boolean>) => {
+    for (let i = 0; i < 100 && !(await done()); i++) await tick();
+  };
+  const statesOf = (port: FakePort) => port.sent.flatMap((m) => (m.type === 'state' ? [m.state] : []));
+
+  /** 打开面板：接上 background 的同一套依赖（checkClip、草稿列表、存为草稿文件）；clipId 为页面提示记下的待编辑剪藏。 */
+  function openPanel(book: ClipBook, lostEdits: LostEditStore, clipId: string | null) {
+    const port = new FakePort();
+    handlePanelPort(port, {
+      savePage: () => Promise.reject(new Error('编辑态不该重新保存')),
+      saveSnapshot: () => Promise.reject(new Error('编辑态不该另存新快照')),
+      findClip: book.findClip,
+      checkClip: book.checkClip,
+      takePendingEdit: async (tabId) => (tabId === TAB_ID ? clipId : null),
+      applyEdits: book.editClip,
+      lostEdits,
+      fileLostEdit: async (edit) => {
+        const lib = book.libraryFor(edit.clip.id);
+        const name = lostEditFileName(edit, await lib.listRoot());
+        await lib.write(name, buildLostEditFile(edit));
+        return name;
+      },
+    });
+    return port;
+  }
+
+  /** 进入编辑态（预检通过），返回推送的 saved 状态里的剪藏。 */
+  async function enterEdit(port: FakePort, clipId: string): Promise<ClipSummary> {
+    port.send({ type: 'start', tabId: TAB_ID });
+    await until(() => statesOf(port).length > 0);
+    const state = statesOf(port)[0];
+    if (state?.state !== 'saved' || state.clip.id !== clipId) throw new Error('面板没有进入这条剪藏的编辑态');
+    return state.clip;
+  }
+
+  it('保存后文件被移走，再点「加批注…」：推送 clip-unavailable（NotFoundError）', async () => {
+    const book = newBook();
+    const saved = await saveArticle(book, PAGE, '文章');
+    await library.remove(saved.file);
+    const port = openPanel(book, createLostEdits(), saved.id);
+    port.send({ type: 'start', tabId: TAB_ID });
+    await until(() => statesOf(port).length > 0);
+    const [state] = statesOf(port);
+    expect(state?.state).toBe('clip-unavailable');
+    if (state?.state !== 'clip-unavailable') return;
+    expect(state.clip.id).toBe(saved.id);
+    expect(state.error.name).toBe('NotFoundError');
+  });
+
+  it('保存后先替换再点「加批注…」：推送 clip-unavailable（ClipMismatchError）', async () => {
+    const book = newBook();
+    const a = await saveArticle(book, PAGE, '文章');
+    const b = await saveArticle(book, 'https://example.com/b', '另一篇');
+    library.files.set(a.file, library.text(b.file) ?? '');
+    const port = openPanel(book, createLostEdits(), a.id);
+    port.send({ type: 'start', tabId: TAB_ID });
+    await until(() => statesOf(port).length > 0);
+    const [state] = statesOf(port);
+    expect(state?.state).toBe('clip-unavailable');
+    if (state?.state !== 'clip-unavailable') return;
+    expect(state.error.name).toBe('ClipMismatchError');
+  });
+
+  it('旧会话重试把批注 B 写进文件时，新会话已按旧批注 A 打开、只改了标签：关闭后文件里批注是 B、标签是新的（codex review 第 4 轮）', async () => {
+    const book = newBook();
+    const lostEdits = createLostEdits();
+    const saved = await saveArticle(book, PAGE, '文章');
+    library.files.set(saved.file, (library.text(saved.file) ?? '').replace('note: ""', 'note: "旧批注 A"'));
+    await lostEdits.add({ id: 'LB', clip: { ...saved, note: '旧批注 A' }, fields: { note: '恢复的批注 B' }, error: { name: 'NotAllowedError', message: 'x' }, at: '2026-10-08T00:00:00.000Z' });
+
+    // 旧会话：重试的写回被拦住，等新会话预检之后才放行
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const retried: { done?: Promise<ClipSummary> } = {};
+    const first = new FakePort();
+    handlePanelPort(first, {
+      savePage: () => Promise.reject(new Error('不该保存')),
+      saveSnapshot: () => Promise.reject(new Error('不该另存')),
+      lostEdits,
+      applyEdits: (c, f) => (retried.done = gate.then(() => book.editClip(c, f))),
+    });
+    first.send({ type: 'lost-edit', action: 'retry', id: 'LB' });
+    await until(() => retried.done !== undefined);
+    first.disconnect();
+
+    // 新会话：预检读到旧批注 A
+    const second = openPanel(book, lostEdits, saved.id);
+    const clip = await enterEdit(second, saved.id);
+    expect(clip.note).toBe('旧批注 A');
+    release();
+    await retried.done;
+    expect(library.text(saved.file)).toContain('note: "恢复的批注 B"');
+
+    second.send({ type: 'draft', fields: { title: clip.title, tags: ['新标签'], note: clip.note } });
+    second.disconnect();
+    await until(() => (library.text(saved.file) ?? '').includes('新标签'));
+    const md = library.text(saved.file) ?? '';
+    expect(md).toContain('note: "恢复的批注 B"');
+    expect(md).toContain('新标签');
+    expect(await lostEdits.list()).toEqual([]);
+  });
+
+  it('媒体剪藏的草稿重试时媒体文件已被移走：不算写成，草稿仍在列表、错误为 NotFoundError，没有“已写入”通知（codex review 第 3 轮）', async () => {
+    const book = newBook();
+    const lostEdits = createLostEdits();
+    const media: ClipSummary = {
+      id: 'MEDIA3',
+      file: 'gone.jpg',
+      title: 'gone',
+      medium: 'image',
+      site: 'example.com',
+      source: 'https://example.com/g',
+      extract: 'full',
+      imageCount: 0,
+      imageFailures: 0,
+      tags: [],
+      note: '',
+      savedAt: '2026-10-08T00:00:00.000Z',
+      media: { kind: 'image', bytes: 3 },
+    };
+    const sidecar = serializeMediaMeta({ id: 'MEDIA3', file: 'gone.jpg', source: media.source, media_url: media.source, medium: 'image', title: 'gone', site: 'example.com', captured: '', bytes: 3, mime: 'image/jpeg', tags: [], note: '' });
+    library.files.set(mediaMetaPath('MEDIA3'), sidecar);
+    await book.remember(media, library);
+    await lostEdits.add({ id: 'LM', clip: media, fields: { note: '媒体批注' }, error: { name: 'NotFoundError', message: 'gone' }, at: '2026-10-08T00:00:00.000Z' });
+
+    const port = openPanel(book, lostEdits, null);
+    await until(() => port.sent.some((m) => m.type === 'lost-edits'));
+    port.send({ type: 'lost-edit', action: 'retry', id: 'LM' });
+    await until(() => port.sent.filter((m) => m.type === 'lost-edits').length > 1);
+    const [edit] = await lostEdits.list();
+    expect(edit?.id).toBe('LM');
+    expect(edit?.error).toEqual({ name: 'NotFoundError', message: '找不到这条剪藏' });
+    const last = port.sent.filter((m) => m.type === 'lost-edits').at(-1);
+    expect(last?.type === 'lost-edits' ? last.notices : null).toEqual([]);
+    expect(library.text(mediaMetaPath('MEDIA3'))).toBe(sidecar);
+  });
+
+  it('编辑态里写批注、文件被移走、关闭面板：草稿入列表；下次打开面板「存为草稿文件」写出批注草稿文件，列表清空', async () => {
+    const book = newBook();
+    const lostEdits = createLostEdits();
+    const saved = await saveArticle(book, PAGE, '文章');
+    const port = openPanel(book, lostEdits, saved.id);
+    const clip = await enterEdit(port, saved.id);
+    port.send({ type: 'draft', fields: { title: clip.title, tags: clip.tags, note: '移走后写的批注' } });
+    await library.remove(saved.file);
+    port.disconnect();
+    await until(async () => (await lostEdits.list()).length > 0);
+    const [edit] = await lostEdits.list();
+    expect(edit).toMatchObject({ clip: { id: saved.id }, fields: { note: '移走后写的批注' }, error: { name: 'NotFoundError' } });
+    if (!edit) return;
+
+    // 下次打开面板：连接即收到草稿；点「存为草稿文件」
+    const next = openPanel(book, lostEdits, null);
+    await until(() => next.sent.some((m) => m.type === 'lost-edits'));
+    expect(next.sent.find((m) => m.type === 'lost-edits')).toMatchObject({ edits: [{ id: edit.id }] });
+    next.send({ type: 'lost-edit', action: 'file', id: edit.id });
+    await until(async () => (await lostEdits.list()).length === 0);
+    const draftFile = '批注草稿 - 文章.md';
+    expect(library.text(draftFile)).toContain('移走后写的批注');
+    expect(library.text(saved.file)).toBeUndefined();
+    expect(await lostEdits.list()).toEqual([]);
+    await until(() => next.sent.filter((m) => m.type === 'lost-edits').length > 1);
+    expect(next.sent.filter((m) => m.type === 'lost-edits').at(-1)).toEqual({ type: 'lost-edits', edits: [], notices: [{ id: edit.id, kind: 'filed', file: draftFile }] });
+  });
+
+  it('进入 A 的编辑态（预检通过）后 A 的路径被写成剪藏 B、关闭面板：ClipMismatchError 入列表，B 的内容逐字不变', async () => {
+    const book = newBook();
+    const lostEdits = createLostEdits();
+    const a = await saveArticle(book, PAGE, '文章');
+    const b = await saveArticle(book, 'https://example.com/b', '另一篇');
+    const port = openPanel(book, lostEdits, a.id);
+    const clip = await enterEdit(port, a.id);
+    port.send({ type: 'draft', fields: { title: clip.title, tags: clip.tags, note: '给 A 的批注' } });
+    const other = library.text(b.file) ?? '';
+    library.files.set(a.file, other);
+    port.disconnect();
+    await until(async () => (await lostEdits.list()).length > 0);
+    const [edit] = await lostEdits.list();
+    expect(edit).toMatchObject({ clip: { id: a.id }, fields: { note: '给 A 的批注' }, error: { name: 'ClipMismatchError' } });
+    expect(library.text(a.file)).toBe(other);
   });
 });
