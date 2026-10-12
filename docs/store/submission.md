@@ -79,8 +79,8 @@ No account, no server. All network requests go to the site of the page being sav
 - [ ] 审核被拒：把拒绝邮件原文记入 ALAG-14 评论；修正后 `version` 递增重提；要求改权限则另开实现票。
 - [x] 过审（状态 Published，unlisted）：2026-10-12 用户告知已发布，商店页 https://chromewebstore.google.com/detail/alayo-get/jfjpdjepihaifdfgflodadkdgidnpecg 返回 200。
   - [x] README 的 `<!-- CWS_URL -->` 占位：`grep -n CWS_URL README.md README.zh-CN.md`，共四处，换成商店链接并去掉「Coming soon / 即将上架」。
-  - 用链接装一次，完成一次保存（票面判据）。
-  - ALAG-14 Done；切 public 归 ALAG-15。
+  - [x] 用链接装一次，完成一次保存（票面判据）：2026-10-12 用户完成。
+  - [x] ALAG-14 Done（2026-10-12）；切 public 归 ALAG-15。
 
 ## 附：同类扩展的数据披露（2026-10-09）
 
