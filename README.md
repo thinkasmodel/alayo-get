@@ -13,7 +13,7 @@ It covers the same ground as Obsidian Web Clipper and MarkDownload, and uses the
 - **Quotes link back to the exact passage.** Selected text is saved with a `#:~:text=` text-fragment link that jumps back to that spot on the original page.
 - **English and Chinese interface.** The interface follows the browser language: Simplified Chinese for Chinese browsers, English for everything else.
 
-**Install:** Chrome Web Store <!-- CWS_URL --> (Coming soon), or [load it unpacked](#install).
+**Install:** [Chrome Web Store](https://chromewebstore.google.com/detail/alayo-get/jfjpdjepihaifdfgflodadkdgidnpecg), or [load it unpacked](#install).
 
 ## What it saves
 
@@ -55,7 +55,7 @@ If you use [Alayo Workbench](https://alayo.ai/en/workbench/), the Mac app, you c
 
 ## Install
 
-**Chrome Web Store:** <!-- CWS_URL --> Coming soon.
+**Chrome Web Store:** https://chromewebstore.google.com/detail/alayo-get/jfjpdjepihaifdfgflodadkdgidnpecg
 
 **Load unpacked (developer mode):**
 

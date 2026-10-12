@@ -13,7 +13,7 @@ Alayo Get 是一个 Chrome 扩展，把网页、X 帖子、链接、图片、视
 - **摘录能跳回原文。** 选中的文字保存时带 `#:~:text=` 文本片段链接，点开回到原文对应位置。
 - **中英双语界面。** 界面跟随浏览器语言：中文浏览器显示简体中文，其余显示英文。
 
-**安装：** Chrome 应用商店 <!-- CWS_URL -->（即将上架），或[以开发者模式加载](#安装)。
+**安装：** [Chrome 应用商店](https://chromewebstore.google.com/detail/alayo-get/jfjpdjepihaifdfgflodadkdgidnpecg)，或[以开发者模式加载](#安装)。
 
 ## 保存什么，存成什么
 
@@ -55,7 +55,7 @@ Alayo Get 是一个 Chrome 扩展，把网页、X 帖子、链接、图片、视
 
 ## 安装
 
-**Chrome 应用商店：** <!-- CWS_URL --> 即将上架。
+**Chrome 应用商店：** https://chromewebstore.google.com/detail/alayo-get/jfjpdjepihaifdfgflodadkdgidnpecg
 
 **开发者模式加载未打包扩展：**
 

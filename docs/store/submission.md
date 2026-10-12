@@ -77,8 +77,8 @@ No account, no server. All network requests go to the site of the page being sav
 
 - [x] 2026-10-09 17:15 左右用户提交审核。后台 item `jfjpdjepihaifdfgflodadkdgidnpecg`，控制台 https://chrome.google.com/webstore/devconsole/21b428b5-1203-4cdb-818c-12ddcb5c7925/jfjpdjepihaifdfgflodadkdgidnpecg/ ；过审后商店链接为 https://chromewebstore.google.com/detail/jfjpdjepihaifdfgflodadkdgidnpecg 。提交时弹「Broad Host Permissions」深度审核提示，照常提交。`logs/ops.md`、Linear ALAG-14 已记；ALAG-12 已 Done。
 - [ ] 审核被拒：把拒绝邮件原文记入 ALAG-14 评论；修正后 `version` 递增重提；要求改权限则另开实现票。
-- [ ] 过审（状态 Published，unlisted）：
-  - README 的 `<!-- CWS_URL -->` 占位：`grep -n CWS_URL README.md README.zh-CN.md`，共四处，换成商店链接并去掉「Coming soon / 即将上架」。
+- [x] 过审（状态 Published，unlisted）：2026-10-12 用户告知已发布，商店页 https://chromewebstore.google.com/detail/alayo-get/jfjpdjepihaifdfgflodadkdgidnpecg 返回 200。
+  - [x] README 的 `<!-- CWS_URL -->` 占位：`grep -n CWS_URL README.md README.zh-CN.md`，共四处，换成商店链接并去掉「Coming soon / 即将上架」。
   - 用链接装一次，完成一次保存（票面判据）。
   - ALAG-14 Done；切 public 归 ALAG-15。
 
