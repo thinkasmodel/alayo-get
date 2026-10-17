@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "ALAG-24 Translator Probe",
+  "version": "0.0.1",
+  "description": "ALAG-24 实测探针：Chrome 本机翻译 API 在扩展各上下文里的行为。",
+  "permissions": ["offscreen", "storage"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": { "service_worker": "sw.js" },
+  "content_scripts": [
+    { "matches": ["http://127.0.0.1/*"], "js": ["lib.js", "cs.js"], "run_at": "document_idle" }
+  ]
+}
