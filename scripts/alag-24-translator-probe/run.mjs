@@ -25,7 +25,11 @@ fs.mkdirSync(OUT, { recursive: true });
 const PROGRESS = path.join(OUT, `progress-${MODE}.log`);
 const log = (...a) => { const line = `[${new Date().toISOString()}] ${a.join(' ')}`; console.log(line); fs.appendFileSync(PROGRESS, line + '\n'); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const withTimeout = (p, ms, what) => Promise.race([p, sleep(ms).then(() => ({ runnerTimeout: true, what, ms }))]);
+// 超时与异常都变成结构化结果，调用方可以继续做后面的诊断（H 阶段 Worker 卡死后仍要查 offscreen 与 SW 是否存活）。
+const withTimeout = (p, ms, what) => Promise.race([
+  Promise.resolve(p).catch((e) => ({ runnerError: true, what, message: String(e && e.message) })),
+  sleep(ms).then(() => ({ runnerTimeout: true, what, ms })),
+]);
 const marks = [];
 const mark = (name) => { marks.push({ name, iso: new Date().toISOString(), epochMs: Date.now() }); log('MARK', name); };
 
@@ -105,7 +109,7 @@ const evaluate = async (sid, expression) => {
 const results = { mode: MODE, marks, chrome: null, extId: null, swResults: null, snapshots: {} };
 const save = () => fs.writeFileSync(path.join(OUT, `results-${MODE}.json`), JSON.stringify(results, null, 2));
 // 每个阶段结束时把 SW 汇总的结果一并落盘（首轮发现后面的步骤可能卡住整个扩展进程）。
-const snap = async () => { const r = await withTimeout(swResults(), 15000, 'swResults'); if (!r.runnerTimeout) results.swResults = r; save(); };
+const snap = async () => { const r = await withTimeout(swResults(), 15000, 'swResults'); if (!r.runnerTimeout && !r.runnerError) results.swResults = r; save(); };
 
 async function attach(targetId) {
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
@@ -303,7 +307,7 @@ try {
   log('FATAL', e.stack || e.message);
   results.fatal = String(e.stack || e.message);
 } finally {
-  if (!results.swAliveAfterWorker || !results.swAliveAfterWorker.runnerTimeout) await snap().catch((e) => log('snap failed', e.message));
+  if (!results.swAliveAfterWorker || !(results.swAliveAfterWorker.runnerTimeout || results.swAliveAfterWorker.runnerError)) await snap().catch((e) => log('snap failed', e.message));
   save();
   await withTimeout(send('Browser.close').catch(() => {}), 10000, 'close');
   await new Promise((r) => { proc.once('exit', r); setTimeout(r, 15000); });
