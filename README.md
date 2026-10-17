@@ -9,7 +9,7 @@ It covers the same ground as Obsidian Web Clipper and MarkDownload, and uses the
 - **Not tied to any note-taking app.** The output is plain Markdown with YAML frontmatter, plus the original media files. Nothing about it assumes a particular app.
 - **Writes straight into a folder you pick.** It uses the File System Access API to write into any local folder, not into your Downloads folder, and without a save dialog for each clip.
 - **X threads become one file.** When you save a post, the author's consecutive self-replies are collected and merged into a single article.
-- **Media clips keep their source.** Images, audio and video files, and PDFs are saved as the original files, with a small metadata sidecar that records the page they came from.
+- **Media clips keep their source.** Images, audio and video files, PDFs and EPUB books (saved by right-clicking a link to one) are saved as the original files, with a small metadata sidecar that records the page they came from.
 - **Quotes link back to the exact passage.** Selected text is saved with a `#:~:text=` text-fragment link that jumps back to that spot on the original page.
 - **English and Chinese interface.** The interface follows the browser language: Simplified Chinese for Chinese browsers, English for everything else.
 
@@ -23,7 +23,7 @@ Every save produces one visible file in your library folder, called a *clip*. Th
 |---|---|
 | **article** | The page's main text (or an X post, thread or X Article) converted to Markdown, with its images downloaded next to it. |
 | **bookmark** | The link, title, description and cover image, without the body text. A right-clicked link is saved this way, and an article whose text can't be extracted falls back to a bookmark (`extract: fallback`). |
-| **media** | The image, audio or video file (up to 100 MB) or PDF itself, unchanged, named `Page title - original-file-name.ext`. |
+| **media** | The image, audio or video file (up to 100 MB), PDF or EPUB itself, unchanged, named `Page title - original-file-name.ext`; EPUBs are saved by right-clicking a link to one. |
 | **stream** | A Markdown file for an online video or audio (YouTube, Bilibili, X video, cloud-drive share pages, or direct media links over 100 MB): cover, duration, author, description and the original link. The media itself is not downloaded. |
 | **quote** | Text you selected and saved. All quotes from the same page are appended to one `Quotes - Page title.md`, each as a blockquote with the time it was saved and a link back to the passage. |
 

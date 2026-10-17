@@ -494,6 +494,50 @@ describe('captureLink', () => {
     expect(frontmatterOf(md).extract).toBe('partial');
     expect(md.slice(md.indexOf('\n---\n') + 5)).toBe('\n[链接文字](https://target.example.com/gone)\n');
   });
+
+  // ALAG-38：EPUB 在浏览器里不能当标签页打开，右键链接是唯一入口
+  it('EPUB 链接（URL 以 .epub 结尾）：不发请求，直接返回媒体 Capture', async () => {
+    const page = { url: 'https://reader.example.com/shelf', title: '书架' };
+    const link = 'https://books.example.com/a/book.epub';
+    const { fn, calls } = fakeFetch({});
+    const capture = await captureLink(link, '链接文字', fn, page);
+    expect(capture).toMatchObject({
+      kind: 'media',
+      url: page.url,
+      title: page.title,
+      media: { kind: 'epub', url: link, fileName: 'book.epub' },
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('EPUB 响应（URL 没有后缀，content-type 是 application/epub+zip）：返回媒体 Capture', async () => {
+    const page = { url: 'https://reader.example.com/shelf', title: '书架' };
+    const link = 'https://books.example.com/download?id=1';
+    const { fn } = fakeFetch({ [link]: { type: 'application/epub+zip; charset=binary' } });
+    const capture = await captureLink(link, '链接文字', fn, page);
+    expect(capture).toMatchObject({
+      kind: 'media',
+      url: page.url,
+      title: page.title,
+      media: { kind: 'epub', url: link, fileName: 'download' },
+    });
+  });
+
+  it('传了 page 但响应是 PDF：仍是书签剪藏，只有 EPUB 转媒体剪藏', async () => {
+    const page = { url: 'https://reader.example.com/shelf', title: '书架' };
+    const link = 'https://example.com/paper.pdf';
+    const { fn } = fakeFetch({ [link]: { type: 'application/pdf' } });
+    const capture = await captureLink(link, '论文', fn, page);
+    expect(capture).toMatchObject({ kind: 'link', fetched: false, url: link, title: '论文' });
+  });
+
+  it('不传 page（网盘分支等）：URL 以 .epub 结尾仍按书签剪藏处理，行为不变', async () => {
+    const link = 'https://books.example.com/book.epub';
+    const { fn, calls } = fakeFetch({ [link]: { type: 'application/epub+zip' } });
+    const capture = await captureLink(link, '书', fn);
+    expect(capture).toMatchObject({ kind: 'link', fetched: false, url: link, title: '书' });
+    expect(calls).toHaveLength(1);
+  });
 });
 
 // ALAG-17 S3：图片边读边计数、单次剪藏附件总预算、链接页 HTML 字节上限

@@ -42,19 +42,20 @@ function statusRow(iconName: IconName | null, iconClass: string, title: string, 
   ]);
 }
 
-/** 预览卡字形按剪藏形态取（DESIGN.md §3.2 ALAG-4）：文章与 X 剪藏 doc，书签 link，图片 image，PDF file，音频 audio，视频 video，流媒体 play，摘录 quote。 */
+/** 预览卡字形按剪藏形态取（DESIGN.md §3.2 ALAG-4）：文章与 X 剪藏 doc，书签 link，图片 image，PDF 与 EPUB file，音频 audio，视频 video，流媒体 play，摘录 quote。 */
 const PREVIEW_ICON: Record<Preview['medium'], IconName> = {
   web: 'doc',
   link: 'link',
   image: 'image',
   pdf: 'file',
+  epub: 'file',
   audio: 'audio',
   video: 'video',
   stream: 'play',
   quote: 'quote',
 };
 
-const MEDIA_PREVIEW: ReadonlySet<Preview['medium']> = new Set(['image', 'pdf', 'audio', 'video']);
+const MEDIA_PREVIEW: ReadonlySet<Preview['medium']> = new Set(['image', 'pdf', 'epub', 'audio', 'video']);
 
 function previewCard(preview: Preview, file?: string): HTMLElement {
   return h('div', { class: 'card' }, [

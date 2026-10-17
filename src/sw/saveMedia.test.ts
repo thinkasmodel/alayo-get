@@ -263,6 +263,45 @@ describe('媒体剪藏：PDF', () => {
   });
 });
 
+describe('媒体剪藏：EPUB', () => {
+  const BOOK = 'https://books.example.com/download/book.epub';
+  const BOOK_BYTES = bytes('EPUB-bytes');
+
+  it('正常保存：写出“页面标题 - 原文件名.epub”与侧档，medium epub、mime application/epub+zip', async () => {
+    const { fn } = fakeFetch({ [BOOK]: { headers: { 'content-type': 'application/epub+zip' }, body: BOOK_BYTES } });
+    const outcome = await save(mediaCapture(PAGE, '一本书', 'epub', BOOK), fn);
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    const file = '一本书 - book.epub';
+    expect(outcome.clip).toMatchObject({ file, medium: 'epub', media: { kind: 'epub', bytes: BOOK_BYTES.byteLength } });
+    expect(library.text(file)).toBe('EPUB-bytes');
+    const meta = JSON.parse(library.text(`.meta/${ID1}.json`) ?? '{}') as Record<string, unknown>;
+    expect(meta).toMatchObject({
+      source: PAGE_CANONICAL,
+      media_url: BOOK,
+      medium: 'epub',
+      mime: 'application/epub+zip',
+      bytes: BOOK_BYTES.byteLength,
+    });
+    // 总数未知时 download 进度不带 total
+    expect(progress.find((p) => p.progress.phase === 'download')?.progress).toEqual({ phase: 'download', done: 0, kind: 'epub' });
+  });
+
+  it('流超过 100MB → 中止下载，存成书签剪藏（extract partial），没有残留的半截文件', async () => {
+    const stream = repeatedStream(new Uint8Array(MB), 101);
+    const { fn } = fakeFetch({ [BOOK]: { headers: { 'content-type': 'application/epub+zip' }, body: stream.make } });
+    const outcome = await save(mediaCapture(PAGE, '一本很大的书', 'epub', BOOK), fn);
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    expect(stream.state.pulled).toBeLessThanOrEqual(102);
+    expect(outcome.clip).toMatchObject({ medium: 'link', extract: 'partial', title: '一本很大的书', file: '一本很大的书.md', source: BOOK });
+    expect([...library.files.keys()]).toEqual(['一本很大的书.md']);
+    const fm = frontmatterOf(library.text('一本很大的书.md') ?? '');
+    expect(fm).toMatchObject({ medium: 'link', extract: 'partial', source: BOOK, title: '一本很大的书' });
+    expect(await index.get(BOOK)).toMatchObject({ medium: 'link' });
+  });
+});
+
 describe('媒体剪藏：音视频直链', () => {
   const VIDEO = 'https://cdn.example.com/media/keynote-1080p.mp4';
   const AUDIO = 'https://cdn.example.com/media/episode.mp3';

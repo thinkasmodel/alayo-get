@@ -4,11 +4,15 @@ import {
   fileNameFromContentDisposition,
   fileNameFromUrl,
   formatProgressBytes,
+  isEpubResponse,
   isMediaDocument,
+  isMediaKind,
   mediaBaseName,
   mediaKeyOf,
   mediaKindFromContentType,
+  mediaKindFromUrl,
   mediaUrlForMeta,
+  mimeFromExt,
   parseMediaMeta,
   resolveMediaExt,
   serializeMediaMeta,
@@ -23,6 +27,30 @@ describe('媒体剪藏的纯函数', () => {
     expect(mediaKindFromContentType('video/mp4')).toBe('video');
     expect(mediaKindFromContentType('text/html')).toBeNull();
     expect(mediaKindFromContentType(null)).toBeNull();
+  });
+
+  // ALAG-38：EPUB 是第五种媒体剪藏类别
+  it('EPUB：类别判定、扩展名与 MIME 互推', () => {
+    expect(mediaKindFromContentType('application/epub+zip')).toBe('epub');
+    expect(mediaKindFromUrl('https://a.com/b/book.epub')).toBe('epub');
+    expect(resolveMediaExt('application/epub+zip', '', 'https://a.com/b/book')).toBe('epub');
+    expect(resolveMediaExt('application/octet-stream', 'x.epub', 'https://a.com/b/book')).toBe('epub');
+    expect(mimeFromExt('epub')).toBe('application/epub+zip');
+    expect(isMediaKind('epub')).toBe(true);
+  });
+
+  // ALAG-38：链接响应判 EPUB；content-type 认不出时看 Content-Disposition（其次 URL）的后缀
+  it('isEpubResponse：content-type 是 application/epub+zip，或类型含糊时文件名后缀是 epub', () => {
+    const url = 'https://books.example.com/download';
+    expect(isEpubResponse('application/epub+zip', null, url)).toBe(true);
+    expect(isEpubResponse('application/epub+zip; charset=binary', null, url)).toBe(true);
+    expect(isEpubResponse('application/octet-stream', 'attachment; filename="book.epub"', url)).toBe(true);
+    expect(isEpubResponse('application/zip', 'attachment; filename="book.epub"', url)).toBe(true);
+    expect(isEpubResponse('', null, 'https://books.example.com/book.epub')).toBe(true);
+    expect(isEpubResponse(null, null, 'https://books.example.com/book.epub?x=1')).toBe(true);
+    expect(isEpubResponse('application/octet-stream', 'attachment; filename="book.pdf"', url)).toBe(false);
+    expect(isEpubResponse('application/pdf', null, url)).toBe(false);
+    expect(isEpubResponse('text/html', null, 'https://books.example.com/book.epub')).toBe(false);
   });
 
   it('原文件名：Content-Disposition 优先 filename*，其次 filename；URL 取路径最后一段并解码', () => {
