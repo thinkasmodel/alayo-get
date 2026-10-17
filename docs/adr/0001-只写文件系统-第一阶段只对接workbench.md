@@ -27,3 +27,7 @@ Get 采集的结果只落成本地剪藏库里的文件，不调用任何 Alayo 
 
 - 剪藏的字段按 Notes clip 的字段设计（`source`、`medium`、ULID），第二阶段接 Notes 时只需要增加一个写入目标。
 - 用户首次使用时，要自己在 Workbench 里把剪藏库加为监控目录。Get 无法知道 Workbench 是否已经纳入了某个剪藏。
+
+## 补注（2026-10-17）
+
+「本轮不启用 offscreen」已被 [ADR-0011](0011-翻译在offscreen文档里做-默认本机翻译.md) 取代：翻译用的 Translator API 在 service worker 里不能用，改在 offscreen 文档里运行。写入通道仍是 FSA，不变。
