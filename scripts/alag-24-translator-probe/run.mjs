@@ -88,11 +88,14 @@ pipeOut.on('data', (d) => {
     } else listeners.forEach((fn) => fn(msg));
   }
 });
-const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+// 每条 CDP 命令都有截止时间；Chrome 退出时让所有在途命令立即失败，避免扩展失去响应时运行器永远挂住。
+const send = (method, params = {}, sessionId, timeoutMs = 60000) => new Promise((resolve, reject) => {
   const id = nextId++;
-  pending.set(id, { resolve, reject });
+  const timer = setTimeout(() => { pending.delete(id); reject(new Error(`CDP timeout ${timeoutMs}ms: ${method}`)); }, timeoutMs);
+  pending.set(id, { resolve: (v) => { clearTimeout(timer); resolve(v); }, reject: (e) => { clearTimeout(timer); reject(e); } });
   pipeIn.write(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }) + '\0');
 });
+proc.once('exit', () => { for (const { reject } of pending.values()) reject(new Error('Chrome exited')); pending.clear(); });
 const evaluate = async (sid, expression) => {
   const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: false }, sid);
   if (r.exceptionDetails) throw new Error('eval: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
