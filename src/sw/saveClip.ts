@@ -3,6 +3,7 @@
 // 依赖全部注入，便于在 node 环境里用 MemoryLibrary 和假 fetch 测试。
 import { HTML_MAX_BYTES, readBodyCapped, readTextCapped } from './fetchBody';
 import { libraryLock, type Lock } from './lock';
+import { mediaCapture } from './route';
 import { saveMediaClip } from './saveMedia';
 import { quoteIndexKey, writeQuoteClip } from './saveQuote';
 import { writeStreamClip } from './saveStream';
@@ -11,7 +12,7 @@ import { buildArticleMarkdown, buildBookmarkMarkdown } from '@/core/document';
 import { clipBaseName, uniqueFileName } from '@/core/filename';
 import { siteFromUrl } from '@/core/frontmatter';
 import { assetPath, extFromContentType, planImages, rewriteImages } from '@/core/images';
-import { DATA_URL_SESSION_LIMIT, isDataUrl, mediaKeyOf } from '@/core/media';
+import { DATA_URL_SESSION_LIMIT, fileNameFromContentDisposition, fileNameFromUrl, isDataUrl, isEpubResponse, mediaKeyOf, mediaKindFromUrl } from '@/core/media';
 import { parseHtmlMeta } from '@/core/meta';
 import { tagSuggestions } from '@/core/tags';
 import type { Library } from '@/io/library';
@@ -516,8 +517,11 @@ async function saveClipLocked(request: PendingSave, deps: SaveDeps, options: Sav
 /**
  * 右键保存链接：service worker 抓目标页（10 秒超时），只解析 text/html 响应。
  * 抓取失败时只记 URL 和链接文字（fetched: false → extract: partial）。
+ * 传了 page（链接所在页）时识别 EPUB（ALAG-38）：URL 后缀或响应头表明是 EPUB → 媒体剪藏，不解析正文。
  */
-export async function captureLink(linkUrl: string, linkText: string, fetchFn: FetchLike): Promise<Capture> {
+export async function captureLink(linkUrl: string, linkText: string, fetchFn: FetchLike, page?: { url: string; title: string }): Promise<Capture> {
+  // EPUB 在 Chrome 里不能当标签页打开（会直接下载），右键链接是唯一入口：URL 已是 .epub 时不必再请求
+  if (page && mediaKindFromUrl(linkUrl) === 'epub') return mediaCapture(page.url, page.title, 'epub', linkUrl);
   const fallbackTitle = linkText.trim() || linkUrl;
   const partial: Capture = {
     url: linkUrl,
@@ -537,6 +541,15 @@ export async function captureLink(linkUrl: string, linkText: string, fetchFn: Fe
   try {
     const res = await fetchFn(linkUrl, { signal: controller.signal });
     if (!res.ok) return partial;
+    if (page && isEpubResponse(res.headers.get('content-type'), res.headers.get('content-disposition'), res.url || linkUrl)) {
+      controller.abort();
+      const capture = mediaCapture(page.url, page.title, 'epub', linkUrl);
+      // 文件名按实际响应取（Content-Disposition 优先，其次重定向后的最终地址）；media.url 仍是原链接（出处与查重）
+      if (capture.media) {
+        capture.media.fileName = fileNameFromContentDisposition(res.headers.get('content-disposition')) || fileNameFromUrl(res.url || linkUrl);
+      }
+      return capture;
+    }
     if (!(res.headers.get('content-type') ?? '').toLowerCase().includes('text/html')) return partial;
     const html = await readTextCapped(res, HTML_MAX_BYTES);
     if (html === null) {

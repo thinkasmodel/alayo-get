@@ -1,10 +1,10 @@
 // 剪藏管线共用的类型。字面量与 tasks/briefs/ALAG-2A.md「协议」段冻结一致，Brief B 依赖。
 
 /** 剪藏的 medium（M1 只用到 web 与 link；x 是 X 专门适配，ALAG-3；其余为 ALAG-4 媒体、流媒体与摘录）。 */
-export type Medium = 'web' | 'link' | 'x' | 'image' | 'audio' | 'video' | 'pdf' | 'quote';
+export type Medium = 'web' | 'link' | 'x' | 'image' | 'audio' | 'video' | 'pdf' | 'epub' | 'quote';
 
-/** 媒体剪藏的类别（ALAG-4）。 */
-export type MediaKind = 'image' | 'audio' | 'video' | 'pdf';
+/** 媒体剪藏的类别（ALAG-4；epub 为 ALAG-38）。 */
+export type MediaKind = 'image' | 'audio' | 'video' | 'pdf' | 'epub';
 
 /** 流媒体剪藏的平台（ALAG-4）；other 是超过 100MB 或拿不到大小的音视频直链。 */
 export type Platform = 'youtube' | 'bilibili' | 'x' | 'baidupan' | '115' | 'quark' | 'other';

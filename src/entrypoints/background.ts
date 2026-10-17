@@ -244,10 +244,10 @@ export default defineBackground(() => {
     await sendToast(target.id, outcome, capture);
   };
 
-  /** 右键链接：平台链接存流媒体剪藏（ALAG-4 §5），其余照旧存书签剪藏。 */
-  const linkCapture = async (linkUrl: string, linkText: string, stream: ParsedStream | null): Promise<Capture> => {
+  /** 右键链接：平台链接存流媒体剪藏（ALAG-4 §5），EPUB 链接存媒体剪藏（ALAG-38），其余照旧存书签剪藏。 */
+  const linkCapture = async (linkUrl: string, linkText: string, stream: ParsedStream | null, page: { url: string; title: string }): Promise<Capture> => {
     const fetchFn = (input: string, init?: RequestInit) => fetch(input, init);
-    if (!stream) return captureLink(linkUrl, linkText, fetchFn);
+    if (!stream) return captureLink(linkUrl, linkText, fetchFn, page);
     switch (stream.platform) {
       case 'youtube':
       case 'bilibili':
@@ -262,8 +262,8 @@ export default defineBackground(() => {
     }
   };
 
-  const saveLink = async (linkUrl: string, linkText: string, tab: Tab | undefined, stream: ParsedStream | null) => {
-    const capture = await linkCapture(linkUrl, linkText, stream);
+  const saveLink = async (linkUrl: string, linkText: string, tab: Tab | undefined, stream: ParsedStream | null, page: { url: string; title: string }) => {
+    const capture = await linkCapture(linkUrl, linkText, stream, page);
     const outcome = await saveCapture(capture, false);
     // 右键保存链接时页面里可能还没有采集脚本，先注入，提示才有接收端；不能注入的页面只靠角标。
     if (tab?.id !== undefined && (await injectCapture(tab.id))) await sendToast(tab.id, outcome, capture);
@@ -459,7 +459,8 @@ export default defineBackground(() => {
     } else if (route.action === 'link') {
       // Chrome 的 OnClickData 没有 linkText（Firefox 才有），取不到就用 URL。
       const linkText = 'linkText' in info && typeof info.linkText === 'string' ? info.linkText : '';
-      saveLink(route.url, linkText, tab, route.stream).catch(logError('右键保存链接失败'));
+      const page = { url: info.pageUrl ?? tab?.url ?? '', title: tab?.title ?? '' };
+      saveLink(route.url, linkText, tab, route.stream, page).catch(logError('右键保存链接失败'));
     } else if (route.action !== 'ignore') {
       saveContextMedia(info, tab).catch(logError('右键保存媒体失败'));
     }

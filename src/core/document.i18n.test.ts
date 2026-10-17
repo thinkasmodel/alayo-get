@@ -70,6 +70,12 @@ describe('英文：文件名、平台名、媒体类别名', () => {
     expect((['image', 'audio', 'video', 'pdf'] as const).map((k) => mediaKindLabel(k))).toEqual(['Image', 'Audio', 'Video', 'PDF']);
     expect((['image', 'audio', 'video', 'pdf'] as const).map((k) => mediaKindLabel(k, true))).toEqual(['image', 'audio', 'video', 'PDF']);
   });
+
+  // ALAG-38：EPUB 的显示名在独立与句中两种写法下都是 EPUB
+  it('EPUB 类别：独立与句中都是 EPUB', () => {
+    expect(mediaKindLabel('epub')).toBe('EPUB');
+    expect(mediaKindLabel('epub', true)).toBe('EPUB');
+  });
 });
 
 describe('中文：句中类别名与独立写法相同', () => {

@@ -93,6 +93,10 @@
     "message": "PDF",
     "description": "Media kind, standalone or at the start of a sentence"
   },
+  "kind_epub": {
+    "message": "EPUB",
+    "description": "Media kind, standalone or at the start of a sentence"
+  },
   "kindInline_image": {
     "message": "image",
     "description": "Media kind in the middle of a sentence"
@@ -107,6 +111,10 @@
   },
   "kindInline_pdf": {
     "message": "PDF",
+    "description": "Media kind in the middle of a sentence"
+  },
+  "kindInline_epub": {
+    "message": "EPUB",
     "description": "Media kind in the middle of a sentence"
   },
   "platform_youtube": {

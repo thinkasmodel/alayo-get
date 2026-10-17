@@ -5,7 +5,7 @@ import { extFromImageMime } from './images';
 import { t, type MessageKey } from '@/shared/i18n';
 import type { MediaKind } from '@/shared/types';
 
-/** 媒体剪藏的大小上限：音视频超过它存直链流媒体剪藏，图片和 PDF 超过它退回书签剪藏。 */
+/** 媒体剪藏的大小上限：音视频超过它存直链流媒体剪藏，图片、PDF 和 EPUB 超过它退回书签剪藏。 */
 export const MEDIA_MAX_BYTES = 100 * 1024 * 1024;
 
 /**
@@ -14,7 +14,7 @@ export const MEDIA_MAX_BYTES = 100 * 1024 * 1024;
  */
 export const DATA_URL_SESSION_LIMIT = 1024 * 1024;
 
-const MEDIA_KINDS: ReadonlySet<string> = new Set(['image', 'audio', 'video', 'pdf']);
+const MEDIA_KINDS: ReadonlySet<string> = new Set(['image', 'audio', 'video', 'pdf', 'epub']);
 
 export function isMediaKind(value: unknown): value is MediaKind {
   return typeof value === 'string' && MEDIA_KINDS.has(value);
@@ -25,9 +25,10 @@ export function mimeOf(contentType: string | null | undefined): string {
   return (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
 }
 
-/** 按 content-type 判类别；不是图片、音频、视频、PDF 返回 null。 */
+/** 按 content-type 判类别；不是图片、音频、视频、PDF、EPUB 返回 null。 */
 export function mediaKindFromContentType(contentType: string | null | undefined): MediaKind | null {
   const mime = mimeOf(contentType);
+  if (mime === 'application/epub+zip') return 'epub';
   if (mime === 'application/pdf' || mime === 'application/x-pdf') return 'pdf';
   if (mime.startsWith('image/')) return 'image';
   if (mime.startsWith('audio/')) return 'audio';
@@ -37,6 +38,7 @@ export function mediaKindFromContentType(contentType: string | null | undefined)
 
 const EXT_KIND: Record<string, MediaKind> = {
   pdf: 'pdf',
+  epub: 'epub',
   jpg: 'image',
   jpeg: 'image',
   png: 'image',
@@ -62,7 +64,7 @@ const EXT_KIND: Record<string, MediaKind> = {
 };
 
 /**
- * 文档本身是媒体文件（图片、音频、视频、PDF）：采集脚本据此跳过正文抽取，交给后台按媒体剪藏处理。
+ * 文档本身是媒体文件（图片、音频、视频、PDF、EPUB）：采集脚本据此跳过正文抽取，交给后台按媒体剪藏处理。
  * text/plain、XML 等其他非 HTML 文档不算，照旧走通用抽取。
  */
 export function isMediaDocument(contentType: string | null | undefined): boolean {
@@ -81,10 +83,28 @@ export function mediaKindFromUrl(url: string): MediaKind | null {
   return ext ? (EXT_KIND[ext] ?? null) : null;
 }
 
-const KIND_LABEL: Record<MediaKind, MessageKey> = { image: 'kind_image', audio: 'kind_audio', video: 'kind_video', pdf: 'kind_pdf' };
-const KIND_LABEL_INLINE: Record<MediaKind, MessageKey> = { image: 'kindInline_image', audio: 'kindInline_audio', video: 'kindInline_video', pdf: 'kindInline_pdf' };
+/** 不能从 content-type 认出 EPUB 的类型：此时看文件名后缀。 */
+const AMBIGUOUS_EPUB_TYPES: ReadonlySet<string> = new Set([
+  '',
+  'application/octet-stream',
+  'binary/octet-stream',
+  'application/zip',
+  'application/x-zip-compressed',
+]);
 
-/** 类别的显示名：图片、音频、视频、PDF。inline 为句中用的写法（英文小写：image、audio、video、PDF），缺省为独立或句首用的写法。 */
+/** 链接响应是不是 EPUB（ALAG-38）：content-type 是 application/epub+zip；或 content-type 为空、application/octet-stream、binary/octet-stream、application/zip、application/x-zip-compressed 时，Content-Disposition 文件名（没有则取 URL 文件名）的扩展名是 epub。 */
+export function isEpubResponse(contentType: string | null | undefined, contentDisposition: string | null | undefined, url: string): boolean {
+  const mime = mimeOf(contentType);
+  if (mime === 'application/epub+zip') return true;
+  if (!AMBIGUOUS_EPUB_TYPES.has(mime)) return false;
+  const fileName = fileNameFromContentDisposition(contentDisposition) || fileNameFromUrl(url);
+  return splitExt(fileName).ext === 'epub';
+}
+
+const KIND_LABEL: Record<MediaKind, MessageKey> = { image: 'kind_image', audio: 'kind_audio', video: 'kind_video', pdf: 'kind_pdf', epub: 'kind_epub' };
+const KIND_LABEL_INLINE: Record<MediaKind, MessageKey> = { image: 'kindInline_image', audio: 'kindInline_audio', video: 'kindInline_video', pdf: 'kindInline_pdf', epub: 'kindInline_epub' };
+
+/** 类别的显示名：图片、音频、视频、PDF、EPUB。inline 为句中用的写法（英文小写：image、audio、video、PDF、EPUB），缺省为独立或句首用的写法。 */
 export function mediaKindLabel(kind: MediaKind, inline = false): string {
   return t((inline ? KIND_LABEL_INLINE : KIND_LABEL)[kind]);
 }
@@ -142,6 +162,7 @@ export function splitExt(name: string): { stem: string; ext: string } {
 const MEDIA_TYPE_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
   'application/x-pdf': 'pdf',
+  'application/epub+zip': 'epub',
   'audio/mpeg': 'mp3',
   'audio/mp3': 'mp3',
   'audio/mp4': 'm4a',
@@ -185,6 +206,7 @@ export const MEDIA_SAFE_EXTS: ReadonlySet<string> = new Set([
   'mov',
   'ogv',
   'pdf',
+  'epub',
 ]);
 
 /**
