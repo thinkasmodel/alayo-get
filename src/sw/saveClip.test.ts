@@ -523,6 +523,43 @@ describe('captureLink', () => {
     });
   });
 
+  it('重定向到 .epub 且没有 Content-Disposition：media.fileName 取最终地址的文件名', async () => {
+    const page = { url: 'https://reader.example.com/shelf', title: '书架' };
+    const link = 'https://books.example.com/download?id=1';
+    // 现有 fakeFetch 不能设置 Response.url，这里手写桩
+    const fn: FetchLike = async () => {
+      const res = new Response('epub-bytes', { headers: { 'content-type': 'application/octet-stream' } });
+      Object.defineProperty(res, 'url', { value: 'https://books.example.com/files/book.epub' });
+      return res;
+    };
+    const capture = await captureLink(link, '链接文字', fn, page);
+    expect(capture).toMatchObject({
+      kind: 'media',
+      url: page.url,
+      title: page.title,
+      media: { kind: 'epub', url: link, fileName: 'book.epub' },
+    });
+  });
+
+  it('响应带 Content-Disposition：media.fileName 用其中的文件名', async () => {
+    const page = { url: 'https://reader.example.com/shelf', title: '书架' };
+    const link = 'https://books.example.com/download?id=1';
+    const fn: FetchLike = async () =>
+      new Response('epub-bytes', {
+        headers: {
+          'content-type': 'application/octet-stream',
+          'content-disposition': 'attachment; filename="Real Title.epub"',
+        },
+      });
+    const capture = await captureLink(link, '链接文字', fn, page);
+    expect(capture).toMatchObject({
+      kind: 'media',
+      url: page.url,
+      title: page.title,
+      media: { kind: 'epub', url: link, fileName: 'Real Title.epub' },
+    });
+  });
+
   it('传了 page 但响应是 PDF：仍是书签剪藏，只有 EPUB 转媒体剪藏', async () => {
     const page = { url: 'https://reader.example.com/shelf', title: '书架' };
     const link = 'https://example.com/paper.pdf';

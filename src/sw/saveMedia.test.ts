@@ -287,6 +287,20 @@ describe('媒体剪藏：EPUB', () => {
     expect(progress.find((p) => p.progress.phase === 'download')?.progress).toEqual({ phase: 'download', done: 0, kind: 'epub' });
   });
 
+  it('media.fileName 是 book.epub（响应认不出类型、无 Content-Disposition）：落盘文件以 .epub 结尾', async () => {
+    const link = 'https://books.example.com/download?id=1';
+    const capture = mediaCapture(PAGE, '一本书', 'epub', link);
+    if (capture.media) capture.media.fileName = 'book.epub';
+    const { fn } = fakeFetch({ [link]: { headers: { 'content-type': 'application/octet-stream' }, body: BOOK_BYTES } });
+    const outcome = await save(capture, fn);
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    expect(outcome.clip.file).toBe('一本书 - book.epub');
+    expect(library.text('一本书 - book.epub')).toBe('EPUB-bytes');
+    const meta = JSON.parse(library.text(`.meta/${ID1}.json`) ?? '{}') as Record<string, unknown>;
+    expect(meta).toMatchObject({ medium: 'epub', media_url: link, bytes: BOOK_BYTES.byteLength });
+  });
+
   it('流超过 100MB → 中止下载，存成书签剪藏（extract partial），没有残留的半截文件', async () => {
     const stream = repeatedStream(new Uint8Array(MB), 101);
     const { fn } = fakeFetch({ [BOOK]: { headers: { 'content-type': 'application/epub+zip' }, body: stream.make } });

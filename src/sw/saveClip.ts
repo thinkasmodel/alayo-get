@@ -12,7 +12,7 @@ import { buildArticleMarkdown, buildBookmarkMarkdown } from '@/core/document';
 import { clipBaseName, uniqueFileName } from '@/core/filename';
 import { siteFromUrl } from '@/core/frontmatter';
 import { assetPath, extFromContentType, planImages, rewriteImages } from '@/core/images';
-import { DATA_URL_SESSION_LIMIT, isDataUrl, isEpubResponse, mediaKeyOf, mediaKindFromUrl } from '@/core/media';
+import { DATA_URL_SESSION_LIMIT, fileNameFromContentDisposition, fileNameFromUrl, isDataUrl, isEpubResponse, mediaKeyOf, mediaKindFromUrl } from '@/core/media';
 import { parseHtmlMeta } from '@/core/meta';
 import { tagSuggestions } from '@/core/tags';
 import type { Library } from '@/io/library';
@@ -543,7 +543,12 @@ export async function captureLink(linkUrl: string, linkText: string, fetchFn: Fe
     if (!res.ok) return partial;
     if (page && isEpubResponse(res.headers.get('content-type'), res.headers.get('content-disposition'), res.url || linkUrl)) {
       controller.abort();
-      return mediaCapture(page.url, page.title, 'epub', linkUrl);
+      const capture = mediaCapture(page.url, page.title, 'epub', linkUrl);
+      // 文件名按实际响应取（Content-Disposition 优先，其次重定向后的最终地址）；media.url 仍是原链接（出处与查重）
+      if (capture.media) {
+        capture.media.fileName = fileNameFromContentDisposition(res.headers.get('content-disposition')) || fileNameFromUrl(res.url || linkUrl);
+      }
+      return capture;
     }
     if (!(res.headers.get('content-type') ?? '').toLowerCase().includes('text/html')) return partial;
     const html = await readTextCapped(res, HTML_MAX_BYTES);
