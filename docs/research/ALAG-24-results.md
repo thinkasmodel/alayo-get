@@ -12,7 +12,7 @@ ADR-0011 成立需要同时满足 **A1、A2、A3、A4**；任一不满足就回�
 |---|---|---|---|
 | A1 | 语言模型已在本机时，offscreen 文档里 `Translator.create()` 与 `translate()` 能成功（offscreen 文档永远没有用户手势） | 重议：翻译不能在后台跑，保存时翻译要换方案 | **满足** |
 | A2 | 模型下载后断网仍能翻译 | 重议：隐私承诺「不上传内容」站不住 | **满足** |
-| A3 | 翻译阶段没有任何网络请求（只允许下载模型阶段有） | 重议：同上 | **满足**（见第 5 节的口径） |
+| A3 | 翻译阶段没有任何网络请求（只允许下载模型阶段有） | 重议：同上 | **满足**：翻译 API 本身不发请求；同时段的请求全是 Chrome 组件更新与常规后台流量，内容是静态组件包 |
 | A4 | zh-Hans ↔ en 两个方向都可用 | 重议：主力语言对不可用，默认本机翻译没有意义 | **满足** |
 | B1 | 模型未下载时，offscreen 文档能否触发下载；不能的话，扩展页面在用户点击后能否下载 | 只影响 ALAG-25：首次下载要放到面板或选项页里由用户点一下 | offscreen 不能；扩展页面点击后能 |
 | B2 | 扩展自有页面、内容脚本能否直接用；页面 `Permissions-Policy` 能否挡住内容脚本 | 只影响「选中翻译」走哪条路 | 扩展页面能；内容脚本实际不能用；能挡住 |
@@ -26,7 +26,7 @@ ADR-0011 成立需要同时满足 **A1、A2、A3、A4**；任一不满足就回�
 - macOS 27.0.1（26A434），Apple M4 Max，128 GB 内存。网络经本机系统代理 `127.0.0.1:6152` 出去。
 - Google Chrome 稳定版 **155.0.8059.80**（Official Build，arm64），即本机安装的 `/Applications/Google Chrome.app`。不是 Chrome for Testing。
 - 每轮用一个全新的独立 profile（`--user-data-dir` 指向会话临时目录），不碰日常 profile。
-- 运行方式：`run.mjs` 以 `--remote-debugging-pipe --enable-unsafe-extension-debugging` 启动 Chrome，用 CDP `Extensions.loadUnpacked` 装探针扩展（品牌版 Chrome 已不支持 `--load-extension`）。窗口正常显示，不是 headless。
+- 运行方式：`run.mjs` 以 `--remote-debugging-pipe --enable-unsafe-extension-debugging` 启动 Chrome，用 CDP `Extensions.loadUnpacked` 装探针扩展（没有用 `--load-extension`）。窗口正常显示，不是 headless。
 - 用户手势的控制：运行器的所有 `Runtime.evaluate` 都显式传 `userGesture: false`；需要手势的一步用 CDP `Input.dispatchMouseEvent` 真实点击扩展页面上的按钮。每次调用都记录了 `navigator.userActivation`，offscreen 文档里始终是 `isActive:false, hasBeenActive:false`。
 - offscreen 文档用 `reasons: ['DOM_PARSER']` 创建。Chrome 不校验理由与用途是否相符，但商店审核会看；ALAG-25 要选一个说得通的理由并写好 justification。
 - 网络记录：全程 `--log-net-log`（默认采集级别，含 URL），按运行器打的阶段标记切分（`netlog.mjs`）。
@@ -47,6 +47,7 @@ ADR-0011 成立需要同时满足 **A1、A2、A3、A4**；任一不满足就回�
 | 内容脚本（普通网页） | 是 | 失败：见下 |
 | 内容脚本（网页设了 `Permissions-Policy: translator=(), language-detector=()`） | 是 | 失败：`NotAllowedError: Access denied because the Permission Policy is not enabled.`，availability 直接报 `unavailable`，语言检测同样被拒 |
 
+- **offscreen 无手势可用不依赖页面刚创建过。** 断网复测是重新启动的 Chrome，整个会话里没有打开过扩展页面、没有任何点击，offscreen 照样创建翻译器并译出；所以 A1 成立靠的是模型已在本机，不是同一进程里页面刚创建过翻译器。
 - **service worker 能用，与官方文档不符。** 文档写 "The Translator API isn't available in Web Workers"，规范也只暴露给 Window；但 Chrome 155 的扩展 service worker 里能用。只测了 155，旧版本未知，不能据此改架构。
 - **Worker 里调用会卡死整个扩展进程。** 第 2 轮只在 Worker 里检查 `typeof Translator`、不调用，后续一切正常；第 4、6 轮实际调用后，offscreen 和 service worker 都失去响应，因为它们与 Worker 同属扩展进程。翻译层不能放进 Worker。
 - **内容脚本拿不到已下载的模型。** 内容脚本按所在网页的来源调用 API。模型已在本机时，这个来源看到的 `en>zh` 仍是 `downloadable`，create 报 `NotAllowedError: Requires a user gesture when availability is "downloading" or "downloadable".`。这符合文档里「按语言对隐藏下载状态以保护隐私」的说法。所以「选中翻译」要把文字发给扩展自己的上下文去翻，不能在内容脚本里直接调。
@@ -111,7 +112,7 @@ ADR-0011 成立需要同时满足 **A1、A2、A3、A4**；任一不满足就回�
 
 ## 7. 最低 Chrome 版本（B6）
 
-官方文档（developer.chrome.com/docs/ai/translator-api 与 language-detection）的浏览器支持写 Chrome 138；chromestatus 的状态字段看起来没更新（仍写 Origin trial），以文档为准。本次只测了 155，**138–154 没有实测**。建议 manifest 设 `minimum_chrome_version: "138"`，并在代码里先检测 `'Translator' in self`，没有就把翻译功能灰掉，不报错。
+官方文档（developer.chrome.com/docs/ai/translator-api 与 language-detection）的浏览器支持写 Chrome 138；chromestatus 的状态字段看起来没更新（仍写 Origin trial），以文档为准。本次只测了 155，**138–154 没有实测**。manifest 的 `minimum_chrome_version` 管的是整个扩展能不能安装，不只是翻译；现在 manifest 没有设下限。建议不为翻译抬高下限：代码里先检测 `'Translator' in self`，没有就把翻译功能灰掉并说明原因，采集等其他功能照常。只有以后决定所有用户都必须能翻译时，才把下限设到 138。
 
 ## 对后续票的影响
 
