@@ -2,7 +2,7 @@
 
 日期：2026-10-18（Asia/Shanghai；下文时间为 UTC）。起点 `84c7835`。本票是一次性技术验证，决定 [ADR-0011](../adr/0011-翻译在offscreen文档里做-默认本机翻译.md)「翻译在 offscreen 文档里做，默认用浏览器本机翻译」是否成立。探针代码在 `scripts/alag-24-translator-probe/`，可在新版 Chrome 上重跑。
 
-**结论：A1–A4 全部满足，ADR-0011 成立，不重议。** 另有四条发现要带进 ALAG-25 的设计：首次下载必须由用户在扩展页面里点一下；全新环境里第一次创建翻译器偶发失败，要重试；内容脚本不能直接翻译（按网页来源隐藏下载状态，网页还能用 Permissions-Policy 禁用）；绝不能在 Worker 里调用翻译 API（会卡死整个扩展进程）。
+**结论：A1–A4 全部满足，ADR-0011 成立，不重议。** 另有四条发现要带进 ALAG-25 的设计：首次下载必须由用户在扩展页面里点一下；全新环境里第一次创建翻译器偶发失败，要重试；内容脚本不能直接翻译（按网页来源隐藏下载状态，网页还能用 Permissions-Policy 禁用）；不能在 Worker 里调用翻译 API（调用不返回，之后 service worker 也不再响应）。
 
 ## 判定标准（实测前写定）
 
@@ -34,7 +34,7 @@ ADR-0011 成立需要同时满足 **A1、A2、A3、A4**；任一不满足就回�
 - 长文：英文取 *Pride and Prejudice* 开头 123 段，约 5000 词、27,572 字符（Project Gutenberg #1342）；中文取鲁迅《阿Q正传》开头 46 段，5,146 字（维基文库简体转换）。两者均为公有领域，原文不入库。
 - 证据文件（netlog、各轮 JSON、进度日志）在会话临时目录，未入库；本文引用的数字都来自正式轮（profile6）与其断网复测，另注明的除外。
 
-共跑了 7 个全新 profile。前 5 轮各暴露出一处探针问题（`zh-Hans` 写法、Worker 卡死拖住运行器等），修正后第 6 轮完整跑通，断网复测用同一个 profile。第 7 轮是 codex review 修正运行器后的复跑，主要结果与第 6 轮一致（21 个语言对译出、长文两遍零失败、内容脚本两种情况都被拒、Worker 卡死后 offscreen 与 SW 都无响应）。前几轮的数据只用于第 3 节「首次创建偶发失败」的统计。
+共跑了 7 个全新 profile。前 5 轮各暴露出一处探针问题（`zh-Hans` 写法、Worker 卡死拖住运行器等），修正后第 6 轮完整跑通，断网复测用同一个 profile。第 7 轮是 codex review 修正运行器后的复跑，主要结果与第 6 轮一致（21 个语言对译出、长文两遍零失败、内容脚本两种情况都被拒、Worker 调用不返回、之后 SW 无响应）。前几轮的数据只用于第 3 节「首次创建偶发失败」的统计。
 
 ## 1. 各上下文能否用（A1、B2）
 
@@ -43,13 +43,13 @@ ADR-0011 成立需要同时满足 **A1、A2、A3、A4**；任一不满足就回�
 | offscreen 文档 | 是 | **成功**：用手势创建过的 21 个语言对全部译出，单句 6–30 ms |
 | 扩展自有页面 | 是 | 成功（下载也在这里做，见第 2 节） |
 | service worker | 是 | **成功**：availability → create → translate 共约 6 ms，输出「图书馆早上九点开放，阅览室在午夜前一小时关闭。」 |
-| offscreen 里开的专用 Worker | 是 | **卡死**：调用后 120 秒没有返回，之后 offscreen 文档与 service worker 都不再响应（`1 + 1` 也超时），只能重启扩展 |
+| offscreen 里开的专用 Worker | 是 | **调用不返回**：60–120 秒内没有结果；之后 service worker 不再响应（`1 + 1` 超时），offscreen 文档的调试会话断开 |
 | 内容脚本（普通网页） | 是 | 失败：见下 |
 | 内容脚本（网页设了 `Permissions-Policy: translator=(), language-detector=()`） | 是 | 失败：`NotAllowedError: Access denied because the Permission Policy is not enabled.`，availability 直接报 `unavailable`，语言检测同样被拒 |
 
 - **offscreen 无手势可用不依赖页面刚创建过。** 断网复测是重新启动的 Chrome，整个会话里没有打开过扩展页面、没有任何点击，offscreen 照样创建翻译器并译出；所以 A1 成立靠的是模型已在本机，不是同一进程里页面刚创建过翻译器。
 - **service worker 能用，与官方文档不符。** 文档写 "The Translator API isn't available in Web Workers"，规范也只暴露给 Window；但 Chrome 155 的扩展 service worker 里能用。只测了 155，旧版本未知，不能据此改架构。
-- **Worker 里调用会卡死整个扩展进程。** 第 2 轮只在 Worker 里检查 `typeof Translator`、不调用，后续一切正常；第 4、6 轮实际调用后，offscreen 和 service worker 都失去响应，因为它们与 Worker 同属扩展进程。翻译层不能放进 Worker。
+- **Worker 里调用会让扩展失去响应。** 第 2 轮只在 Worker 里检查 `typeof Translator`、不调用，后续一切正常；第 4、6、7、8 轮实际调用后，调用本身不返回，之后 service worker 对 `1 + 1` 也超时。第 8 轮在调用前直接连上 offscreen 文档自己的调试目标，调用前 offscreen 与 SW 都能执行 `1 + 1`；调用后 offscreen 的调试会话已断开（`Session with given id not found`），是崩溃还是被关闭没有查明。能确定的是：Worker 里调用后，扩展的后台上下文都用不了了。翻译层不能放进 Worker。
 - **内容脚本拿不到已下载的模型。** 内容脚本按所在网页的来源调用 API。模型已在本机时，这个来源看到的 `en>zh` 仍是 `downloadable`，create 报 `NotAllowedError: Requires a user gesture when availability is "downloading" or "downloadable".`。这符合文档里「按语言对隐藏下载状态以保护隐私」的说法。所以「选中翻译」要把文字发给扩展自己的上下文去翻，不能在内容脚本里直接调。
 
 ## 2. 用户手势与下载（B1）

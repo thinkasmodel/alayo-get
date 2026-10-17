@@ -291,12 +291,21 @@ try {
   if (MODE === 'online') {
     // H：Worker 与 service worker 里实际调用（放最后：首轮发现 offscreen 里 Worker 调用后 offscreen 不再响应）。
     mark('H-workers-start');
+    // 直接连 offscreen 文档自己的 CDP target，存活检查不经过 SW 转发（codex R3）。
+    const offTarget = await waitTarget((t) => t.url === `chrome-extension://${extId}/offscreen.html`, 10000);
+    results.offscreenTargetType = offTarget.type;
+    const offSid = await attach(offTarget.targetId);
+    const alive = (sid, what) => withTimeout(evaluate(sid, '1 + 1'), 10000, what);
+    results.aliveBeforeWorker = { offscreen: await alive(offSid, 'offscreen direct'), sw: await alive(swSid, 'sw') };
+    log('alive before worker', JSON.stringify(results.aliveBeforeWorker));
     results.swTranslate = await withTimeout(evaluate(swSid, `swTranslate('en', 'zh', ${JSON.stringify(SAMPLES.en)})`), 90000, 'sw translate');
     log('sw translate', JSON.stringify(results.swTranslate).slice(0, 400));
     results.workerTranslate = await withTimeout(off('off:worker-translate', 'worker', { s: 'en', t: 'zh', text: SAMPLES.en }, 90000), 120000, 'worker translate');
     log('worker translate', JSON.stringify(results.workerTranslate).slice(0, 400));
     results.offscreenAfterWorker = await withTimeout(off('off:env-after-worker', 'env', {}, 20000), 30000, 'offscreen after worker');
     results.swAliveAfterWorker = await withTimeout(evaluate(swSid, '1 + 1'), 10000, 'sw alive');
+    results.offscreenDirectAfterWorker = await alive(offSid, 'offscreen direct');
+    log('offscreen direct after worker', JSON.stringify(results.offscreenDirectAfterWorker));
     log('after worker: offscreen', JSON.stringify(results.offscreenAfterWorker).slice(0, 200), 'sw', JSON.stringify(results.swAliveAfterWorker));
     save();
     await snap();

@@ -31,5 +31,5 @@
   - 首次下载某语言包必须有用户手势，offscreen 文档没有手势，只能由用户在扩展页面（面板、选项页、阅读器）里点一下触发；下载完以后 offscreen 不需要手势。
   - 全新环境里第一次创建翻译器偶发 `NotSupportedError`（7 次里 2 次），要当成可重试错误。
   - 内容脚本按网页来源调用，看不到扩展已下载的模型，网页还能用 Permissions-Policy 禁用，所以选中翻译要把文字交给 offscreen 翻。
-  - 不能在 Worker 里调用翻译 API：会卡死整个扩展进程。
+  - 不能在 Worker 里调用翻译 API：调用不返回，之后 service worker 不再响应、offscreen 文档的调试会话断开。
   - Chrome 155 的扩展 service worker 实测能直接翻译，与上文「service worker 也就用不了」的文档说法不符；只测了 155，暂不据此去掉 offscreen。
