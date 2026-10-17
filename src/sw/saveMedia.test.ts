@@ -302,7 +302,7 @@ describe('媒体剪藏：EPUB', () => {
   });
 
   it('流超过 100MB → 中止下载，存成书签剪藏（extract partial），没有残留的半截文件', async () => {
-    const stream = repeatedStream(new Uint8Array(MB), 101);
+    const stream = repeatedStream(new Uint8Array(MB), 200);
     const { fn } = fakeFetch({ [BOOK]: { headers: { 'content-type': 'application/epub+zip' }, body: stream.make } });
     const outcome = await save(mediaCapture(PAGE, '一本很大的书', 'epub', BOOK), fn);
     expect(outcome.state).toBe('saved');
