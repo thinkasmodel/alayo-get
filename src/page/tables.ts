@@ -99,20 +99,20 @@ function gridColspan(cell: Element): number {
   return Math.min(value, 1000);
 }
 
-/** 网格里的 rowspan：0 跨到行组末尾，>1 压到行组剩余行数，非法或负数按 1。 */
-function gridRowspan(cell: Element, rowIndex: number, rows: HTMLElement[]): number {
+/** 网格里的 rowspan：缺省、非法、负数或 1 直接按 1；0 跨到行组末尾，>1 压到行组剩余行数。 */
+function gridRowspan(cell: Element, rowIndex: number, groupEnds: number[]): number {
   const raw = cell.getAttribute('rowspan');
   if (raw === null) return 1;
   const value = Number.parseInt(raw, 10);
-  if (!Number.isFinite(value) || value < 0) return 1;
-  const remaining = rowspanLimit(rowIndex, rows);
+  if (!Number.isFinite(value) || value < 0 || value === 1) return 1;
+  const remaining = rowspanLimit(rowIndex, groupEnds);
   if (value === 0) return remaining;
-  if (value === 1) return 1;
   return Math.min(value, remaining);
 }
 
 /** 按 HTML 表格模型逐行放格子：跳过上面行跨行占住的列位，再占 colspan 列、rowspan 行。 */
 function buildTableGrid(rows: HTMLElement[]): TableGrid {
+  const groupEnds = rowGroupEnds(rows);
   const occupied: boolean[][] = Array.from({ length: rows.length }, () => []);
   const incoming = new Array<boolean>(rows.length).fill(false);
   let columns = 0;
@@ -124,7 +124,7 @@ function buildTableGrid(rows: HTMLElement[]): TableGrid {
     for (const cell of rowCells(row)) {
       while (slots[col]) col += 1;
       const colspan = gridColspan(cell);
-      const rowspan = gridRowspan(cell, rowIndex, rows);
+      const rowspan = gridRowspan(cell, rowIndex, groupEnds);
       for (let dr = 0; dr < rowspan && rowIndex + dr < rows.length; dr += 1) {
         const target = occupied[rowIndex + dr];
         if (!target) continue;
@@ -321,31 +321,42 @@ function singleLineHtml(html: string): string {
   return withPre.replace(/[\r\n]+/g, ' ');
 }
 
-/** 跨行上限：从本行到原行组最后一个主体行（没有行组时整张表）的行数。 */
-function rowspanLimit(rowIndex: number, bodyRows: HTMLElement[]): number {
-  const group = bodyRows[rowIndex]?.parentElement;
-  const inSection = !!group && SECTION_TAGS.has(group.tagName);
-  let last = rowIndex;
-  for (let i = rowIndex; i < bodyRows.length; i += 1) {
-    if (!inSection || bodyRows[i]?.parentElement === group) last = i;
+/** 每行所在行组的最后一行下标：同一行组父元素为同组，父元素不是行组时整张表为一组。从后往前一遍。 */
+function rowGroupEnds(rows: HTMLElement[]): number[] {
+  const ends = new Array<number>(rows.length).fill(rows.length - 1);
+  let groupEnd = rows.length - 1;
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const parent = rows[i]?.parentElement;
+    if (!parent || !SECTION_TAGS.has(parent.tagName)) {
+      ends[i] = rows.length - 1;
+      continue;
+    }
+    if (i === rows.length - 1 || rows[i + 1]?.parentElement !== parent) groupEnd = i;
+    ends[i] = groupEnd;
   }
-  return last - rowIndex + 1;
+  return ends;
+}
+
+/** 行组的跨行上限：行组最后一行下标减本行下标再加一（查表，不再扫描）。 */
+function rowspanLimit(rowIndex: number, groupEnds: number[]): number {
+  return (groupEnds[rowIndex] ?? rowIndex) - rowIndex + 1;
 }
 
 /** 主体行 → 清理过的单行 HTML：新建 table，只放主体行，不保留原来的 thead/tbody/tfoot。 */
 function htmlTable(table: HTMLElement, bodyRows: HTMLElement[]): string {
   const shell = table.ownerDocument.createElement('table');
+  const groupEnds = rowGroupEnds(bodyRows);
   bodyRows.forEach((row, rowIndex) => {
     const clone = row.cloneNode(true) as HTMLElement;
     const cells = rowCells(row);
     const clonedCells = rowCells(clone);
-    const limit = rowspanLimit(rowIndex, bodyRows);
     cells.forEach((cell, cellIndex) => {
       const cloned = clonedCells[cellIndex];
       if (!cloned) return;
       const declared = rowspanOf(cell);
       if (declared === 1) return;
       // 0 表示跨到行组末尾，按上限算；超过上限的显式值也压到本行组末尾。
+      const limit = rowspanLimit(rowIndex, groupEnds);
       const resolved = Math.min(declared === 0 ? Number.POSITIVE_INFINITY : declared, limit);
       if (resolved <= 1) cloned.removeAttribute('rowspan');
       else cloned.setAttribute('rowspan', String(resolved));

@@ -159,3 +159,20 @@ describe('addTableRules：跨行占位计入列数与通栏判定', () => {
     expect(md).toContain('| C | D |');
   });
 });
+
+describe('addTableRules：行组边界预计算', () => {
+  it('2000 行×4 列、每格 rowspan=1，首格 rowspan=2：输出单行 HTML 且保留 rowspan=2', () => {
+    const parts = ['<table><tr><td rowspan="2">A</td>'];
+    for (let col = 1; col < 4; col += 1) parts.push(`<td rowspan="1">r0c${col}</td>`);
+    parts.push('</tr>');
+    for (let row = 1; row < 2000; row += 1) {
+      parts.push('<tr>');
+      for (let col = 0; col < 4; col += 1) parts.push(`<td rowspan="1">r${row}c${col}</td>`);
+      parts.push('</tr>');
+    }
+    parts.push('</table>');
+    const md = turndown().turndown(parts.join(''));
+    expect(md).not.toContain('\n');
+    expect(md).toContain('<td rowspan="2">A</td>');
+  });
+});

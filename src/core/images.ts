@@ -48,8 +48,7 @@ function isHtmlTableLine(line: string): boolean {
   return HTML_TABLE_START.test(content) && HTML_TABLE_END.test(content);
 }
 
-const HTML_IMG_TAG = /<img\b[^>]*>/gi;
-const HTML_SRC_ATTRIBUTE = /(?:^|\s)src\s*=\s*"([^"]*)"/i;
+const HTML_IMG_TAG = /<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
 const NAMED_ENTITIES: Record<string, string> = { amp: '&', quot: '"', lt: '<', gt: '>', nbsp: '\u00a0' };
 
 /** 属性值里的 HTML 实体解码（至少覆盖图片地址会出现的命名实体与数字引用）。 */
@@ -66,18 +65,65 @@ function decodeHtmlAttribute(value: string): string {
   });
 }
 
-/** 单行 HTML 表格里的图片按 `<img src="…">` 认；属性值范围指向引号内原文。 */
+interface AttributeRange {
+  start: number;
+  end: number;
+  raw: string;
+}
+
+/**
+ * 在 `<img …>` 标签文本里按属性逐个扫描，找第一个名字为 `src` 的属性。
+ * 属性值里的 `src=` 文字不会被当成属性；支持双引号、单引号和不带引号的值。
+ */
+function findSrcAttribute(tag: string): AttributeRange | null {
+  let i = 4;
+  while (i < tag.length) {
+    while (i < tag.length && /\s/.test(tag[i] ?? '')) i += 1;
+    if (i >= tag.length || tag[i] === '>') break;
+    if (tag[i] === '/') {
+      i += 1;
+      continue;
+    }
+    const nameStart = i;
+    while (i < tag.length && !/[\s"'=<>/]/.test(tag[i] ?? '')) i += 1;
+    if (i === nameStart) {
+      i += 1;
+      continue;
+    }
+    const name = tag.slice(nameStart, i).toLowerCase();
+    while (i < tag.length && /\s/.test(tag[i] ?? '')) i += 1;
+    let valueStart = i;
+    let valueEnd = i;
+    if (tag[i] === '=') {
+      i += 1;
+      while (i < tag.length && /\s/.test(tag[i] ?? '')) i += 1;
+      const quote = tag[i];
+      if (quote === '"' || quote === "'") {
+        i += 1;
+        valueStart = i;
+        while (i < tag.length && tag[i] !== quote) i += 1;
+        valueEnd = i;
+        if (i < tag.length) i += 1;
+      } else {
+        valueStart = i;
+        while (i < tag.length && !/[\s>]/.test(tag[i] ?? '')) i += 1;
+        valueEnd = i;
+      }
+    }
+    if (name === 'src') return { start: valueStart, end: valueEnd, raw: tag.slice(valueStart, valueEnd) };
+  }
+  return null;
+}
+
+/** 单行 HTML 表格里的图片按 `<img src=…>` 认；属性值范围指向值的原文（不含引号）。 */
 function findHtmlTableImages(line: string, lineStart: number, refs: ImageRef[]): void {
   HTML_IMG_TAG.lastIndex = 0;
   for (let match = HTML_IMG_TAG.exec(line); match !== null; match = HTML_IMG_TAG.exec(line)) {
     const tag = match[0];
-    const src = HTML_SRC_ATTRIBUTE.exec(tag);
+    const src = findSrcAttribute(tag);
     if (!src) continue;
-    const quote = src[0].indexOf('"');
-    if (quote === -1) continue;
-    const raw = src[1] ?? '';
-    const start = lineStart + match.index + src.index + quote + 1;
-    refs.push({ url: decodeHtmlAttribute(raw), start, end: start + raw.length });
+    const start = lineStart + match.index + src.start;
+    refs.push({ url: decodeHtmlAttribute(src.raw), start, end: start + src.raw.length });
   }
 }
 

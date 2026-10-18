@@ -104,6 +104,22 @@ describe('HTML 表格行里的图片（单行 HTML）', () => {
     expect(planImages('- ![x](https://a.example/m.png)')).toEqual([{ url: 'https://a.example/m.png', index: 1 }]);
   });
 
+  it('属性值里的 src= 文字不会被当成 src 属性', () => {
+    const line = '<table><tr><td><img alt="Example src=" src="https://img.example.com/photo.png"></td></tr></table>';
+    expect(planImages(line)).toEqual([{ url: 'https://img.example.com/photo.png', index: 1 }]);
+    expect(rewriteImages(line, new Map([['https://img.example.com/photo.png', assetPath('01JTBL', 4, 'png')]]))).toBe(
+      '<table><tr><td><img alt="Example src=" src=".assets/01JTBL/4.png"></td></tr></table>',
+    );
+  });
+
+  it('属性值里的 > 不会提前结束 img 标签', () => {
+    const line = '<table><tr><td><img alt="a>b" src="https://img.example.com/x.png"></td></tr></table>';
+    expect(planImages(line)).toEqual([{ url: 'https://img.example.com/x.png', index: 1 }]);
+    expect(rewriteImages(line, new Map([['https://img.example.com/x.png', assetPath('01JTBL', 5, 'png')]]))).toBe(
+      '<table><tr><td><img alt="a>b" src=".assets/01JTBL/5.png"></td></tr></table>',
+    );
+  });
+
   it('命名实体与十进制/十六进制数字引用都解码，改写范围指向引号内原文', () => {
     const line = '<table><tr><td><img src="https://a.example/i.png?q=&quot;hi&quot;&amp;lt=&#33;&#x21;" alt=""></td></tr></table>';
     const url = 'https://a.example/i.png?q="hi"&lt=!!';
