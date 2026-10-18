@@ -78,7 +78,8 @@ export type RuntimeMessage = LibraryGrantedMessage | OpenOptionsMessage | ToastA
 export const PANEL_PORT = 'panel';
 
 export type PanelToSw =
-  | { type: 'start'; tabId: number }
+  /** translateTo：保存后翻译成的目标语言（ALAG-26）；不传表示不翻译。 */
+  | { type: 'start'; tabId: number; translateTo?: string }
   | { type: 'snapshot' }
   /** baseline：面板表单所依据的 state 的基线号（ALAG-20）；与 service worker 当前基线不同的旧表单 draft 被丢弃。 */
   | { type: 'draft'; fields: EditFields; baseline?: number }

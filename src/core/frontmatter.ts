@@ -1,6 +1,7 @@
 // 剪藏的 YAML frontmatter：键序固定、每键一行、字符串一律双引号标量。
 import { t } from '@/shared/i18n';
 import type { ExtractState, Medium, Platform } from '@/shared/types';
+import { toApiTag } from './translate/language';
 
 export interface FrontmatterFields {
   id: string;
@@ -116,6 +117,86 @@ export function updateFrontmatter(md: string, edits: { title?: string; tags?: st
     lines[i] = `${key}: ${value}`;
   }
   return head + lines.join('\n') + tail;
+}
+
+/** 翻译状态（CONTEXT.md「翻译状态」）：没翻译过的剪藏没有这三个字段。 */
+export type TranslationState = 'complete' | 'partial' | 'failed';
+
+export interface TranslationFields {
+  /** 原文语言；还不知道时为空串。 */
+  lang: string;
+  /** 目标语言。 */
+  translated_to: string;
+  translation: TranslationState;
+}
+
+interface FrontmatterBounds {
+  /** 开头的 `---\n`。 */
+  head: string;
+  /** 键行，含最后一行的换行。 */
+  block: string;
+  /** 从收尾的 `---` 开始，含正文。 */
+  tail: string;
+}
+
+/** 切出 frontmatter 的三段；没有 `---` 块时返回 null。 */
+function frontmatterBounds(md: string): FrontmatterBounds | null {
+  if (!md.startsWith('---\n')) return null;
+  const end = md.indexOf('\n---\n', 3);
+  const endAtEof = end === -1 && md.endsWith('\n---') ? md.length - 4 : -1;
+  const close = end !== -1 ? end : endAtEof;
+  if (close === -1) return null;
+  return { head: md.slice(0, 4), block: md.slice(4, close + 1), tail: md.slice(close + 1) };
+}
+
+const TRANSLATION_KEYS = ['lang', 'translated_to', 'translation'] as const;
+
+/**
+ * 写翻译状态：三个键都已存在就逐个替换值；都不存在（或只存在一部分）时在 `extract:` 行之后
+ * 按 lang、translated_to、translation 的顺序补齐。lang、translated_to 用 toApiTag 规范化。
+ */
+export function setTranslationFields(md: string, fields: TranslationFields): string {
+  if (!md.startsWith('---\n')) throw new Error(t('error_noFrontmatter'));
+  const bounds = frontmatterBounds(md);
+  if (!bounds) throw new Error(t('error_frontmatterUnclosed'));
+
+  const values = new Map<string, string>([
+    ['lang', yamlString(fields.lang.trim() === '' ? '' : toApiTag(fields.lang.trim()))],
+    ['translated_to', yamlString(fields.translated_to.trim() === '' ? '' : toApiTag(fields.translated_to.trim()))],
+    ['translation', yamlString(fields.translation)],
+  ]);
+  const lines = bounds.block.split('\n');
+  const indexes = new Map<string, number>();
+  for (const key of TRANSLATION_KEYS) {
+    const index = lines.findIndex((line) => line.startsWith(`${key}:`));
+    if (index !== -1) indexes.set(key, index);
+  }
+
+  // 三个都在：只换值，其余字节（包括键的位置）不变。
+  if (indexes.size === TRANSLATION_KEYS.length) {
+    for (const key of TRANSLATION_KEYS) {
+      const index = indexes.get(key) ?? -1;
+      if (index !== -1) lines[index] = `${key}: ${values.get(key)}`;
+    }
+    return bounds.head + lines.join('\n') + bounds.tail;
+  }
+
+  // 缺键：先去掉已有的翻译行，再在 extract 之后按固定顺序补齐。
+  const kept = lines.filter((line) => !TRANSLATION_KEYS.some((key) => line.startsWith(`${key}:`)));
+  const extract = kept.findIndex((line) => line.startsWith('extract:'));
+  const at = extract !== -1 ? extract + 1 : Math.max(kept.length - 1, 0);
+  kept.splice(at, 0, ...TRANSLATION_KEYS.map((key) => `${key}: ${values.get(key)}`));
+  return bounds.head + kept.join('\n') + bounds.tail;
+}
+
+/** 撤掉三个翻译字段（同语言跳过时用）；没有这三个字段时原样返回。 */
+export function removeTranslationFields(md: string): string {
+  const bounds = frontmatterBounds(md);
+  if (!bounds) return md;
+  const lines = bounds.block.split('\n');
+  const kept = lines.filter((line) => !TRANSLATION_KEYS.some((key) => line.startsWith(`${key}:`)));
+  if (kept.length === lines.length) return md;
+  return bounds.head + kept.join('\n') + bounds.tail;
 }
 
 /**

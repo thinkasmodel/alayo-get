@@ -868,3 +868,23 @@ describe("Port 'panel'：写回失败可见、草稿可恢复（ALAG-20）", () 
     expect(lostMessages(port).at(-1)).toEqual({ type: 'lost-edits', edits: [], notices: [] });
   });
 });
+
+describe("Port 'panel'：start 的 translateTo（ALAG-26）", () => {
+  it('带 translateTo 时传给 savePage 第三参', async () => {
+    const deps = panelDeps();
+    const port = openPanel(deps);
+    port.send({ type: 'start', tabId: 7, translateTo: 'zh' });
+    await flush();
+    expect(deps.savePage).toHaveBeenCalledTimes(1);
+    expect(deps.savePage.mock.calls[0]?.[2]).toEqual({ translateTo: 'zh' });
+  });
+
+  it('不带 translateTo 时第三参里没有这个字段', async () => {
+    const deps = panelDeps();
+    const port = openPanel(deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    expect(deps.savePage).toHaveBeenCalledTimes(1);
+    expect(deps.savePage.mock.calls[0]?.[2]).not.toHaveProperty('translateTo');
+  });
+});
