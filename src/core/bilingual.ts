@@ -195,7 +195,7 @@ interface Containers {
 }
 
 /** 剥掉行首所有连续的列表标记（含空格）与 `>` 引用标记；用于同一行开多层容器的识别。 */
-function stripContainers(line: string): Containers {
+function stripContainers(line: string, stripQuotes = true): Containers {
   let rest = line;
   let offset = 0;
   const cols: number[] = [];
@@ -210,15 +210,22 @@ function stripContainers(line: string): Containers {
       rest = list[4] ?? '';
       continue;
     }
-    const quote = /^ {0,3}> ?/.exec(rest);
-    if (quote) {
-      offset += quote[0].length;
-      rest = rest.slice(quote[0].length);
-      continue;
+    if (stripQuotes) {
+      const quote = /^ {0,3}> ?/.exec(rest);
+      if (quote) {
+        offset += quote[0].length;
+        rest = rest.slice(quote[0].length);
+        continue;
+      }
     }
     break;
   }
   return { content: rest, col: offset, cols };
+}
+
+/** 只剥列表标记，保留后续的 `>` 等块标记；用于判断列表项首行是不是块结构。 */
+function stripListMarkers(line: string): Containers {
+  return stripContainers(line, false);
 }
 
 interface FenceMark {
@@ -463,6 +470,14 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
         rawLines.push(rest);
         j += 1;
       }
+
+      // 首行剥掉列表标记后是标题/引用/表格/HTML/分隔线等块结构：不建单元、不送翻，
+      // 这一行和它的续行都原样不动（围栏已在前面 firstFence 处理）。
+      if (startsBlock(stripListMarkers(line).content)) {
+        i = j;
+        continue;
+      }
+
       const hard = rawLines.some((raw) => hasHardBreak(raw));
       const rawSegments = hard ? rawLines : [rawLines.join('\n')];
       pushUnit('list-item', i, j - 1, lines.slice(i, j), rawSegments, { indent: col, perLine: hard });

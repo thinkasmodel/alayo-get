@@ -561,3 +561,28 @@ describe('startClipTranslation：写回失败时 applied 只计落盘（续修 5
     expect(after).toContain('translation: "partial"');
   });
 });
+
+describe('startClipTranslation：列表项首行块结构（续修 6）', () => {
+  it('标题行原样不动，Plain item 照常翻，最终 complete', async () => {
+    // Turndown 对 <ul><li><h2>Important heading</h2></li><li>Plain item</li></ul> 的实际输出。
+    const md = simple('-   ## Important heading\n    \n-   Plain item');
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const job = startClipTranslation({ id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' }, deps());
+    await settle();
+    expect(translator.requests[0]?.segments).toEqual(['Plain item']);
+
+    translator.emitSource('en');
+    translator.emitSegment(0, '普通项目');
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('complete');
+    expect(outcome.applied).toBe(1);
+    expect(outcome.total).toBe(1);
+
+    const after = library.text(SIMPLE_FILE) ?? '';
+    expect(bodyOf(after)).toBe('\n-   ## Important heading\n    \n-   Plain item\\\n    普通项目\n');
+    expect(after).not.toContain('## Important heading\\');
+    expect(after).toContain('translation: "complete"');
+  });
+});

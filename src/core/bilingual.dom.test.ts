@@ -157,3 +157,37 @@ describe('planBilingual：引用块里的列表（续修 5A）', () => {
     expect(result.md).toContain('> After paragraph.');
   });
 });
+
+describe('planBilingual：列表项首行是块结构（续修 6）', () => {
+  it('<li><h2>...</h2></li> 的标题行不建单元、不加反斜杠，Plain item 照常翻', () => {
+    const body = turndown.turndown('<ul><li><h2>Important heading</h2></li><li>Plain item</li></ul>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['Plain item']);
+
+    const result = applyTranslations(md, itemsFor(plan, { 'Plain item': '普通项目' }), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md).toContain('-   ## Important heading\n');
+    expect(result.md).not.toContain('## Important heading\\');
+    expect(result.md).toContain('-   Plain item\\\n    普通项目');
+  });
+
+  it('<li><blockquote>...</blockquote></li> 的引用行同理', () => {
+    const body = turndown.turndown('<ul><li><blockquote>Quoted text</blockquote></li><li>Plain item</li></ul>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['Plain item']);
+
+    const result = applyTranslations(md, itemsFor(plan, { 'Plain item': '普通项目' }), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md).toContain('-   > Quoted text\n');
+    expect(result.md).not.toContain('> Quoted text\\');
+    expect(result.md).toContain('-   Plain item\\\n    普通项目');
+  });
+
+  it('嵌套列表里的普通文字不被当成块结构跳过', () => {
+    const body = turndown.turndown('<ul><li><ul><li>Nested plain</li></ul></li></ul>');
+    const plan = planBilingual(withFrontmatter(body), 'web');
+    expect(plan.segments.some((segment) => segment.includes('Nested plain'))).toBe(true);
+  });
+});
