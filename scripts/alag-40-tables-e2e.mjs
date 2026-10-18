@@ -3,7 +3,6 @@
 // 用法：npx wxt build && node scripts/alag-40-tables-e2e.mjs --ext <构建产物副本> --profile <新的空目录> --out <输出目录> [--only 页面名,页面名]（需要联网）
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import http from 'node:http';
 import path from 'node:path';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -77,7 +76,6 @@ const panelSave = (tabId, edit) => `(async () => {
 
 // 选项页里读剪藏库（OPFS 下的 library 目录）的文件。
 const readLib = (name) => `(async () => { const root = await navigator.storage.getDirectory(); const lib = await root.getDirectoryHandle('library'); try { const f = await (await lib.getFileHandle(${JSON.stringify(name)})).getFile(); return await f.text(); } catch { return null; } })()`;
-const listLib = `(async () => { const root = await navigator.storage.getDirectory(); const lib = await root.getDirectoryHandle('library'); const out = []; for await (const [n, h] of lib.entries()) if (h.kind === 'file') out.push(n); return out; })()`;
 
 // 轮询一个剪藏文件直到 translation 进入终态，记下见到的状态序列与第一次读到的内容。
 async function watchClip(opt, nameOf, ms) {
@@ -130,11 +128,6 @@ try {
   }
   check('点击下载 en→zh＋检测模型', dl === 'ok', dl);
 
-  const openTab = async (url) => {
-    await send('Target.createTarget', { url });
-    await sleep(2500);
-    return evaluate(swSid, `chrome.tabs.query({ url: ${JSON.stringify(url)} }).then((t) => t[0]?.id)`);
-  };
 
 
 // ALAG-26 的 panelSave 固定带 translateTo；这里按参数决定带不带。

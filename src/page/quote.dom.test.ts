@@ -74,6 +74,54 @@ describe('captureQuote（capture-quote 的页面一侧）', () => {
     expect(md).toContain('| Beta | 2 |');
   });
 
+  it('选区从表头第一格到最后一行最后一格：补上 table 祖先，含表头与数据行', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>1</td></tr><tr><td>Beta</td><td>2</td></tr></tbody></table>',
+    ].join('');
+    const lastCells = document.querySelectorAll('td');
+    const last = lastCells[lastCells.length - 1]?.firstChild;
+    if (!(last instanceof Text)) throw new Error('表格最后没有文字');
+    selectAcross(textOf('th'), 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+  });
+
+  it('选区只覆盖 tbody 的第二、三行：公共祖先是 TBODY，写成空表头＋两行数据', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>1</td></tr><tr><td>Beta</td><td>2</td></tr></tbody></table>',
+    ].join('');
+    const firstCell = document.querySelector('tbody td')?.firstChild;
+    const lastCells = document.querySelectorAll('tbody td');
+    const last = lastCells[lastCells.length - 1]?.firstChild;
+    if (!(firstCell instanceof Text) || !(last instanceof Text)) throw new Error('tbody 里没有文字');
+    selectAcross(firstCell, 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('|   |   |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+    expect(md).not.toContain('| Name |');
+  });
+
+  it('选区在一个格子之内：仍是纯文字，不含 |', () => {
+    document.body.innerHTML =
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>Alpha</td><td>1</td></tr></tbody></table>';
+    const cell = document.querySelector('tbody td')?.firstChild;
+    if (!(cell instanceof Text)) throw new Error('格子里没有文字');
+    selectAcross(cell, 0, cell, cell.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toBe('Alpha');
+    expect(md).not.toContain('|');
+  });
+
   it('中文选区同样生成片段链接', () => {
     document.body.innerHTML = '<p id="p">每一次“我早就知道”，都是一次被删改的记忆。</p><p>另一段完全不同的内容。</p>';
     selectAcross(textOf('#p'), 0, textOf('#p'), 4);

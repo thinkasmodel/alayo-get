@@ -45,3 +45,18 @@ describe('addTableRules：金样例', () => {
     expect(`${turndown().turndown(html)}\n`).toBe(expected);
   });
 });
+
+describe('addTableRules：rowspan="0"', () => {
+  it('算合并单元格写成单行 HTML，并把 0 换算成本行组内到最后一个主体行的明确行数', () => {
+    const html = [
+      '<table><thead><tr><th>K</th><th>V</th></tr></thead>',
+      '<tbody><tr><td rowspan="0">A</td><td>1</td></tr><tr><td>2</td></tr></tbody>',
+      '<tfoot><tr><td>T</td><td>9</td></tr></tfoot></table>',
+    ].join('');
+    const md = turndown().turndown(html);
+    expect(md).toBe(
+      '<table><tr><th>K</th><th>V</th></tr><tr><td rowspan="2">A</td><td>1</td></tr><tr><td>2</td></tr><tr><td>T</td><td>9</td></tr></table>',
+    );
+    expect(md).not.toContain('rowspan="0"');
+  });
+});

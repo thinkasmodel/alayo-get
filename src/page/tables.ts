@@ -50,10 +50,16 @@ function rowCells(row: Element): HTMLElement[] {
   return childrenWith(row, CELL_TAGS);
 }
 
-/** `colspan`/`rowspan` 的数值；缺省、非法或 ≤1 都按 1。 */
+/** `colspan` 的数值；缺省、非法或 ≤1 都按 1（HTML 规范里 colspan="0" 也是 1）。 */
 function spanOf(cell: Element, name: string): number {
   const value = Number.parseInt(cell.getAttribute(name) ?? '', 10);
   return Number.isFinite(value) && value > 1 ? value : 1;
+}
+
+/** `rowspan` 的数值；0 合法（跨到所在行组末尾），缺省、非法或负数按 1。 */
+function rowspanOf(cell: Element): number {
+  const value = Number.parseInt(cell.getAttribute('rowspan') ?? '', 10);
+  return Number.isFinite(value) && value >= 0 ? value : 1;
 }
 
 /** 表格列数：各行格子 `colspan` 之和的最大值。 */
@@ -86,7 +92,8 @@ function isLayoutTable(table: Element, bodyRows: HTMLElement[]): boolean {
 function needsHtmlTable(bodyRows: HTMLElement[]): boolean {
   for (const row of bodyRows) {
     for (const cell of rowCells(row)) {
-      if (spanOf(cell, 'colspan') > 1 || spanOf(cell, 'rowspan') > 1) return true;
+      const rowspan = rowspanOf(cell);
+      if (spanOf(cell, 'colspan') > 1 || rowspan === 0 || rowspan > 1) return true;
       if (cell.querySelector(BLOCK_IN_CELL)) return true;
     }
   }
@@ -179,10 +186,31 @@ function singleLineHtml(html: string): string {
   return withPre.replace(/[\r\n]+/g, ' ');
 }
 
+/** `rowspan="0"` 换算成明确行数：从本行到原行组最后一个主体行（没有行组时整张表）的行数。 */
+function zeroRowspanLength(rowIndex: number, bodyRows: HTMLElement[]): number {
+  const group = bodyRows[rowIndex]?.parentElement;
+  const inSection = !!group && SECTION_TAGS.has(group.tagName);
+  let last = rowIndex;
+  for (let i = rowIndex; i < bodyRows.length; i += 1) {
+    if (!inSection || bodyRows[i]?.parentElement === group) last = i;
+  }
+  return last - rowIndex + 1;
+}
+
 /** 主体行 → 清理过的单行 HTML：新建 table，只放主体行，不保留原来的 thead/tbody/tfoot。 */
 function htmlTable(table: HTMLElement, bodyRows: HTMLElement[]): string {
   const shell = table.ownerDocument.createElement('table');
-  for (const row of bodyRows) shell.appendChild(row.cloneNode(true));
+  bodyRows.forEach((row, rowIndex) => {
+    const clone = row.cloneNode(true) as HTMLElement;
+    const cells = rowCells(row);
+    const clonedCells = rowCells(clone);
+    const length = zeroRowspanLength(rowIndex, bodyRows);
+    cells.forEach((cell, cellIndex) => {
+      const cloned = clonedCells[cellIndex];
+      if (cloned && rowspanOf(cell) === 0) cloned.setAttribute('rowspan', String(length));
+    });
+    shell.appendChild(clone);
+  });
   stripAttributes(shell);
   cleanWhitespace(shell);
   return singleLineHtml(shell.outerHTML);

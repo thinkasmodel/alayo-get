@@ -169,6 +169,27 @@ describe('saveClip', () => {
     });
   });
 
+  it('单行 HTML 表格里的图片按 <img src> 下载改写，<pre> 里的 Markdown 示例不请求也不改写', async () => {
+    const htmlImage = 'https://img.example.com/html.png';
+    const sampleImage = 'https://img.example.com/pre-sample.png';
+    const table = [
+      `<table><tr><td><img src="${htmlImage}" alt="表图"></td></tr>`,
+      `<tr><td><pre><code>![示例](${sampleImage})</code></pre></td></tr></table>`,
+    ].join('');
+    const { fn, calls } = fakeFetch({ [htmlImage]: { type: 'image/png' } });
+    const outcome = await saveClip({ capture: articleCapture({ markdown: table }), snapshot: false }, makeDeps(fn));
+    expect(outcome.state).toBe('saved');
+    if (outcome.state !== 'saved') return;
+    const id = '01JID000000000000000000001';
+    expect(calls.map((c) => c.url)).toEqual([htmlImage]);
+    expect(outcome.clip.imageCount).toBe(1);
+    expect(outcome.clip.imageFailures).toBe(0);
+    const md = library.text(outcome.clip.file) ?? '';
+    expect(md).toContain(`<img src=".assets/${id}/1.png" alt="表图">`);
+    expect(md).toContain(`![示例](${sampleImage})`);
+    expect(md).not.toContain(`src="${htmlImage}"`);
+  });
+
   it('有一张图片下载失败：保留远程地址，imageFailures 为 1', async () => {
     const { fn } = fakeFetch({
       'https://img.example.com/1.jpg': { type: 'image/jpeg' },

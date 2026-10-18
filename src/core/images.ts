@@ -25,6 +25,48 @@ function stripContainers(line: string): string {
   return line.replace(/^(?:\s*>)+/, '');
 }
 
+/** 单行 HTML 表格：去掉引用标记和前导空白后，以 `<table` 开头、以 `</table>` 结尾。 */
+const HTML_TABLE_START = /^<table(?=[\s>])/i;
+const HTML_TABLE_END = /<\/table>\s*$/i;
+
+function isHtmlTableLine(line: string): boolean {
+  const content = stripContainers(line).replace(/^\s+/, '');
+  return HTML_TABLE_START.test(content) && HTML_TABLE_END.test(content);
+}
+
+const HTML_IMG_TAG = /<img\b[^>]*>/gi;
+const HTML_SRC_ATTRIBUTE = /(?:^|\s)src\s*=\s*"([^"]*)"/i;
+const NAMED_ENTITIES: Record<string, string> = { amp: '&', quot: '"', lt: '<', gt: '>', nbsp: '\u00a0' };
+
+/** 属性值里的 HTML 实体解码（至少覆盖图片地址会出现的命名实体与数字引用）。 */
+function decodeHtmlAttribute(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|quot|lt|gt|nbsp);/gi, (match, entity: string) => {
+    const name = entity.toLowerCase();
+    const code = name.startsWith('#x')
+      ? Number.parseInt(name.slice(2), 16)
+      : name.startsWith('#') ? Number.parseInt(name.slice(1), 10) : NaN;
+    if (Number.isFinite(code)) {
+      return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    }
+    return NAMED_ENTITIES[name] ?? match;
+  });
+}
+
+/** 单行 HTML 表格里的图片按 `<img src="…">` 认；属性值范围指向引号内原文。 */
+function findHtmlTableImages(line: string, lineStart: number, refs: ImageRef[]): void {
+  HTML_IMG_TAG.lastIndex = 0;
+  for (let match = HTML_IMG_TAG.exec(line); match !== null; match = HTML_IMG_TAG.exec(line)) {
+    const tag = match[0];
+    const src = HTML_SRC_ATTRIBUTE.exec(tag);
+    if (!src) continue;
+    const quote = src[0].indexOf('"');
+    if (quote === -1) continue;
+    const raw = src[1] ?? '';
+    const start = lineStart + match.index + src.index + quote + 1;
+    refs.push({ url: decodeHtmlAttribute(raw), start, end: start + raw.length });
+  }
+}
+
 /** Markdown 里反斜杠可转义的 ASCII 标点。 */
 function unescapeMarkdown(raw: string): string {
   return raw.replace(/\\([!-/:-@[-`{-~])/g, '$1');
@@ -102,6 +144,12 @@ export function findImages(markdown: string): ImageRef[] {
     }
     if (fenceMatch?.[1]) {
       fence = { char: fenceMatch[1][0] ?? '`', length: fenceMatch[1].length };
+      continue;
+    }
+
+    // 单行 HTML 表格里的图片是 <img src>，不是 Markdown 语法；整行不做 Markdown 图片扫描。
+    if (isHtmlTableLine(line)) {
+      findHtmlTableImages(line, lineStart, refs);
       continue;
     }
 

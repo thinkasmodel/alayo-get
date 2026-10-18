@@ -56,6 +56,48 @@ describe('rewriteImages', () => {
   });
 });
 
+describe('HTML 表格行里的图片（单行 HTML）', () => {
+  const LOCAL = new Map([['https://a.example/x.png?a=1&b=2', assetPath('01JTBL', 1, 'png')]]);
+
+  it('按 <img src> 认并做实体解码；改写只换 src 值，行的其余部分不变', () => {
+    const line = '<table><tr><td><img src="https://a.example/x.png?a=1&amp;b=2" alt="x"></td></tr></table>';
+    expect(planImages(line)).toEqual([{ url: 'https://a.example/x.png?a=1&b=2', index: 1 }]);
+    expect(rewriteImages(line, LOCAL)).toBe(
+      '<table><tr><td><img src=".assets/01JTBL/1.png" alt="x"></td></tr></table>',
+    );
+  });
+
+  it('同一行 <pre> 里的 Markdown 图片与 &lt;img> 文字都不认，改写后整行不变', () => {
+    const line =
+      '<table><tr><td><pre><code>![Example](https://a.example/sample.png) &lt;img src="https://a.example/y.png"&gt;</code></pre></td></tr></table>';
+    expect(planImages(line)).toEqual([]);
+    expect(rewriteImages(line, LOCAL)).toBe(line);
+  });
+
+  it('引用块里的 HTML 表格行同样识别 <img src>', () => {
+    const line = '> <table><tr><td><img src="https://q.example/q.png"></td></tr></table>';
+    expect(planImages(line)).toEqual([{ url: 'https://q.example/q.png', index: 1 }]);
+    expect(rewriteImages(line, new Map([['https://q.example/q.png', assetPath('01JTBL', 2, 'png')]]))).toBe(
+      '> <table><tr><td><img src=".assets/01JTBL/2.png"></td></tr></table>',
+    );
+  });
+
+  it('普通段落里的 <img src>（不是 HTML 表格行）维持现状：不认', () => {
+    const md = '<p><img src="https://plain.example/p.png"></p>';
+    expect(planImages(md)).toEqual([]);
+    expect(rewriteImages(md, LOCAL)).toBe(md);
+  });
+
+  it('命名实体与十进制/十六进制数字引用都解码，改写范围指向引号内原文', () => {
+    const line = '<table><tr><td><img src="https://a.example/i.png?q=&quot;hi&quot;&amp;lt=&#33;&#x21;" alt=""></td></tr></table>';
+    const url = 'https://a.example/i.png?q="hi"&lt=!!';
+    expect(planImages(line)).toEqual([{ url, index: 1 }]);
+    expect(rewriteImages(line, new Map([[url, assetPath('01JTBL', 3, 'png')]]))).toBe(
+      '<table><tr><td><img src=".assets/01JTBL/3.png" alt=""></td></tr></table>',
+    );
+  });
+});
+
 describe('extFromContentType', () => {
   it('第一级：按 content-type 映射', () => {
     expect(extFromContentType('image/jpeg', 'https://x.example/a.png')).toBe('jpg');

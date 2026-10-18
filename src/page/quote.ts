@@ -39,6 +39,34 @@ const BLOCK_TAGS = new Set([
   'SECTION', 'ARTICLE', 'ASIDE', 'NAV', 'MAIN', 'HEADER', 'FOOTER', 'FIGURE', 'FIGCAPTION', 'FORM', 'FIELDSET', 'DETAILS', 'HR',
 ]);
 
+/** 选区公共祖先落在这些表格结构标签里时，cloneContents 不会带上 table 祖先。 */
+const TABLE_STRUCTURE_TAGS = new Set(['TR', 'THEAD', 'TBODY', 'TFOOT', 'TABLE']);
+
+/**
+ * 选区起止都在同一张表里时，逐层浅拷贝公共祖先到最近的 TABLE，把 cloneContents 丢掉的表格结构补回来。
+ * 公共祖先是 TD/TH（选区在一格之内）或不在表里时原样返回。
+ */
+function wrapTableStructure(range: Range, content: Node, holder: Document): Node {
+  const common = range.commonAncestorContainer;
+  let ancestor = common.nodeType === 1 ? (common as Element) : common.parentElement;
+  if (!ancestor || !TABLE_STRUCTURE_TAGS.has(ancestor.tagName)) return content;
+  const chain: Element[] = [];
+  while (ancestor) {
+    chain.push(ancestor);
+    if (ancestor.tagName === 'TABLE') break;
+    ancestor = ancestor.parentElement;
+  }
+  // 表格结构标签理论上一定有 TABLE 祖先；没有就什么都不补。
+  if (chain[chain.length - 1]?.tagName !== 'TABLE') return content;
+  let wrapped = content;
+  for (const element of chain) {
+    const wrapper = holder.importNode(element.cloneNode(false), false);
+    wrapper.appendChild(wrapped);
+    wrapped = wrapper;
+  }
+  return wrapped;
+}
+
 /** 选区所在的行内格式祖先（A、STRONG 等），从最内层到最外层；遇到块级元素或 body 停止。 */
 function inlineFormatAncestors(range: Range): Element[] {
   const start = range.commonAncestorContainer;
@@ -71,6 +99,7 @@ export function rangeToMarkdown(range: Range, pageUrl: string): string {
     wrapper.appendChild(content);
     content = wrapper;
   }
+  content = wrapTableStructure(range, content, holder);
   container.append(content);
   // 相对地址按选区所在文档的 baseURI（含 <base href>）解析；没有 <base>（baseURI 等于文档地址）时沿用传入的页面地址
   const ownerDoc = range.startContainer.ownerDocument;
