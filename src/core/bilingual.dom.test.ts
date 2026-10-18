@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import TurndownService from 'turndown';
+import bannersHtml from '../../tests/fixtures/tables/banners.html?raw';
+import mergedHtml from '../../tests/fixtures/tables/merged.html?raw';
+import simpleHtml from '../../tests/fixtures/tables/simple.html?raw';
+import { addTableRules } from '@/page/tables';
 import { applyTranslations, planBilingual, renderTranslation, type Unit } from './bilingual';
 
 // 与 src/page/extract.ts 相同的 Turndown 配置；这里用它的实际输出验证列表/引用里的代码块。
@@ -287,5 +291,59 @@ describe('planBilingual：段落被块开头续行截断在行内结构中间（
     expect(plan.segments).toEqual([]);
     expect(plan.units).toEqual([]);
     expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+});
+
+describe('planBilingual / applyTranslations：网页表格（ALAG-40）', () => {
+  const tableTurndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
+  addTableRules(tableTurndown);
+  const bannersTable = tableTurndown.turndown(bannersHtml);
+  const mergedTable = tableTurndown.turndown(mergedHtml);
+  const simpleTable = tableTurndown.turndown(simpleHtml);
+  const body = [
+    '# Article',
+    '',
+    'Intro paragraph before the tables.',
+    '',
+    bannersTable,
+    '',
+    mergedTable,
+    '',
+    simpleTable,
+    '',
+    'Closing paragraph after the tables.',
+  ].join('\n');
+  const md = withFrontmatter(body);
+  const plan = planBilingual(md, 'web');
+  const isTableLine = (line: string): boolean => line.trimStart().startsWith('|') || line.trimStart().startsWith('<table');
+
+  it('GFM 表格行与单行 HTML 表格都不建单元', () => {
+    const tableLines = md.split('\n').filter(isTableLine);
+    expect(tableLines.length).toBeGreaterThan(5);
+    for (const unit of plan.units) {
+      expect(unit.sourceLines.some(isTableLine)).toBe(false);
+    }
+  });
+
+  it('通栏行段落（caption、首行、Source…）照常建单元', () => {
+    expect(plan.segments).toContain('Climate data for Example City');
+    expect(plan.segments).toContain('Climate data for Example City (1991–2020 normals)');
+    expect(plan.segments).toContain('Municipalities in Example Prefecture');
+    const sources = plan.units.filter((unit) => unit.sourceLines[0]?.startsWith('Source: '));
+    expect(sources.map((unit) => unit.sourceLines[0])).toEqual([
+      'Source: [Meteorological Agency](https://www.example.go.jp/)',
+      'Source: Example Statistics Bureau',
+    ]);
+    expect(sources.every((unit) => unit.kind === 'paragraph')).toBe(true);
+  });
+
+  it('写回译文后表格行逐字节不变', () => {
+    const tableLines = md.split('\n').filter(isTableLine);
+    const translations: Record<string, string> = {};
+    for (const segment of plan.segments) translations[segment] = '译文';
+    const result = applyTranslations(md, itemsFor(plan, translations), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md.split('\n').filter(isTableLine)).toEqual(tableLines);
+    expect(result.md).toContain('译文');
   });
 });

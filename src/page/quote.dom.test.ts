@@ -57,6 +57,23 @@ describe('captureQuote（capture-quote 的页面一侧）', () => {
     expect(Number.isNaN(Date.parse(quote.selectedAt))).toBe(false);
   });
 
+  it('选区包含整张表：quote.markdown 含 GFM 表格行', () => {
+    document.body.innerHTML = [
+      '<p id="p">Read the table below.</p>',
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>1</td></tr><tr><td>Beta</td><td>2</td></tr></tbody></table>',
+    ].join('');
+    const last = document.querySelectorAll('td')[3]?.firstChild;
+    if (!(last instanceof Text)) throw new Error('表格最后没有文字');
+    selectAcross(textOf('#p'), 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+  });
+
   it('中文选区同样生成片段链接', () => {
     document.body.innerHTML = '<p id="p">每一次“我早就知道”，都是一次被删改的记忆。</p><p>另一段完全不同的内容。</p>';
     selectAcross(textOf('#p'), 0, textOf('#p'), 4);

@@ -2,6 +2,7 @@
 import TurndownService from 'turndown';
 import { generateFragmentFromRange } from 'text-fragments-polyfill/dist/fragment-generation-utils.js';
 import { fragmentUrl } from '@/core/textFragment';
+import { addTableRules } from './tables';
 import { t } from '@/shared/i18n';
 import type { QuoteCaptureResponse } from '@/shared/messages';
 
@@ -90,6 +91,7 @@ export function rangeToMarkdown(range: Range, pageUrl: string): string {
     }
   }
   const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
+  addTableRules(turndown);
   return turndown.turndown(container).trim();
 }
 
