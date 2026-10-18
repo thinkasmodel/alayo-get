@@ -151,17 +151,84 @@ function stripHardBreak(line: string): string {
   return out;
 }
 
+/** 去掉等长反引号配对的代码段（含反引号）；有没配对的反引号返回 null。 */
+function stripInlineCode(text: string): string | null {
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] !== '`') {
+      out += text[i];
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < text.length && text[j] === '`') j += 1;
+    const length = j - i;
+    let k = j;
+    let close = -1;
+    while (k < text.length) {
+      if (text[k] !== '`') {
+        k += 1;
+        continue;
+      }
+      let m = k;
+      while (m < text.length && text[m] === '`') m += 1;
+      if (m - k === length) {
+        close = k;
+        break;
+      }
+      k = m;
+    }
+    if (close === -1) return null;
+    out += ' ';
+    i = close + length;
+  }
+  return out;
+}
+
+/** 去掉链接/图片目标 `](…)`（只用于检查，保留方括号；目标里的括号可嵌套）。 */
+function stripLinkTargets(text: string): string {
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    const at = text.indexOf('](', i);
+    if (at === -1) {
+      out += text.slice(i);
+      break;
+    }
+    out += text.slice(i, at + 1);
+    let depth = 1;
+    let j = at + 2;
+    while (j < text.length && depth > 0) {
+      if (text[j] === '(') depth += 1;
+      else if (text[j] === ')') depth -= 1;
+      j += 1;
+    }
+    if (depth !== 0) break;
+    i = j;
+  }
+  return out;
+}
+
 /** 这一行的行内结构是否自足：未转义的链接方括号、反引号、强调标记都成对。 */
 function inlineStructuresBalanced(line: string): boolean {
   const clean = line.replace(/\\[\s\S]/g, '');
-  const count = (text: string, pattern: RegExp): number => (text.match(pattern) ?? []).length;
-  if (count(clean, /\[/g) !== count(clean, /\]/g)) return false;
-  if (count(clean, /`/g) % 2 !== 0) return false;
-  if (count(clean, /\*\*/g) % 2 !== 0) return false;
-  if (count(clean.replace(/\*\*/g, ''), /\*/g) % 2 !== 0) return false;
-  if (count(clean, /__/g) % 2 !== 0) return false;
-  if (count(clean.replace(/__/g, ''), /_/g) % 2 !== 0) return false;
-  if (count(clean, /~~/g) % 2 !== 0) return false;
+  const withoutCode = stripInlineCode(clean);
+  if (withoutCode === null) return false;
+  let text = stripLinkTargets(withoutCode);
+  // 自动链接、裸网址里的符号不参与成对检查。
+  text = text.replace(/<[A-Za-z][A-Za-z0-9+.-]*:[^<>\s]*>/g, '');
+  text = text.replace(/<[^<>\s]+@[^<>\s]+>/g, '');
+  text = text.replace(/https?:\/\/\S+/g, '');
+  // 词中下划线（snake_case / a__b）在 CommonMark 中不构成强调。
+  text = text.replace(/(?<=[\p{L}\p{N}])_+(?=[\p{L}\p{N}])/gu, '');
+  const count = (part: string, pattern: RegExp): number => (part.match(pattern) ?? []).length;
+  if (count(text, /\[/g) !== count(text, /\]/g)) return false;
+  if (count(text, /\*\*/g) % 2 !== 0) return false;
+  if (count(text.replace(/\*\*/g, ''), /\*/g) % 2 !== 0) return false;
+  if (count(text, /__/g) % 2 !== 0) return false;
+  if (count(text.replace(/__/g, ''), /_/g) % 2 !== 0) return false;
+  if (count(text, /~~/g) % 2 !== 0) return false;
   return true;
 }
 

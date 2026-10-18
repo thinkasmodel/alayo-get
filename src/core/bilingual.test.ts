@@ -528,3 +528,51 @@ describe('planBilingual / applyTranslations：引用段后的懒续行（续修 
     expect(result.md).toBe(current);
   });
 });
+
+describe('planBilingual：网址与行内代码里的符号不参与成对检查（续修 11）', () => {
+  it('链接网址里的下划线不阻止段落/列表项送翻，原文逐字节不变', () => {
+    const body = [
+      'See the [API](https://en.wikipedia.org/wiki/File_System_Access_API) today.',
+      '',
+      'Read [x](https://a.com/a_b) now.',
+      '',
+      '-   Item with [link](https://a.com/x_y) here.',
+      '',
+      'Call `my_func()` first.',
+    ].join('\n');
+    const md = mini(body);
+    const plan = planBilingual(md, 'web');
+    const codeSegment = plainTextOf('Call `my_func()` first.').text;
+    expect(plan.segments).toEqual(['See the API today.', 'Read x now.', 'Item with link here.', codeSegment]);
+
+    const table: Record<string, string> = {
+      'See the API today.': '今天看看 API。',
+      'Read x now.': '现在读 x。',
+      'Item with link here.': '这里有一项带链接。',
+      [codeSegment]: '先调用函数。',
+    };
+    const result = applyTranslations(md, translatedItems(plan, table, 'zh'), 'web');
+    expect(result.missing).toEqual([]);
+    const after = bodyOf(result.md);
+    expect(after).toContain('See the [API](https://en.wikipedia.org/wiki/File_System_Access_API) today.');
+    expect(after).toContain('Read [x](https://a.com/a_b) now.');
+    expect(after).toContain('-   Item with [link](https://a.com/x_y) here.');
+    expect(after).toContain('Call `my_func()` first.');
+    expect(after).toContain('今天看看 API。');
+    expect(after).toContain('现在读 x。');
+    expect(after).toContain('这里有一项带链接。');
+    expect(after).toContain('先调用函数。');
+  });
+
+  it('词中下划线 snake_case 照常送翻', () => {
+    const md = mini('A snake_case word.');
+    const plan = planBilingual(md, 'web');
+    const segment = plainTextOf('A snake_case word.').text;
+    expect(plan.segments).toEqual([segment]);
+
+    const result = applyTranslations(md, translatedItems(plan, { [segment]: '一个蛇形词。' }, 'zh'), 'web');
+    expect(result.missing).toEqual([]);
+    expect(bodyOf(result.md)).toContain('A snake_case word.');
+    expect(bodyOf(result.md)).toContain('一个蛇形词。');
+  });
+});
