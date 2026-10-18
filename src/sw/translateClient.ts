@@ -233,16 +233,18 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
     });
 
   const connectLoop = async (): Promise<boolean> => {
-    try {
-      await ensureDocument();
-    } catch (err) {
-      console.warn('[Alayo Get] 创建翻译 offscreen 文档失败', err);
-      return false;
-    }
     for (let attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt += 1) {
       if (port) return true;
+      try {
+        await ensureDocument();
+      } catch (err) {
+        console.warn('[Alayo Get] 创建翻译 offscreen 文档失败', err);
+        return false;
+      }
       const connected = await attemptConnect();
       if (connected) return true;
+      // 一次握手失败（ack 前断开或 ack 超时）：文档可能正在自己关闭，下一次重新确认。
+      documentPromise = null;
       if (attempt < CONNECT_ATTEMPTS) await delay(CONNECT_RETRY_MS);
     }
     return false;

@@ -4,6 +4,8 @@ import type { DetectedLanguage, ModelAvailability, ModelSpec, TranslationEngine 
 
 /** translate/detect 路径上的 create 最多等这么久；下载路径不受此限。 */
 export const CREATE_TIMEOUT_MS = 60_000;
+/** 实例的 translate/detect 最多等这么久；超时会销毁实例，让下一次重新 create。 */
+export const INSTANCE_TIMEOUT_MS = 60_000;
 
 export interface TranslatorMonitorLike {
   addEventListener(type: 'downloadprogress', listener: (event: { loaded: number }) => void): void;
@@ -72,7 +74,7 @@ const isNotSupportedError = (err: unknown): boolean =>
 
 const isAbortError = (err: unknown): boolean => typeof err === 'object' && err !== null && (err as { name?: unknown }).name === 'AbortError';
 
-const timeoutError = (step: string): Error => Object.assign(new Error(`TimeoutError: ${step} exceeded ${CREATE_TIMEOUT_MS}ms`), { name: 'TimeoutError' });
+const timeoutError = (step: string, ms: number): Error => Object.assign(new Error(`${step} exceeded ${ms}ms`), { name: 'TimeoutError' });
 
 const downloadMonitor = (onProgress?: (fraction: number) => void) => (monitor: TranslatorMonitorLike) => {
   monitor.addEventListener('downloadprogress', (event) => onProgress?.(event.loaded));
@@ -93,8 +95,8 @@ export function createChromeEngine(g: ChromeAiGlobals = globals(), options: Chro
       setTimer(resolve, ms);
     });
 
-  /** 给 translate/detect 路径上的 create 加超时；超时的 Promise 之后 settle 会被这里吞掉。 */
-  const withCreateTimeout = <T>(operation: Promise<T>): Promise<T> =>
+  /** 给一次底层调用加超时；超时后放弃的 Promise settle 会被这里吞掉。 */
+  const withTimeout = <T>(operation: Promise<T>, step: string, ms: number): Promise<T> =>
     new Promise<T>((resolve, reject) => {
       let settled = false;
       let timer: unknown = null;
@@ -107,7 +109,7 @@ export function createChromeEngine(g: ChromeAiGlobals = globals(), options: Chro
         }
         fn();
       };
-      const handle = setTimer(() => finish(() => reject(timeoutError('create'))), CREATE_TIMEOUT_MS);
+      const handle = setTimer(() => finish(() => reject(timeoutError(step, ms))), ms);
       if (settled) clearTimer(handle);
       else timer = handle;
       operation.then(
@@ -115,6 +117,10 @@ export function createChromeEngine(g: ChromeAiGlobals = globals(), options: Chro
         (err) => finish(() => reject(err)),
       );
     });
+
+  const withCreateTimeout = <T>(operation: Promise<T>): Promise<T> => withTimeout(operation, 'create', CREATE_TIMEOUT_MS);
+  const withInstanceTimeout = <T>(operation: Promise<T>, step: 'translate' | 'detect'): Promise<T> =>
+    withTimeout(operation, step, INSTANCE_TIMEOUT_MS);
 
   const destroyQuietly = (instance: { destroy?(): void }): void => {
     try {
@@ -185,7 +191,7 @@ export function createChromeEngine(g: ChromeAiGlobals = globals(), options: Chro
       const pending = getDetector();
       const instance = await pending;
       try {
-        const results = await instance.detect(text);
+        const results = await withInstanceTimeout(instance.detect(text), 'detect');
         return results.map((result) => ({ language: result.detectedLanguage, confidence: result.confidence }));
       } catch (err) {
         // 非 AbortError：实例可能坏了，销毁并清缓存，下次重新 create。
@@ -241,7 +247,7 @@ export function createChromeEngine(g: ChromeAiGlobals = globals(), options: Chro
       const key = `${source}>${target}`;
       const { instance, promise } = await getTranslatorWithRetry(source, target);
       try {
-        return await instance.translate(text, { signal });
+        return await withInstanceTimeout(instance.translate(text, { signal }), 'translate');
       } catch (err) {
         // AbortError 是正常的任务取消，不动缓存；其余错误销毁实例并清缓存。
         if (!isAbortError(err)) {

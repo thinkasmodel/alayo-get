@@ -195,6 +195,42 @@ describe('createTranslateClient', () => {
     await expect(job.result).resolves.toEqual({ status: 'complete', source: 'en' });
   });
 
+  it('ack 前文档关闭：下一次尝试前重新确认并创建文档，之后不再重复创建', async () => {
+    const { deps, ports, createDocument, connect, clock } = setup();
+    let hasDocumentCalls = 0;
+    const hasDocument = vi.fn(async () => {
+      hasDocumentCalls += 1;
+      return hasDocumentCalls === 1;
+    });
+    deps.hasDocument = hasDocument;
+
+    const service = createTranslateClient(deps);
+    const job = start(service);
+    await flush();
+    expect(hasDocument).toHaveBeenCalledTimes(1);
+    expect(createDocument).not.toHaveBeenCalled();
+
+    ports[0]?.remoteDisconnect();
+    await flush();
+    await clock.advance(CONNECT_RETRY_MS);
+    expect(hasDocument).toHaveBeenCalledTimes(2);
+    expect(createDocument).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(2);
+
+    ports[1]?.receive({ type: 'hello-ack' });
+    await flush();
+    ports[1]?.receive({ type: 'result', jobId: job.id, result: { status: 'complete', source: 'en' } });
+    await expect(job.result).resolves.toEqual({ status: 'complete', source: 'en' });
+
+    const next = start(service);
+    await flush();
+    expect(hasDocument).toHaveBeenCalledTimes(2);
+    expect(createDocument).toHaveBeenCalledTimes(1);
+    expect(ports[1]?.sent.filter((message) => message.type === 'translate')).toHaveLength(2);
+    ports[1]?.receive({ type: 'result', jobId: next.id, result: { status: 'complete', source: 'en' } });
+    await expect(next.result).resolves.toEqual({ status: 'complete', source: 'en' });
+  });
+
   it('CONNECT_ATTEMPTS 次都失败 → host-lost（done: 0）', async () => {
     const { deps, ports, clock } = setup();
     deps.connect = vi.fn(() => {
