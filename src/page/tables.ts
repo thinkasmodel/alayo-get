@@ -182,6 +182,35 @@ function replaceWithParagraph(element: Element): void {
   element.replaceWith(paragraph);
 }
 
+/** 节点是不是块级内容（标签在 `BLOCK_CONTENT_TAGS` 里的元素）。 */
+function isBlockNode(node: Node): boolean {
+  return node.nodeType === 1 && BLOCK_CONTENT_TAGS.has((node as Element).tagName);
+}
+
+/** 只由空白文本组成的段：不包 `<p>`，原样留着。 */
+function isWhitespaceRun(nodes: Node[]): boolean {
+  return nodes.every((node) => node.nodeType === 3 && /^\s*$/.test((node as Text).data));
+}
+
+/** 把块级包装里连续的非块级节点各自包进 `<p>`，保留裸文字与行内元素自己的段落边界。 */
+function wrapNonBlockRuns(element: Element): void {
+  let run: Node[] = [];
+  const flush = (): void => {
+    if (run.length === 0) return;
+    if (!isWhitespaceRun(run)) {
+      const paragraph = element.ownerDocument.createElement('p');
+      run[0]?.parentNode?.insertBefore(paragraph, run[0]);
+      for (const node of run) paragraph.appendChild(node);
+    }
+    run = [];
+  };
+  for (const child of Array.from(element.childNodes)) {
+    if (isBlockNode(child)) flush();
+    else run.push(child);
+  }
+  flush();
+}
+
 /** 先删危险元素，再处理白名单外元素；只用于写成 HTML 的表格。 */
 function stripUnsafeElements(root: Element): void {
   for (const element of Array.from(root.querySelectorAll('*'))) {
@@ -195,8 +224,12 @@ function stripUnsafeElements(root: Element): void {
       continue;
     }
     const hasBlockChild = Array.from(element.children).some((child) => BLOCK_CONTENT_TAGS.has(child.tagName));
-    if (hasBlockChild) unwrapElement(element);
-    else replaceWithParagraph(element);
+    if (hasBlockChild) {
+      wrapNonBlockRuns(element);
+      unwrapElement(element);
+    } else {
+      replaceWithParagraph(element);
+    }
   }
 }
 

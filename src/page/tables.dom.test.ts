@@ -129,4 +129,11 @@ describe('addTableRules：块级包装保留段落边界', () => {
     );
     expect(md).toContain('<p>A</p><p>B</p>');
   });
+
+  it('有块级子元素且混有裸文字：每段连续非块级节点各包一个 p', () => {
+    const md = turndown().turndown(
+      '<table><tr><td rowspan="2"><div><p>First</p>tail one</div><div>head two<p>Last</p></div></td><td>1</td></tr><tr><td>2</td></tr></table>',
+    );
+    expect(md).toContain('<p>First</p><p>tail one</p><p>head two</p><p>Last</p>');
+  });
 });
