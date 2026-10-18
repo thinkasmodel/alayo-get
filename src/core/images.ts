@@ -20,16 +20,11 @@ export interface ImageRef {
 // 宁可多认出围栏（少改写），也不改坏代码示例。
 const FENCE_RE = /^\s*(`{3,}|~{3,})/;
 
-/** 去掉行首的引用块标记（可多层、可带空格）。 */
-function stripContainers(line: string): string {
-  return line.replace(/^(?:\s*>)+/, '');
-}
-
 const HTML_TABLE_START = /^<table(?=[\s>])/i;
 const HTML_TABLE_END = /<\/table>\s*$/i;
 const LIST_PREFIX = /^(?:[-*+]|\d{1,9}[.)])[ \t]+/;
 
-/** 反复去掉行首空白、引用标记和列表标记，直到不再变化（Turndown 把列表项里的表格写成 `-   <table>`）。 */
+/** 反复去掉行首空白、引用标记和列表标记，直到不再变化（列表项首行的表格/围栏都带这些前缀）。 */
 function stripHtmlTablePrefixes(line: string): string {
   let content = line;
   for (;;) {
@@ -194,7 +189,7 @@ export function findImages(markdown: string): ImageRef[] {
     const lineEnd = offset + line.length;
     offset = lineEnd + 1;
 
-    const content = stripContainers(line);
+    const content = stripHtmlTablePrefixes(line);
     const fenceMatch = FENCE_RE.exec(content);
     if (fence) {
       if (fenceMatch?.[1] && fenceMatch[1][0] === fence.char && fenceMatch[1].length >= fence.length && content.trim() === fenceMatch[1]) {
