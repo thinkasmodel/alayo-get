@@ -219,7 +219,7 @@ function inlineStructuresBalanced(line: string): boolean {
   // 自动链接、裸网址里的符号不参与成对检查。
   text = text.replace(/<[A-Za-z][A-Za-z0-9+.-]*:[^<>\s]*>/g, '');
   text = text.replace(/<[^<>\s]+@[^<>\s]+>/g, '');
-  text = text.replace(/https?:\/\/\S+/g, '');
+  text = text.replace(/https?:\/\/[^\s\]>)]+/g, '');
   // 词中下划线（snake_case / a__b）在 CommonMark 中不构成强调。
   text = text.replace(/(?<=[\p{L}\p{N}])_+(?=[\p{L}\p{N}])/gu, '');
   const count = (part: string, pattern: RegExp): number => (part.match(pattern) ?? []).length;

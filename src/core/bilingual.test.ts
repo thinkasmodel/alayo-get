@@ -576,3 +576,35 @@ describe('planBilingual：网址与行内代码里的符号不参与成对检查
     expect(bodyOf(result.md)).toContain('一个蛇形词。');
   });
 });
+
+describe('planBilingual：链接文字是网址时方括号仍成对（续修 12）', () => {
+  it('四个真实行都送翻，写回后原文逐字节不变', () => {
+    const para1 =
+      'Related: [https://x.com/IntuitMachine/status/2068808668393451770](https://x.com/IntuitMachine/status/2068808668393451770)';
+    const para2 =
+      'QPT on loops: [https://www.youtube.com/watch?v=53Y3SYR5vTU\\&list=PLoOMKjCBaDuX8vYGfcSUgw\\_84xj3wo62-\\&index=10](https://www.youtube.com/watch?v=53Y3SYR5vTU&list=PLoOMKjCBaDuX8vYGfcSUgw_84xj3wo62-&index=10)';
+    const para3 =
+      '**before the alpha -  subscribe to my substack for more fresh alpha -** [https://substack.com/@0xcodila](https://substack.com/@0xcodila)';
+    const item =
+      'Turndown repository has changed its URL to [https://github.com/mixmark-io/turndown](https://github.com/mixmark-io/turndown).';
+    const md = mini([para1, '', para2, '', para3, '', `-   ${item}`].join('\n'));
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([
+      plainTextOf(para1).text,
+      plainTextOf(para2).text,
+      plainTextOf(para3).text,
+      plainTextOf(item).text,
+    ]);
+
+    const table: Record<string, string> = {};
+    plan.segments.forEach((segment, index) => {
+      table[segment] = `译文 ${index + 1}`;
+    });
+    const result = applyTranslations(md, translatedItems(plan, table, 'zh'), 'web');
+    expect(result.missing).toEqual([]);
+    const after = bodyOf(result.md);
+    for (const original of [para1, para2, para3, `-   ${item}`]) {
+      expect(after).toContain(original);
+    }
+  });
+});
