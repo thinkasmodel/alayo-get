@@ -447,3 +447,56 @@ describe('planBilingual：显示标题行（续修 2）', () => {
     expect(plan2.units.filter((unit) => unit.kind === 'heading').map((unit) => unit.displayTitle)).toEqual([false, false]);
   });
 });
+
+describe('renderTranslation / applyTranslations：空白或缺失译文（续修 3B）', () => {
+  it('单段空白译文视为无效：render 返回 null，apply 不插入、进 missing', () => {
+    const md = mini('Hello world.');
+    const plan = planBilingual(md, 'web');
+    const unit = plan.units[0] as Unit;
+    expect(renderTranslation(unit, [''], 'zh')).toBeNull();
+    expect(renderTranslation(unit, ['   '], 'zh')).toBeNull();
+    expect(renderTranslation(unit, [], 'zh')).toBeNull();
+
+    const result = applyTranslations(md, [{ unit, lines: null }], 'web');
+    expect(result.applied).toEqual([]);
+    expect(result.missing).toEqual([unit]);
+    expect(result.md).toBe(md);
+  });
+
+  it('两段中一段空白：另一段照常插入，空白段进 missing', () => {
+    const md = mini('Hello world.\n\nSecond paragraph.');
+    const plan = planBilingual(md, 'web');
+    const first = plan.units[0] as Unit;
+    const second = plan.units[1] as Unit;
+    expect(renderTranslation(first, [''], 'zh')).toBeNull();
+    const valid = renderTranslation(second, ['第二段。'], 'zh');
+    expect(valid).toEqual(['', '第二段。']);
+
+    const result = applyTranslations(
+      md,
+      [
+        { unit: first, lines: null },
+        { unit: second, lines: valid },
+      ],
+      'web',
+    );
+    expect(result.applied).toHaveLength(1);
+    expect(result.applied[0]).toBe(second);
+    expect(result.missing).toEqual([first]);
+    expect(result.md).toContain('Second paragraph.\n\n第二段。');
+    expect(result.md).not.toContain('第一段');
+  });
+
+  it('perLine 段里一行空白译文：整块不插入、进 missing', () => {
+    const md = mini('First line\\\nSecond line');
+    const plan = planBilingual(md, 'web');
+    const unit = plan.units[0] as Unit;
+    expect(unit.perLine).toBe(true);
+    expect(renderTranslation(unit, ['第一行', ''], 'zh')).toBeNull();
+
+    const result = applyTranslations(md, [{ unit, lines: null }], 'web');
+    expect(result.applied).toEqual([]);
+    expect(result.missing).toEqual([unit]);
+    expect(result.md).toBe(md);
+  });
+});

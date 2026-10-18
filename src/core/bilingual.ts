@@ -185,15 +185,60 @@ function indentOf(line: string): number {
   return /^\s*/.exec(line)?.[0].length ?? 0;
 }
 
-/** fenced code 的结束行下标；没有闭合时到文件末尾。 */
-function fenceEnd(lines: string[], start: number, marker: string): number {
-  const char = marker[0] ?? '`';
-  const min = marker.length;
+interface FenceMark {
+  char: string;
+  length: number;
+}
+
+/** 围栏开头（0–3 个空格 + 同字符至少三个 + 可选 info）；不是围栏时返回 null。 */
+function openFence(line: string): FenceMark | null {
+  const m = FENCE_OPEN.exec(line);
+  if (!m) return null;
+  const token = m[2] ?? '```';
+  return { char: token[0] ?? '`', length: token.length };
+}
+
+/** 是不是 mark 对应的围栏关闭行：同字符、长度不小于开头、后面只有空白。 */
+function closeFence(line: string, mark: FenceMark): boolean {
+  const m = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
+  return !!m && m[1]?.[0] === mark.char && (m[1]?.length ?? 0) >= mark.length;
+}
+
+/** fenced code 的结束行下标；没有闭合时到数组末尾。 */
+function fenceEnd(lines: string[], start: number, mark: FenceMark): number {
   for (let i = start + 1; i < lines.length; i += 1) {
-    const m = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(lines[i] ?? '');
-    if (m && m[1]?.[0] === char && (m[1]?.length ?? 0) >= min) return i;
+    if (closeFence(lines[i] ?? '', mark)) return i;
   }
   return lines.length - 1;
+}
+
+/** 标出整段里 fenced code 占用的行（含空行）；没有闭合时标到末尾。 */
+function fenceMask(lines: string[]): boolean[] {
+  const mask = new Array<boolean>(lines.length).fill(false);
+  for (let i = 0; i < lines.length; i += 1) {
+    if (mask[i]) continue;
+    const mark = openFence(lines[i] ?? '');
+    if (!mark) continue;
+    const close = fenceEnd(lines, i, mark);
+    for (let j = i; j <= close && j < lines.length; j += 1) mask[j] = true;
+    i = close;
+  }
+  return mask;
+}
+
+/** 列表上下文里的 fenced code：从 start 的围栏开头跳到关闭行之后；中间（含空行）都不翻。 */
+function listFenceAfter(lines: string[], start: number, col: number, mark: FenceMark): number {
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? '';
+    if (BLANK.test(line)) continue;
+    const indent = indentOf(line);
+    if (indent < col) {
+      // 缩进回到列表外：恰好是关闭行就收尾，否则保守地在这里停止跳过。
+      return closeFence(line.trim(), mark) ? i + 1 : i;
+    }
+    if (closeFence(line.slice(col), mark)) return i + 1;
+  }
+  return lines.length;
 }
 
 /** 正文从哪一行开始（frontmatter 之后）；没有 frontmatter 时从头开始。 */
@@ -287,9 +332,9 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     const isFirstContent = firstContent;
     firstContent = false;
 
-    const fence = FENCE_OPEN.exec(line);
+    const fence = openFence(line);
     if (fence) {
-      i = fenceEnd(lines, i, fence[2] ?? '```') + 1;
+      i = fenceEnd(lines, i, fence) + 1;
       listCols.length = 0;
       sawBlank = false;
       continue;
@@ -348,11 +393,31 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       while (listCols.length > 0 && (listCols[listCols.length - 1] ?? 0) > indent) listCols.pop();
       listCols.push(col);
       sawBlank = false;
+      // 列表项第一行本身就是围栏（Turndown 的 <li><pre> 会这样写）：整块代码不翻。
+      const firstFence = openFence(content);
+      if (firstFence) {
+        i = listFenceAfter(lines, i, col, firstFence);
+        continue;
+      }
       if (content.trim() !== '') {
         pushUnit('list-item', i, i, [line], [content], { indent: col });
       }
       i += 1;
       continue;
+    }
+
+    // 列表上下文里的 fenced code：先去掉内容列缩进再判断围栏；围栏内（含空行）不翻。
+    if (listCols.length > 0) {
+      const lead = indentOf(line);
+      const col = [...listCols].reverse().find((c) => c <= lead);
+      if (col !== undefined) {
+        const fence = openFence(line.slice(col));
+        if (fence) {
+          i = listFenceAfter(lines, i, col, fence);
+          sawBlank = false;
+          continue;
+        }
+      }
     }
 
     // 列表项里的后续段：缩进到某层内容列、前面是空行。
@@ -371,11 +436,10 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
         while (j < lines.length) {
           const current = lines[j] ?? '';
           if (BLANK.test(current)) break;
-          if (LIST_ITEM.test(current)) break;
-          if (current.trimStart().startsWith('|') || isHtmlLine(current)) break;
-          if (ATX_HEADING.test(current) || isQuote(current) || FENCE_OPEN.test(current) || HR.test(current)) break;
           if (indentOf(current) < col) break;
-          raws.push(current.slice(col));
+          const content = current.slice(col);
+          if (startsBlock(content)) break;
+          raws.push(content);
           j += 1;
         }
         if (raws.length > 0) {
@@ -444,12 +508,15 @@ function scanQuote(
   // 两层及以上的引用不翻。
   if (stripped.some((line) => isQuote(line))) return i;
 
+  // 围栏跨空行跟踪：引用块里的代码块即使中间有空行，整块也不翻。
+  const fenced = fenceMask(stripped);
+
   let from = 0;
   while (from < stripped.length) {
-    while (from < stripped.length && (stripped[from] ?? '').trim() === '') from += 1;
+    while (from < stripped.length && (fenced[from] || (stripped[from] ?? '').trim() === '')) from += 1;
     if (from >= stripped.length) break;
     let to = from;
-    while (to < stripped.length && (stripped[to] ?? '').trim() !== '') to += 1;
+    while (to < stripped.length && !fenced[to] && (stripped[to] ?? '').trim() !== '') to += 1;
     const rawContent = stripped.slice(from, to);
     const contentLines = rawContent.map((line) => stripHardBreak(line.trim()));
     const raw = contentLines.join(' ');
@@ -467,8 +534,8 @@ function scanQuote(
 }
 
 /** 按行翻的段落：不送翻的行原样照抄，其余行用译文，行间用 `\` 硬换行。 */
-function renderPerLine(unit: Unit, translations: string[], target: string): string[] {
-  if (translations.length !== unit.segmentIndexes.length) return [];
+function renderPerLine(unit: Unit, translations: string[], target: string): string[] | null {
+  if (translations.length !== unit.segmentIndexes.length) return null;
   const passthrough = unit.passthrough ?? [];
   let next = 0;
   let same = true;
@@ -480,7 +547,7 @@ function renderPerLine(unit: Unit, translations: string[], target: string): stri
       continue;
     }
     const raw = translations[next] ?? '';
-    if (raw.trim() === '') return [];
+    if (raw.trim() === '') return null;
     const codes = unit.segmentCodes[next] ?? [];
     const cleaned = cleanPunctuation(raw, target);
     const text = restorePlaceholders(cleaned, codes);
@@ -489,23 +556,23 @@ function renderPerLine(unit: Unit, translations: string[], target: string): stri
     lines.push(restorePlaceholders(escapeMarkdownTranslation(cleaned), codes));
     next += 1;
   }
-  if (next !== translations.length) return [];
+  if (next !== translations.length) return null;
   if (same) return [];
   return ['', ...lines.map((line, index) => (index < lines.length - 1 ? `${line}\\` : line))];
 }
 
 /**
- * 按单元生成要插入的行。译文等于该段原文纯文本时返回空数组（不插入，按已完成计）。
- * translations 与 unit.segmentIndexes 一一对应。
+ * 按单元生成要插入的行。译文等于该段原文纯文本时返回空数组（免插）；任一段译文为空白或缺失时
+ * 返回 null（无效，不插入、不算完成）。translations 与 unit.segmentIndexes 一一对应。
  */
-export function renderTranslation(unit: Unit, translations: string[], target: string): string[] {
+export function renderTranslation(unit: Unit, translations: string[], target: string): string[] | null {
   if (unit.perLine) return renderPerLine(unit, translations, target);
-  if (translations.length !== unit.segmentIndexes.length) return [];
+  if (translations.length !== unit.segmentIndexes.length) return null;
   const rendered: string[] = [];
   let same = true;
   for (let i = 0; i < translations.length; i += 1) {
     const raw = translations[i] ?? '';
-    if (raw.trim() === '') return [];
+    if (raw.trim() === '') return null;
     const codes = unit.segmentCodes[i] ?? [];
     const cleaned = cleanPunctuation(raw, target);
     const text = restorePlaceholders(cleaned, codes);
@@ -539,8 +606,8 @@ export function renderTranslation(unit: Unit, translations: string[], target: st
 
 export interface TranslationItem {
   unit: Unit;
-  /** renderTranslation 生成的行；空数组表示这一块不需要插入。 */
-  lines: string[];
+  /** renderTranslation 生成的行；空数组表示与原文相同（免插），null 表示译文无效（空白或缺失）。 */
+  lines: string[] | null;
 }
 
 export interface ApplyTranslationsResult {
@@ -575,7 +642,8 @@ function follows(lines: string[], target: Unit, expected: string[]): boolean {
 /**
  * 在当前文件上插入译文：重新扫描 currentMd，按原文顺序为每个 item 找到原文行完全相同的块。
  * 候选块后面已经紧跟同样译文时跳过它，继续找下一个同文字、还没译文的块；都没有才按已插入计。
- * 找不到的进 missing。frontmatter 以外的原有字节不改，列表项只在原行末尾追加 `\`。
+ * 找不到的进 missing；item.lines 为 null 的无效单元直接进 missing，不插入、不算完成。
+ * frontmatter 以外的原有字节不改，列表项只在原行末尾追加 `\`。
  */
 export function applyTranslations(currentMd: string, items: TranslationItem[], medium: Medium): ApplyTranslationsResult {
   const plan = planBilingual(currentMd, medium);
@@ -587,6 +655,11 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
   let cursor = 0;
 
   for (const item of items) {
+    if (item.lines === null) {
+      // 空白/缺失译文：不插入、不算完成；后续 item 仍按顺序找块。
+      missing.push(item.unit);
+      continue;
+    }
     if (item.unit.displayTitle) {
       // 显示标题行是扩展自己维护的：改标题后这一块找不到，不算 missing，也不插任何行。
       if (planDisplay && sameSourceLines(planDisplay, item.unit)) {

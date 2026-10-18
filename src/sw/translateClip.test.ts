@@ -16,6 +16,9 @@ const ID = '01K7B2Q8N4M6P3R5T7V9X1Z3A5';
 const SOURCE = 'https://example.org/blog/small-library-catalogs';
 const FILE = 'article.md';
 const TITLE = 'How Small Libraries Keep Their Catalogs Alive';
+const SIMPLE_ID = '01SIMPLE';
+const SIMPLE_SOURCE = 'https://example.com/simple';
+const SIMPLE_FILE = 'simple.md';
 
 function fixture(name: string): string {
   return readFileSync(new URL(`../core/__fixtures__/bilingual/${name}`, import.meta.url), 'utf8');
@@ -396,5 +399,61 @@ describe('startClipTranslation：与保存共用剪藏库锁', () => {
     expect(outcome.status).toBe('complete');
     expect(library.files.has('另存文章.md')).toBe(true);
     expect(library.text(FILE)).toBe(expected);
+  });
+});
+
+describe('startClipTranslation：空白译文（续修 3B）', () => {
+  const simpleRecord: SavedEntry = {
+    id: SIMPLE_ID,
+    file: SIMPLE_FILE,
+    title: 'Simple',
+    medium: 'web',
+    source: SIMPLE_SOURCE,
+    savedAt: '2026-10-18T05:40:00.000Z',
+    tags: [],
+  };
+
+  function simple(body: string): string {
+    return `---\nid: "${SIMPLE_ID}"\nsource: "${SIMPLE_SOURCE}"\nmedium: "web"\ntitle: "Simple"\nauthor: ""\npublished: ""\ncaptured: "2026-10-18T00:00:00.000Z"\nsite: "example.com"\ntags: []\nnote: ""\nextract: "full"\n---\n\n${body}\n`;
+  }
+
+  async function open(body: string) {
+    const md = simple(body);
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const job = startClipTranslation({ id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' }, deps());
+    await settle();
+    return { md, job };
+  }
+
+  it('单段空译文 → failed，正文不变', async () => {
+    const { md, job } = await open('Hello world.');
+    translator.emitSource('en');
+    translator.emitSegment(0, '');
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('failed');
+    expect(outcome.applied).toBe(0);
+
+    const after = library.text(SIMPLE_FILE) ?? '';
+    expect(bodyOf(after)).toBe(bodyOf(md));
+    expect(after).toContain('translation: "failed"');
+    expect(after).toContain('lang: "en"');
+  });
+
+  it('两段中一段空译文 → partial，另一段照常插入', async () => {
+    const { job } = await open('Hello world.\n\nSecond paragraph.');
+    expect(translator.requests[0]?.segments).toEqual(['Hello world.', 'Second paragraph.']);
+    translator.emitSource('en');
+    translator.emitSegment(0, '');
+    translator.emitSegment(1, '第二段。');
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('partial');
+    expect(outcome.applied).toBe(1);
+
+    const after = library.text(SIMPLE_FILE) ?? '';
+    expect(bodyOf(after)).toBe('\nHello world.\n\nSecond paragraph.\n\n第二段。\n');
+    expect(after).toContain('translation: "partial"');
   });
 });
