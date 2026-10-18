@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>对照译文样张</title>
+<style>
+:root{--bg:#F1F2F4;--card:#FFFFFF;--ink:#23252C;--dim:#72767F;--cap:#6E7280;--new:#1F6F43;--mark:#B4441B;--line:rgba(35,37,44,.09)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#16171B;--card:#1F2026;--ink:#E6E7EA;--dim:#8A8E98;--cap:#9599A3;--new:#6FCF97;--mark:#F2994A;--line:rgba(255,255,255,.08)}}
+:root[data-theme="dark"]{--bg:#16171B;--card:#1F2026;--ink:#E6E7EA;--dim:#8A8E98;--cap:#9599A3;--new:#6FCF97;--mark:#F2994A;--line:rgba(255,255,255,.08)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1{font-size:18px;margin:0 0 4px} .intro{font-size:13px;color:var(--cap);margin:0 0 24px;max-width:900px;line-height:20px}
+.wrap{padding:32px 16px;max-width:1700px;margin:0 auto}
+.row{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;margin-bottom:32px}
+.col{flex:1 1 480px;max-width:540px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.lab{font-size:13px;font-weight:600;line-height:18px} .lab span{display:block;font-weight:400;color:var(--cap);font-size:12px}
+.card{background:var(--card);border-radius:12px;box-shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px var(--line);padding:16px 18px;overflow-x:auto}
+.code{margin:0;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11.5px;line-height:18px;white-space:pre-wrap;word-break:break-word}
+.dim{color:var(--dim)} b.new{color:var(--new);font-weight:600} b.mark{color:var(--mark);font-weight:600}
+.cap{font-size:12px;line-height:18px;color:var(--cap)} .cap code,.spec code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px}
+.spec{font-size:13px;line-height:20px} .spec p{margin:0 0 8px}
+</style></head><body><div class="wrap">
+<h1>对照译文样张（ALAG-26）</h1>
+<p class="intro">保存时翻译把同一个剪藏文件改写成原文、译文逐块交替的版本。下面是文件原样（Markdown 源码）。绿色是新增的 frontmatter 字段，橙色是方案 B 才有的标记。译文都是 Chrome 155 本机翻译引擎的真实输出，质量就是这个水平。</p>
+<div class="row"><div class="col"><div class="lab">① 文章剪藏 · 英译中 · 完整（方案 A：无标记，推荐）<span>How Small Libraries Keep Their Catalogs Alive.md</span></div><div class="card"><pre class="code"><span class="dim">---
+id: &quot;01K7B2Q8N4M6P3R5T7V9X1Z3A5&quot;
+source: &quot;https://example.org/blog/small-library-catalogs&quot;
+medium: &quot;web&quot;
+title: &quot;How Small Libraries Keep Their Catalogs Alive&quot;
+author: &quot;Maya Lindqvist&quot;
+published: &quot;2026-09-30T00:00:00.000Z&quot;
+captured: &quot;2026-10-18T05:40:00.000Z&quot;
+site: &quot;example.org&quot;
+tags: []
+note: &quot;&quot;
+extract: &quot;full&quot;
+<b class="new">lang: &quot;en&quot;</b>
+<b class="new">translated_to: &quot;zh&quot;</b>
+<b class="new">translation: &quot;complete&quot;</b>
+---</span>
+
+# How Small Libraries Keep Their Catalogs Alive
+
+# 小型图书馆如何使他们的目录保持活力
+
+[原文](https://example.org/blog/small-library-catalogs)
+
+Most small libraries still run on a catalog that was built twenty years ago. It works, but every change takes a volunteer, a spreadsheet, and an afternoon.
+
+大多数小型图书馆仍在二十年前建立的目录上运行。它有效，但每一次改变都需要一个志愿者、一个电子表格和一个下午。
+
+## What we changed
+
+## 我们改变了什么
+
+We moved the catalog into plain text files and kept them in a [Git repository](https://git-scm.com/). Each book is **one file**, and a nightly job runs `catalog build` to regenerate the website.
+
+我们将目录移动到纯文本文件中，并将它们保存在 Git 存储库中。每本书都是一个文件，每晚的工作都会运行 `catalog build` 来重新生成网站。
+
+- Volunteers edit files in any text editor.\
+  志愿者在任何文本编辑器中编辑文件。
+- Every change is reviewed before it goes live.\
+  每个更改在上线之前都会进行审查。
+- Old versions are never lost.\
+  旧版本永远不会丢失。
+
+1. Export the old catalog to CSV.\
+   将旧目录导出到 CSV。
+2. Convert each row into a Markdown file.\
+   将每一行转换为一个降价文件。
+
+&gt; The best catalog is the one people are willing to update.
+&gt;
+&gt; 最好的目录是人们愿意更新的人。
+
+```bash
+catalog build --out site/
+```
+
+![Reading room at the Eastside branch](.assets/01K7B2Q8N4M6P3R5T7V9X1Z3A5/img-1.jpg)
+
+| Branch   | Books  |
+| -------- | ------ |
+| Eastside | 12,400 |
+
+The whole migration took three weekends. Nobody had to learn a new tool.
+
+整个迁移花了三个周末。没有人必须学习一个新工具。</pre></div><div class="cap">每个要翻的块后面紧跟它的译文，原文一字不改。<b>翻</b>：标题（同级标题再写一行）、段落、列表项（同一项内用硬换行接译文，列表保持紧凑）、引用块里的段落（译文留在同一个引用块里）。<b>不翻</b>：frontmatter、<code>[原文](…)</code> 行、代码块、图片、表格、只有链接的行。译文是纯文本：链接只留文字、去掉粗体斜体；行内代码原样保留（先换成占位符再翻，翻完换回）。译文是本机翻译引擎的真实输出，只去掉了引擎在中文句号后加的空格。</div></div><div class="col"><div class="lab">② 方案 B：译文末尾加隐藏标记<span>同一文件的中间一段</span></div><div class="card"><pre class="code">## What we changed
+
+## 我们改变了什么 <b class="mark">&lt;!-- alayo:tr --&gt;</b>
+
+We moved the catalog into plain text files and kept them in a [Git repository](https://git-scm.com/). Each book is **one file**, and a nightly job runs `catalog build` to regenerate the website.
+
+我们将目录移动到纯文本文件中，并将它们保存在 Git 存储库中。每本书都是一个文件，每晚的工作都会运行 `catalog build` 来重新生成网站。 <b class="mark">&lt;!-- alayo:tr --&gt;</b>
+
+- Volunteers edit files in any text editor.\
+  志愿者在任何文本编辑器中编辑文件。 <b class="mark">&lt;!-- alayo:tr --&gt;</b></pre></div><div class="cap">和 A 的区别只有每块译文末尾多一个 <code>&lt;!-- alayo:tr --&gt;</code>。好处：程序能准确找出哪些是译文，以后做「去掉译文」「换一种语言重翻」时不用猜。代价：用纯文本编辑器打开会看到这些标记；HTML 注释在多数 Markdown 渲染里不显示，但各个应用（Obsidian 大纲、Typora 等）对标题里注释的处理没逐个验证。第一期没有任何功能用到这个标记。</div></div></div>
+<div class="row"><div class="col"><div class="lab">③ 文章剪藏 · 中译英<span>为什么我们需要慢思考.md</span></div><div class="card"><pre class="code"><span class="dim">---
+id: &quot;01K7B2Q8N4M6P3R5T7V9X1Z3A5&quot;
+source: &quot;https://sspai.com/post/90001&quot;
+medium: &quot;web&quot;
+title: &quot;为什么我们需要慢思考&quot;
+author: &quot;林知&quot;
+published: &quot;2026-09-30T00:00:00.000Z&quot;
+captured: &quot;2026-10-18T05:40:00.000Z&quot;
+site: &quot;sspai.com&quot;
+tags: []
+note: &quot;&quot;
+extract: &quot;full&quot;
+<b class="new">lang: &quot;zh&quot;</b>
+<b class="new">translated_to: &quot;en&quot;</b>
+<b class="new">translation: &quot;complete&quot;</b>
+---</span>
+
+# 为什么我们需要慢思考
+
+# Why we need to think slowly
+
+[Source](https://sspai.com/post/90001)
+
+快思考替我们省下了大量注意力，代价是它几乎从不怀疑自己。
+
+Thinking fast saves us a lot of attention, at the cost of it almost never doubts itself.
+
+慢思考的价值不在于更**聪明**，而在于它肯停下来。遇到陌生的问题时，先写下你以为的答案，再问自己凭什么。
+
+The value of slow thinking is not to be smarter, but in that it is willing to stop. When you encounter unfamiliar questions, write down the answers you think, and then ask yourself why.
+
+- 先写下直觉答案\
+  Write down your intuition first
+- 再找一条反例\
+  Find another counterexample</pre></div><div class="cap">中文原文、英文译文，规则同 ①。<code>[原文]</code> 这类固定文字按保存时的界面语言写（ADR-0006，这里示意英文界面写成 Source），不随目标语言变。</div></div><div class="col"><div class="lab">④ 部分：翻到一半中断<span>同 ① 的文件</span></div><div class="card"><pre class="code"><span class="dim">---
+id: &quot;01K7B2Q8N4M6P3R5T7V9X1Z3A5&quot;
+source: &quot;https://example.org/blog/small-library-catalogs&quot;
+medium: &quot;web&quot;
+title: &quot;How Small Libraries Keep Their Catalogs Alive&quot;
+author: &quot;Maya Lindqvist&quot;
+published: &quot;2026-09-30T00:00:00.000Z&quot;
+captured: &quot;2026-10-18T05:40:00.000Z&quot;
+site: &quot;example.org&quot;
+tags: []
+note: &quot;&quot;
+extract: &quot;full&quot;
+<b class="new">lang: &quot;en&quot;</b>
+<b class="new">translated_to: &quot;zh&quot;</b>
+<b class="new">translation: &quot;partial&quot;</b>
+---</span>
+
+# How Small Libraries Keep Their Catalogs Alive
+
+# 小型图书馆如何使他们的目录保持活力
+
+[原文](https://example.org/blog/small-library-catalogs)
+
+Most small libraries still run on a catalog that was built twenty years ago. It works, but every change takes a volunteer, a spreadsheet, and an afternoon.
+
+大多数小型图书馆仍在二十年前建立的目录上运行。它有效，但每一次改变都需要一个志愿者、一个电子表格和一个下午。
+
+## What we changed
+
+We moved the catalog into plain text files and kept them in a [Git repository](https://git-scm.com/). …</pre></div><div class="cap"><code>translation: "partial"</code>：前面若干块有译文，之后全是原文，不留占位或提示文字。中断包括服务停掉、扩展更新、浏览器关闭。</div></div><div class="col"><div class="lab">⑤ 失败：一段都没翻成<span>Les petites bibliothèques et leurs catalogues.md</span></div><div class="card"><pre class="code"><span class="dim">---
+id: &quot;01K7B2Q8N4M6P3R5T7V9X1Z3A5&quot;
+source: &quot;https://exemple.fr/blog/bibliotheques&quot;
+medium: &quot;web&quot;
+title: &quot;Les petites bibliothèques et leurs catalogues&quot;
+author: &quot;Claire Dubois&quot;
+published: &quot;2026-09-30T00:00:00.000Z&quot;
+captured: &quot;2026-10-18T05:40:00.000Z&quot;
+site: &quot;exemple.fr&quot;
+tags: []
+note: &quot;&quot;
+extract: &quot;full&quot;
+<b class="new">lang: &quot;fr&quot;</b>
+<b class="new">translated_to: &quot;zh&quot;</b>
+<b class="new">translation: &quot;failed&quot;</b>
+---</span>
+
+# Les petites bibliothèques et leurs catalogues
+
+[原文](https://exemple.fr/blog/bibliotheques)
+
+La plupart des petites bibliothèques utilisent encore un catalogue construit il y a vingt ans. …</pre></div><div class="cap"><code>translation: "failed"</code>，正文是原样的原文。失败原因（如该语言包还没下载）由面板和页面提示告诉用户（ALAG-27），不写进文件。</div></div></div>
+<div class="row"><div class="col"><div class="lab">⑥ X 作者串<span>@mayareads - We just shipped offline mode….md</span></div><div class="card"><pre class="code"><span class="dim">---
+id: &quot;01K7B2Q8N4M6P3R5T7V9X1Z3A5&quot;
+source: &quot;https://x.com/mayareads/status/1979000000000000001&quot;
+medium: &quot;x&quot;
+title: &quot;@mayareads - We just shipped offline mode for the reader app.&quot;
+author: &quot;Maya Lindqvist (@mayareads)&quot;
+published: &quot;2026-09-30T00:00:00.000Z&quot;
+captured: &quot;2026-10-18T05:40:00.000Z&quot;
+site: &quot;x.com&quot;
+tags: []
+note: &quot;&quot;
+extract: &quot;full&quot;
+<b class="new">lang: &quot;en&quot;</b>
+<b class="new">translated_to: &quot;zh&quot;</b>
+<b class="new">translation: &quot;complete&quot;</b>
+---</span>
+
+# @mayareads - We just shipped offline mode for the reader app.
+
+[原文](https://x.com/mayareads/status/1979000000000000001)
+
+We just shipped offline mode for the reader app.\
+Your highlights now sync the next time you&#x27;re online.
+
+我们刚刚为 Reader 应用程序提供离线模式。\
+下次上线时，您的亮点会同步。
+
+![](.assets/01K7B2Q8N4M6P3R5T7V9X1Z3A5/img-1.jpg)
+
+A few people asked how it works under the hood. Short version: everything is a file, and the sync is a diff.
+
+有几个人问它在引擎盖下是如何工作的。简短版本：一切都是一个文件，同步是一个差异。
+
+[▶ 视频 (0:42)](https://x.com/mayareads/status/1979000000000000002/video/1)
+
+&gt; **Ink &amp; Switch (@inkandswitch)** · 2026-09-12 · [原帖](https://x.com/inkandswitch/status/1966000000000000000)
+&gt;
+&gt; Local-first software puts your data on your device first and the cloud second.
+&gt;
+&gt; 本地优先软件将您的数据放在设备上，其次是云第二。
+&gt;
+&gt; [Local-first software: You own your data](https://www.inkandswitch.com/local-first/)</pre></div><div class="cap">帖子正文按段翻；帖子里用硬换行分开的几行逐行翻，译文保持同样的换行。引用帖的作者行、图片、<code>▶ 视频</code> 行、卡片链接不翻；引用帖正文的译文留在引用块里。</div></div><div class="col"><div class="lab">⑦ 摘录剪藏<span>摘录 - On Programs and Intentions.md</span></div><div class="card"><pre class="code"><span class="dim">---
+id: &quot;01K7B3C5D7E9F1G3H5J7K9M1N3&quot;
+source: &quot;https://example.org/essays/programs&quot;
+medium: &quot;quote&quot;
+title: &quot;On Programs and Intentions&quot;
+author: &quot;&quot;
+published: &quot;&quot;
+captured: &quot;2026-10-18T05:52:00.000Z&quot;
+site: &quot;example.org&quot;
+tags: []
+note: &quot;&quot;
+extract: &quot;full&quot;
+---</span>
+
+# 摘录 - On Programs and Intentions
+
+[原文](https://example.org/essays/programs)
+
+&gt; The most important property of a program is whether it accomplishes the intention of its user.
+&gt;
+&gt; 程序最重要的属性是它是否实现了用户的意图。
+
+2026-10-18 13:52 · [跳回原文](https://example.org/essays/programs#:~:text=The%20most%20important%20property)
+
+这句话可以贴在需求评审的墙上。
+
+&gt; Simple things should be simple, complex things should be possible.
+&gt;
+&gt; 简单的事情应该是简单的，复杂的事情应该是可能的。
+
+2026-10-18 13:55 · [跳回原文](https://example.org/essays/programs#:~:text=Simple%20things%20should)</pre></div><div class="cap">译文写在同一个引用块里、原文之后，跳回原文那一行和批注的位置不变；批注是用户自己写的，不翻。摘录文件会陆续追加，各条的语言可能不同，所以摘录文件的 frontmatter <b>不加</b> 三个翻译字段。</div></div><div class="col"><div class="lab">frontmatter 新增字段</div><div class="card spec">
+<p><code>lang</code>：原文语言，翻译层检测或页面给出的结果，规范成 <code>en</code>、<code>zh</code>、<code>zh-Hant</code> 这样的写法；检测不出时为 <code>""</code>。</p>
+<p><code>translated_to</code>：目标语言，同样规范写法。</p>
+<p><code>translation</code>：<code>complete</code> / <code>partial</code> / <code>failed</code>。</p>
+<p>三个字段接在 <code>extract</code> 之后（流媒体剪藏不翻译，不加）。没要求翻译的剪藏没有这三个字段。</p>
+<p><b>原文与目标语言相同</b>（比如中文页面、目标中文）：不改文件，不加任何字段。</p>
+<p>标题字段 <code>title</code> 保持原文，文件名也不变。</p>
+</div></div></div>
+</div></body></html>
