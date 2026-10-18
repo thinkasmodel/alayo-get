@@ -15,10 +15,18 @@ import type {
 
 export interface RunnerOptions {
   newId?: () => string;
+  /** 便于测试注入假计时器；缺省 setTimeout/clearTimeout。 */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (handle: unknown) => void;
 }
 
 export const DETECT_SAMPLE_CHARS = 2000;
 export const MIN_DETECT_CONFIDENCE = 0.5;
+/** 单次引擎调用最多等这么久；超时折成 engine-failed，队列继续下一个任务。 */
+export const STEP_TIMEOUT_MS = 60_000;
+
+/** 对引擎的一次等待：正常完成、被取消、超时或引擎报错。 */
+type StepResult<T> = { status: 'ok'; value: T } | { status: 'cancelled' } | { status: 'timeout'; step: string } | { status: 'error'; error: unknown };
 
 interface Job {
   id: string;
@@ -44,6 +52,8 @@ const isAbortError = (err: unknown): boolean => typeof err === 'object' && err !
 /** 新建一个 FIFO 执行器：任务按提交顺序一次只跑一个。 */
 export function createTranslationRunner(engine: TranslationEngine, options: RunnerOptions = {}): TranslationService {
   const newId = options.newId ?? defaultNewId;
+  const setTimer = options.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
+  const clearTimer = options.clearTimer ?? ((handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>));
   const queue: Job[] = [];
   const jobs = new Map<string, Job>();
   let running = false;
@@ -81,9 +91,57 @@ export function createTranslationRunner(engine: TranslationEngine, options: Runn
     callHandler(() => job.handlers?.onSegment?.(index, text));
   };
 
+  const timeoutResult = (job: Job, step: string): TranslateResult =>
+    failedResult(job, { code: 'engine-failed', message: `TimeoutError: ${step} exceeded ${STEP_TIMEOUT_MS}ms` });
+
+  /**
+   * 与任务的 abort 信号、STEP_TIMEOUT_MS 计时器三者赛跑。被放弃的引擎 Promise 之后
+   * resolve 或 reject 都由这里的 then/catch 吞掉，不产生未处理的 rejection。
+   */
+  const raceStep = <T>(job: Job, step: string, operation: Promise<T>): Promise<StepResult<T>> => {
+    void operation.catch(() => undefined);
+    return new Promise<StepResult<T>>((resolve) => {
+      let settled = false;
+      let timer: unknown = null;
+      const signal = job.controller.signal;
+
+      function finish(result: StepResult<T>): void {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) {
+          clearTimer(timer);
+          timer = null;
+        }
+        signal.removeEventListener('abort', onAbort);
+        resolve(result);
+      }
+      function onAbort(): void {
+        finish({ status: 'cancelled' });
+      }
+
+      if (cancelledNow(job)) {
+        finish({ status: 'cancelled' });
+        return;
+      }
+      signal.addEventListener('abort', onAbort);
+      const handle = setTimer(() => finish({ status: 'timeout', step }), STEP_TIMEOUT_MS);
+      if (settled) clearTimer(handle);
+      else timer = handle;
+      operation.then(
+        (value) => finish({ status: 'ok', value }),
+        (error) => finish({ status: 'error', error }),
+      );
+    });
+  };
+
   const detectSource = async (job: Job): Promise<string | TranslateResult> => {
-    const availability = await engine.detectorAvailability();
+    const availabilityStep = await raceStep(job, 'detectorAvailability', engine.detectorAvailability());
+    if (availabilityStep.status === 'cancelled') return cancelledResult(job);
+    if (availabilityStep.status === 'timeout') return timeoutResult(job, availabilityStep.step);
+    if (availabilityStep.status === 'error') throw availabilityStep.error;
     if (cancelledNow(job)) return cancelledResult(job);
+    const availability = availabilityStep.value;
+
     if (availability === 'downloadable' || availability === 'downloading') {
       return failedResult(job, { code: 'needs-download', model: { kind: 'detector' } });
     }
@@ -93,9 +151,12 @@ export function createTranslationRunner(engine: TranslationEngine, options: Runn
       .filter((segment) => segment.trim() !== '')
       .join('\n')
       .slice(0, DETECT_SAMPLE_CHARS);
-    const detected = await engine.detect(sample);
+    const detectStep = await raceStep(job, 'detect', engine.detect(sample));
+    if (detectStep.status === 'cancelled') return cancelledResult(job);
+    if (detectStep.status === 'timeout') return timeoutResult(job, detectStep.step);
+    if (detectStep.status === 'error') throw detectStep.error;
     if (cancelledNow(job)) return cancelledResult(job);
-    const first = detected[0];
+    const first = detectStep.value[0];
     if (!first || first.language === 'und' || first.confidence < MIN_DETECT_CONFIDENCE) {
       return failedResult(job, { code: 'source-unknown' });
     }
@@ -114,8 +175,12 @@ export function createTranslationRunner(engine: TranslationEngine, options: Runn
       const translated: string[] = [];
       for (const piece of splitLong(segment)) {
         if (cancelledNow(job)) return cancelledResult(job);
-        translated.push(await engine.translate(source, target, piece, job.controller.signal));
+        const step = await raceStep(job, 'translate', engine.translate(source, target, piece, job.controller.signal));
+        if (step.status === 'cancelled') return cancelledResult(job);
+        if (step.status === 'timeout') return timeoutResult(job, step.step);
+        if (step.status === 'error') throw step.error;
         if (cancelledNow(job)) return cancelledResult(job);
+        translated.push(step.value);
       }
       emitSegment(job, index, joinPieces(translated, target));
     }
@@ -154,8 +219,12 @@ export function createTranslationRunner(engine: TranslationEngine, options: Runn
       if (cancelledNow(job)) return cancelledResult(job);
       if (sameLanguage(source, target)) return { status: 'skipped', source };
 
-      const availability = await engine.availability(source, target);
+      const availabilityStep = await raceStep(job, 'availability', engine.availability(source, target));
+      if (availabilityStep.status === 'cancelled') return cancelledResult(job);
+      if (availabilityStep.status === 'timeout') return timeoutResult(job, availabilityStep.step);
+      if (availabilityStep.status === 'error') throw availabilityStep.error;
       if (cancelledNow(job)) return cancelledResult(job);
+      const availability = availabilityStep.value;
       if (availability === 'unavailable') return failedResult(job, { code: 'unsupported-pair', source, target });
       if (availability === 'downloadable' || availability === 'downloading') {
         const model: ModelSpec = { kind: 'translator', source, target };

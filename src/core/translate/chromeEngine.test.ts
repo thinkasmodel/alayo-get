@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  CREATE_TIMEOUT_MS,
   createChromeEngine,
   isTranslationSupported,
   type LanguageDetectorStatic,
@@ -7,6 +8,30 @@ import {
   type TranslatorInstanceLike,
   type TranslatorStatic,
 } from './chromeEngine';
+
+function fakeTimers() {
+  let nextId = 0;
+  const timers = new Map<number, { fn: () => void; ms: number }>();
+  return {
+    setTimer: (fn: () => void, ms: number): unknown => {
+      const id = ++nextId;
+      timers.set(id, { fn, ms });
+      return id;
+    },
+    clearTimer: (handle: unknown): void => {
+      timers.delete(handle as number);
+    },
+    fire(): void {
+      for (const [id, timer] of [...timers]) {
+        timers.delete(id);
+        timer.fn();
+      }
+    },
+    pending(): number[] {
+      return [...timers.values()].map((timer) => timer.ms);
+    },
+  };
+}
 
 const okTranslator = (create: TranslatorStatic['create'], availability: 'available' | 'downloadable' | 'unavailable' = 'available'): TranslatorStatic => ({
   availability: vi.fn(async () => availability),
@@ -122,5 +147,80 @@ describe('createChromeEngine', () => {
   it('没有 LanguageDetector 时 detectorAvailability 为 unavailable', async () => {
     const engine = createChromeEngine({ Translator: okTranslator(vi.fn(async () => instance())) });
     await expect(engine.detectorAvailability()).resolves.toBe('unavailable');
+  });
+
+  it('实例 translate 抛 InvalidStateError → destroy 并清缓存，下次重新 create', async () => {
+    const destroy = vi.fn();
+    const bad: TranslatorInstanceLike = {
+      translate: vi.fn(async () => {
+        throw Object.assign(new Error('bad state'), { name: 'InvalidStateError' });
+      }),
+      destroy,
+    };
+    const create = vi
+      .fn<TranslatorStatic['create']>()
+      .mockResolvedValueOnce(bad)
+      .mockResolvedValueOnce(instance());
+    const engine = createChromeEngine({ Translator: okTranslator(create) });
+
+    await expect(engine.translate('en', 'zh', 'one')).rejects.toMatchObject({ name: 'InvalidStateError' });
+    expect(destroy).toHaveBeenCalledTimes(1);
+    await expect(engine.translate('en', 'zh', 'two')).resolves.toBe('[two]');
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('实例 translate 抛 AbortError → 不 destroy、不清缓存', async () => {
+    const destroy = vi.fn();
+    const translate = vi.fn(async () => {
+      throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    });
+    const create = vi.fn(async () => ({ translate, destroy }));
+    const engine = createChromeEngine({ Translator: okTranslator(create) });
+
+    await expect(engine.translate('en', 'zh', 'one')).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(engine.translate('en', 'zh', 'two')).rejects.toMatchObject({ name: 'AbortError' });
+    expect(destroy).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('create 永远 pending → CREATE_TIMEOUT_MS 后 TimeoutError，再调用重新 create', async () => {
+    const timers = fakeTimers();
+    let calls = 0;
+    const create = vi.fn<TranslatorStatic['create']>(() => {
+      calls += 1;
+      return calls === 1 ? new Promise<TranslatorInstanceLike>(() => undefined) : Promise.resolve(instance());
+    });
+    const engine = createChromeEngine({ Translator: okTranslator(create) }, { setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+
+    const first = engine.translate('en', 'zh', 'one');
+    await Promise.resolve();
+    expect(timers.pending()).toEqual([CREATE_TIMEOUT_MS]);
+    timers.fire();
+    await expect(first).rejects.toMatchObject({ name: 'TimeoutError' });
+    await expect(engine.translate('en', 'zh', 'two')).resolves.toBe('[two]');
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('检测器 detect 抛非 AbortError → destroy 并清缓存，下次重新 create', async () => {
+    const destroy = vi.fn();
+    const bad = {
+      detect: vi.fn(async () => {
+        throw new Error('detector failed');
+      }),
+      destroy,
+    };
+    const detector: LanguageDetectorStatic = {
+      availability: vi.fn(async () => 'available' as const),
+      create: vi
+        .fn<LanguageDetectorStatic['create']>()
+        .mockResolvedValueOnce(bad)
+        .mockResolvedValueOnce({ detect: vi.fn(async () => [{ detectedLanguage: 'en', confidence: 0.9 }]) }),
+    };
+    const engine = createChromeEngine({ Translator: okTranslator(vi.fn(async () => instance())), LanguageDetector: detector });
+
+    await expect(engine.detect('hello')).rejects.toThrow('detector failed');
+    expect(destroy).toHaveBeenCalledTimes(1);
+    await expect(engine.detect('hello')).resolves.toEqual([{ language: 'en', confidence: 0.9 }]);
+    expect(detector.create).toHaveBeenCalledTimes(2);
   });
 });

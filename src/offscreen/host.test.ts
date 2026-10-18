@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SwToTranslateHost, TranslateHostToSw } from '@/shared/messages';
 import type { TranslateHandlers, TranslateRequest, TranslateResult, TranslationService } from '@/core/translate/types';
 import type { PortLike } from '@/sw/ports';
-import { handleTranslateHostPort } from './host';
+import { createIdleCloser, handleTranslateHostPort, IDLE_CLOSE_MS, type HostActivity } from './host';
 
 class FakePort<In, Out> implements PortLike<In, Out> {
   readonly sent: Out[] = [];
@@ -31,6 +31,30 @@ class FakePort<In, Out> implements PortLike<In, Out> {
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+function fakeTimers() {
+  let nextId = 0;
+  const timers = new Map<number, { fn: () => void; ms: number }>();
+  return {
+    setTimer: (fn: () => void, ms: number): unknown => {
+      const id = ++nextId;
+      timers.set(id, { fn, ms });
+      return id;
+    },
+    clearTimer: (handle: unknown): void => {
+      timers.delete(handle as number);
+    },
+    fire(): void {
+      for (const [id, timer] of [...timers]) {
+        timers.delete(id);
+        timer.fn();
+      }
+    },
+    pending(): number[] {
+      return [...timers.values()].map((timer) => timer.ms);
+    },
+  };
+}
+
 class FakeService implements TranslationService {
   readonly calls: Array<{ request: TranslateRequest; handlers?: TranslateHandlers }> = [];
   readonly cancel = vi.fn();
@@ -54,9 +78,9 @@ class FakeService implements TranslationService {
 
 type HostPort = FakePort<SwToTranslateHost, TranslateHostToSw>;
 
-function open(service: TranslationService): HostPort {
+function open(service: TranslationService, activity?: HostActivity): HostPort {
   const port: HostPort = new FakePort('translate');
-  handleTranslateHostPort(port, service);
+  handleTranslateHostPort(port, service, activity);
   return port;
 }
 
@@ -127,5 +151,57 @@ describe('handleTranslateHostPort', () => {
     expect(() => service.calls[0]?.handlers?.onSegment?.(0, '译')).not.toThrow();
     service.resolve('task-1', { status: 'complete', source: 'en' });
     await flush();
+  });
+
+  it('带 activity 时每个任务 begin/end 恰好一次（含 Port 断开取消的任务）', async () => {
+    const service = new FakeService();
+    const activity: HostActivity = { begin: vi.fn(), end: vi.fn() };
+    const port = open(service, activity);
+    port.send({ type: 'translate', jobId: 'sw-1', request: { segments: ['a'], target: 'zh', source: 'en' } });
+    port.send({ type: 'translate', jobId: 'sw-2', request: { segments: ['b'], target: 'zh', source: 'en' } });
+    expect(activity.begin).toHaveBeenCalledTimes(2);
+
+    service.resolve('task-1', { status: 'complete', source: 'en' });
+    await flush();
+    expect(activity.end).toHaveBeenCalledTimes(1);
+
+    port.disconnect();
+    expect(service.cancel).toHaveBeenCalledWith('task-2');
+    service.resolve('task-2', { status: 'cancelled', done: 0 });
+    await flush();
+    expect(activity.end).toHaveBeenCalledTimes(2);
+    expect(activity.begin).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('createIdleCloser', () => {
+  it('创建后无活动到点 → close 一次', () => {
+    const timers = fakeTimers();
+    const close = vi.fn();
+    createIdleCloser({ close, setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+    expect(timers.pending()).toEqual([IDLE_CLOSE_MS]);
+    timers.fire();
+    expect(close).toHaveBeenCalledTimes(1);
+    timers.fire();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('有任务进行中不关；全部结束后重新计时', () => {
+    const timers = fakeTimers();
+    const close = vi.fn();
+    const activity = createIdleCloser({ close, setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+
+    activity.begin();
+    activity.begin();
+    expect(timers.pending()).toEqual([]);
+    timers.fire();
+    expect(close).not.toHaveBeenCalled();
+
+    activity.end();
+    expect(timers.pending()).toEqual([]);
+    activity.end();
+    expect(timers.pending()).toEqual([IDLE_CLOSE_MS]);
+    timers.fire();
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });

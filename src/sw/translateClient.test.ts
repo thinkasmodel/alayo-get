@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TranslateHandlers, TranslateResult } from '@/core/translate/types';
 import type { SwToTranslateHost, TranslateHostToSw } from '@/shared/messages';
 import type { PortLike } from './ports';
-import { ACK_TIMEOUT_MS, CONNECT_ATTEMPTS, CONNECT_RETRY_MS, createTranslateClient, IDLE_CLOSE_MS, type TranslateClientDeps } from './translateClient';
+import { ACK_TIMEOUT_MS, CONNECT_ATTEMPTS, CONNECT_RETRY_MS, createTranslateClient, type TranslateClientDeps } from './translateClient';
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -74,7 +74,6 @@ function setup(overrides: Partial<TranslateClientDeps> = {}) {
   const ports: ClientPort[] = [];
   const hasDocument = vi.fn(async () => true);
   const createDocument = vi.fn(async () => undefined);
-  const closeDocument = vi.fn(async () => undefined);
   let nextId = 0;
   const connect = vi.fn(() => {
     const port: ClientPort = new FakePort();
@@ -84,14 +83,13 @@ function setup(overrides: Partial<TranslateClientDeps> = {}) {
   const deps: TranslateClientDeps = {
     hasDocument,
     createDocument,
-    closeDocument,
     connect,
     newId: () => `job-${++nextId}`,
     setTimer: clock.set,
     clearTimer: clock.clear,
     ...overrides,
   };
-  return { deps, clock, ports, hasDocument, createDocument, closeDocument, connect };
+  return { deps, clock, ports, hasDocument, createDocument, connect };
 }
 
 const request = { segments: ['Hello'], target: 'zh', source: 'en' };
@@ -253,86 +251,63 @@ describe('createTranslateClient', () => {
     expect(port?.sent).toEqual([{ type: 'hello' }]);
   });
 
-  it('空闲 IDLE_CLOSE_MS 后 closeDocument 被调用一次，期间有新任务则不关', async () => {
-    const { deps, clock, ports, closeDocument } = setup();
+  it('发出后未收到任何消息即断开：新连接上重发一次并正常完成', async () => {
+    const { deps, ports, connect } = setup();
     const service = createTranslateClient(deps);
-    const first = start(service);
+    const job = start(service);
     await flush();
-    const port = ports[0];
-    port?.receive({ type: 'hello-ack' });
+    const first = ports[0];
+    first?.receive({ type: 'hello-ack' });
     await flush();
-    port?.receive({ type: 'result', jobId: first.id, result: { status: 'complete', source: 'en' } });
-    await first.result;
+    expect(first?.sent.some((message) => message.type === 'translate')).toBe(true);
 
-    await clock.advance(IDLE_CLOSE_MS - 1);
-    expect(closeDocument).not.toHaveBeenCalled();
-    await clock.advance(1);
-    expect(closeDocument).toHaveBeenCalledTimes(1);
-  });
-
-  it('空闲计时期间来了新任务就取消计时', async () => {
-    const { deps, clock, ports, closeDocument } = setup();
-    const service = createTranslateClient(deps);
-    const first = start(service);
+    first?.remoteDisconnect();
     await flush();
-    const port = ports[0];
-    port?.receive({ type: 'hello-ack' });
-    await flush();
-    port?.receive({ type: 'result', jobId: first.id, result: { status: 'complete', source: 'en' } });
-    await first.result;
-
-    await clock.advance(IDLE_CLOSE_MS / 2);
-    const second = start(service);
-    await flush();
-    expect(port?.sent.filter((message) => message.type === 'translate')).toHaveLength(2);
-    port?.receive({ type: 'result', jobId: second.id, result: { status: 'complete', source: 'en' } });
-    await second.result;
-
-    await clock.advance(IDLE_CLOSE_MS / 2);
-    expect(closeDocument).not.toHaveBeenCalled();
-    await clock.advance(IDLE_CLOSE_MS);
-    expect(closeDocument).toHaveBeenCalledTimes(1);
-  });
-
-  it('空闲关闭进行中来了新任务：等关闭完成后再建文档并完成翻译', async () => {
-    const { deps, clock, ports, createDocument, connect } = setup();
-    let documentOpen = true;
-    let resolveClosing!: () => void;
-    const closing = new Promise<void>((resolve) => {
-      resolveClosing = resolve;
-    });
-    deps.hasDocument = vi.fn(async () => documentOpen);
-    deps.closeDocument = vi.fn(() => closing);
-
-    const service = createTranslateClient(deps);
-    const first = start(service);
-    await flush();
-    const firstPort = ports[0];
-    firstPort?.receive({ type: 'hello-ack' });
-    await flush();
-    firstPort?.receive({ type: 'result', jobId: first.id, result: { status: 'complete', source: 'en' } });
-    await first.result;
-
-    await clock.advance(IDLE_CLOSE_MS);
-    expect(deps.closeDocument).toHaveBeenCalledTimes(1);
-
-    const second = start(service);
-    await flush();
-    // 关闭还没完成：不建文档，也不去连马上要关掉的旧文档。
-    expect(createDocument).not.toHaveBeenCalled();
-    expect(connect).toHaveBeenCalledTimes(1);
-
-    documentOpen = false;
-    resolveClosing();
-    await flush();
-    expect(createDocument).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledTimes(2);
+    const second = ports[1];
+    expect(second?.sent).toEqual([{ type: 'hello' }]);
 
-    const secondPort = ports[1];
-    secondPort?.receive({ type: 'hello-ack' });
+    second?.receive({ type: 'hello-ack' });
     await flush();
-    secondPort?.receive({ type: 'result', jobId: second.id, result: { status: 'complete', source: 'en' } });
-    await expect(second.result).resolves.toEqual({ status: 'complete', source: 'en' });
+    expect(second?.sent.filter((message) => message.type === 'translate')).toEqual([{ type: 'translate', jobId: job.id, request }]);
+    second?.receive({ type: 'result', jobId: job.id, result: { status: 'complete', source: 'en' } });
+    await expect(job.result).resolves.toEqual({ status: 'complete', source: 'en' });
+  });
+
+  it('重发后再次断开：host-lost，不再重发', async () => {
+    const { deps, ports, connect } = setup();
+    const service = createTranslateClient(deps);
+    const job = start(service);
+    await flush();
+    ports[0]?.receive({ type: 'hello-ack' });
+    await flush();
+
+    ports[0]?.remoteDisconnect();
+    await flush();
+    ports[1]?.receive({ type: 'hello-ack' });
+    await flush();
+    expect(ports[1]?.sent.some((message) => message.type === 'translate')).toBe(true);
+
+    ports[1]?.remoteDisconnect();
+    await expect(job.result).resolves.toEqual({ status: 'failed', error: { code: 'host-lost' }, done: 0 });
+    await flush();
+    expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('收到过 segment 后断开：不重发，host-lost 且 done 为已收段数', async () => {
+    const { deps, ports, connect } = setup();
+    const service = createTranslateClient(deps);
+    const job = start(service);
+    await flush();
+    const port = ports[0];
+    port?.receive({ type: 'hello-ack' });
+    await flush();
+    port?.receive({ type: 'segment', jobId: job.id, index: 0, text: '你' });
+
+    port?.remoteDisconnect();
+    await expect(job.result).resolves.toEqual({ status: 'failed', error: { code: 'host-lost' }, done: 1 });
+    await flush();
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 
   it('result 原样 resolve，done 以 host 给的为准', async () => {

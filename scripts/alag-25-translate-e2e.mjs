@@ -1,5 +1,5 @@
 // ALAG-25 编排者真机验收：加载构建产物（.output/chrome-mv3），选项页上真实点击下载 en↔zh 语言包与语言检测模型，
-// 再从 SW 里按 chromeTranslateClientDeps 的同样参数建 offscreen 文档、连 'translate' Port，跑完整/检测/跳过/取消/长段/未下载六类任务。
+// 再从 SW 里按 chromeTranslateClientDeps 的同样参数建 offscreen 文档、连 'translate' Port，跑完整/检测/跳过/取消/长段/未下载六类任务，最后等 65 秒验证文档空闲自行关闭。
 // 用法：npx wxt build && node scripts/alag-25-translate-e2e.mjs --ext .output/chrome-mv3 --profile <新的空目录> --out <输出目录>
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -138,6 +138,13 @@ try {
 
   const ctx = await evaluate(swSid, `chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] }).then((c) => c.length)`);
   check('全程只有一个 offscreen 文档', ctx === 1, ctx);
+
+  // 空闲关闭由 offscreen 文档自己计时（codex review ALAG-25 第 1 轮）：最后一个任务结束 60 秒后文档应自行关闭，之后能重新建文档并翻译。
+  await sleep(65000);
+  const after = await evaluate(swSid, `chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] }).then((c) => c.length)`);
+  check('空闲 60 秒后 offscreen 文档自行关闭', after === 0, after);
+  const again = await evaluate(swSid, swJob({ segments: ['The library is open again.'], source: 'en', target: 'zh' }), 120000);
+  check('自行关闭后重新建文档并翻译', again.result.status === 'complete', again.result);
 } catch (e) {
   log('FATAL', e.stack || e.message);
   checks.push({ name: 'fatal', ok: false });

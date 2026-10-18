@@ -1,5 +1,6 @@
 // service worker 一侧的翻译客户端（ALAG-25 §9）：按需创建 offscreen 文档、连接并握手、
-// 把任务发给 offscreen 的 host，转发进度、取消，断线时把未结束任务折成 host-lost，空闲时关闭文档。
+// 把任务发给 offscreen 的 host，转发进度、取消。文档自己空闲关闭后 Port 断开，客户端丢掉 Port，
+// 下一个任务重新建文档、重新连接；关闭时刚发出的任务在新连接上重发一次。
 import type { TranslateHandlers, TranslateRequest, TranslateResult, TranslationService } from '@/core/translate/types';
 import { TRANSLATE_PORT, type SwToTranslateHost, type TranslateHostToSw } from '@/shared/messages';
 import type { PortLike } from './ports';
@@ -8,7 +9,6 @@ export interface TranslateClientDeps {
   /** 是否已有 offscreen 文档（真实实现：runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] })）。 */
   hasDocument(): Promise<boolean>;
   createDocument(): Promise<void>;
-  closeDocument(): Promise<void>;
   /** PortLike 之外还要 disconnect()，用于握手超时时主动断开。 */
   connect(): PortLike<TranslateHostToSw, SwToTranslateHost> & { disconnect(): void };
   newId?: () => string;
@@ -20,7 +20,6 @@ export interface TranslateClientDeps {
 export const CONNECT_ATTEMPTS = 50;
 export const CONNECT_RETRY_MS = 100;
 export const ACK_TIMEOUT_MS = 2000;
-export const IDLE_CLOSE_MS = 60_000;
 
 type Port = PortLike<TranslateHostToSw, SwToTranslateHost> & { disconnect(): void };
 
@@ -30,6 +29,12 @@ interface Job {
   handlers?: TranslateHandlers;
   /** 是否已经发出 translate 消息。 */
   sent: boolean;
+  /** 是否收到过这个任务的任何消息（source 或 segment）。 */
+  received: boolean;
+  /** 是否已经因断线重发过一次。 */
+  resent: boolean;
+  /** 用户已经请求取消；断线时不再重发。 */
+  cancelRequested: boolean;
   /** host 送来的 segment 条数。 */
   done: number;
   settled: boolean;
@@ -46,62 +51,14 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
   let connecting: Promise<boolean> | null = null;
   /** 建文档过程的 Promise 缓存：并发调用只建一次（offscreen 文档只能有一个）。 */
   let documentPromise: Promise<void> | null = null;
-  /** 空闲关闭的 Promise：关闭完成（或失败）前，新任务必须等它结束再判断文档是否存在。 */
-  let closing: Promise<void> | null = null;
-  let idleTimer: unknown = null;
 
-  const hostLost = (): TranslateResult => ({ status: 'failed', error: { code: 'host-lost' }, done: 0 });
-
-  const cancelIdleClose = (): void => {
-    if (idleTimer !== null) {
-      clearTimer(idleTimer);
-      idleTimer = null;
-    }
-  };
-
-  /** 关掉 offscreen 文档；失败忽略（文档可能已经自己关闭，或正被别处关闭）。 */
-  const startClosingDocument = (): void => {
-    let closingDocument: Promise<void>;
-    try {
-      closingDocument = deps.closeDocument();
-    } catch (err) {
-      console.debug('[Alayo Get] 关闭翻译 offscreen 文档失败', err);
-      return;
-    }
-    const tracked = closingDocument.catch((err: unknown) => {
-      console.debug('[Alayo Get] 关闭翻译 offscreen 文档失败', err);
-    });
-    closing = tracked;
-    void tracked.finally(() => {
-      if (closing === tracked) closing = null;
-    });
-  };
-
-  const scheduleIdleClose = (): void => {
-    if (idleTimer !== null || jobs.size > 0) return;
-    idleTimer = setTimer(() => {
-      idleTimer = null;
-      if (jobs.size > 0) return;
-      const closed = port;
-      port = null;
-      documentPromise = null;
-      if (closed) {
-        try {
-          closed.disconnect();
-        } catch (err) {
-          console.debug('[Alayo Get] 断开空闲的翻译 Port 失败', err);
-        }
-      }
-      startClosingDocument();
-    }, IDLE_CLOSE_MS);
-  };
+  const hostLost = (done: number): TranslateResult => ({ status: 'failed', error: { code: 'host-lost' }, done });
 
   const settle = (job: Job, result: TranslateResult): void => {
     if (job.settled) return;
     job.settled = true;
     job.resolve(result);
     jobs.delete(job.id);
-    if (jobs.size === 0) scheduleIdleClose();
   };
 
   const send = (target: Port, message: SwToTranslateHost): boolean => {
@@ -133,7 +90,7 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
   /** 连接失败：还在等待发送的任务以 host-lost 结束。已发出的任务在断线处理里结束。 */
   const failWaiting = (): void => {
     for (const job of [...jobs.values()]) {
-      if (!job.sent) settle(job, hostLost());
+      if (!job.sent) settle(job, hostLost(job.done));
     }
   };
 
@@ -144,6 +101,7 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
       case 'source': {
         const job = jobs.get(message.jobId);
         if (!job || job.settled) return;
+        job.received = true;
         try {
           job.handlers?.onSource?.(message.source);
         } catch (err) {
@@ -154,6 +112,7 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
       case 'segment': {
         const job = jobs.get(message.jobId);
         if (!job || job.settled) return;
+        job.received = true;
         job.done += 1;
         try {
           job.handlers?.onSegment?.(message.index, message.text);
@@ -171,26 +130,26 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
     }
   };
 
-  /** 已连上的 Port 断开：所有未结束任务以 host-lost 结束，丢掉缓存的 Port，下一个任务重新建文档/连接。 */
+  /**
+   * 已连上的 Port 断开：丢掉缓存的 Port，下一个任务重新建文档/连接。
+   * 已发出但还没收到任何消息的任务在新连接上重发一次；收到过消息、已重发过或已请求取消的照旧 host-lost。
+   */
   const handlePortLost = (lost: Port): void => {
     if (port !== lost) return;
     port = null;
     documentPromise = null;
     for (const job of [...jobs.values()]) {
-      settle(job, { status: 'failed', error: { code: 'host-lost' }, done: job.done });
+      if (job.sent && !job.received && !job.resent && !job.cancelRequested) {
+        job.sent = false;
+        job.resent = true;
+        scheduleJob(job);
+        continue;
+      }
+      settle(job, hostLost(job.done));
     }
   };
 
-  const ensureDocument = async (): Promise<void> => {
-    // 空闲关闭还没完成时，hasDocument() 仍可能为 true；要先等它关完，再判断并建新文档。
-    if (closing) {
-      try {
-        await closing;
-      } catch (err) {
-        // 关闭失败已在 startClosingDocument 里吞掉；这里只是防御
-        console.debug('[Alayo Get] 等待翻译 offscreen 文档关闭失败', err);
-      }
-    }
+  const ensureDocument = (): Promise<void> => {
     if (!documentPromise) {
       documentPromise = (async () => {
         if (await deps.hasDocument()) return;
@@ -307,32 +266,45 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
     return connecting;
   };
 
+  /** 等待/建立连接后把任务发出去；连接失败时把所有还没发出的任务以 host-lost 结束。 */
+  const scheduleJob = (job: Job): void => {
+    void ensureConnected().then(
+      (ok) => {
+        if (job.settled) return;
+        if (!ok || !port) {
+          failWaiting();
+          return;
+        }
+        if (!job.sent) sendJob(job, port);
+      },
+      (err: unknown) => {
+        console.warn('[Alayo Get] 翻译连接失败', err);
+        failWaiting();
+      },
+    );
+  };
+
   return {
     translate(request: TranslateRequest, handlers?: TranslateHandlers) {
-      cancelIdleClose();
       const id = newId();
       let resolve!: (result: TranslateResult) => void;
       const result = new Promise<TranslateResult>((done) => {
         resolve = done;
       });
-      const job: Job = { id, request, handlers, sent: false, done: 0, settled: false, resolve };
+      const job: Job = {
+        id,
+        request,
+        handlers,
+        sent: false,
+        received: false,
+        resent: false,
+        cancelRequested: false,
+        done: 0,
+        settled: false,
+        resolve,
+      };
       jobs.set(id, job);
-
-      void ensureConnected().then(
-        (ok) => {
-          if (job.settled) return;
-          if (!ok || !port) {
-            failWaiting();
-            return;
-          }
-          if (!job.sent) sendJob(job, port);
-        },
-        (err: unknown) => {
-          console.warn('[Alayo Get] 翻译连接失败', err);
-          failWaiting();
-        },
-      );
-
+      scheduleJob(job);
       return { id, result };
     },
 
@@ -344,6 +316,8 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
         settle(job, { status: 'cancelled', done: 0 });
         return;
       }
+      // 已发出的任务等待 host 的 result；期间断线也不重发。
+      job.cancelRequested = true;
       if (port && !send(port, { type: 'cancel', jobId })) handlePortLost(port);
     },
   };
@@ -367,9 +341,6 @@ export function chromeTranslateClientDeps(): TranslateClientDeps {
         justification:
           "Runs the browser's built-in on-device Translator and LanguageDetector APIs, which are only available in a window context.",
       });
-    },
-    closeDocument(): Promise<void> {
-      return browser.offscreen.closeDocument();
     },
     connect(): Port {
       return browser.runtime.connect({ name: TRANSLATE_PORT }) as unknown as Port;

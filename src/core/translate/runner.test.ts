@@ -1,8 +1,32 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createTranslationRunner, DETECT_SAMPLE_CHARS, MIN_DETECT_CONFIDENCE } from './runner';
+import { createTranslationRunner, DETECT_SAMPLE_CHARS, MIN_DETECT_CONFIDENCE, STEP_TIMEOUT_MS } from './runner';
 import type { DetectedLanguage, ModelAvailability, TranslateHandlers, TranslateRequest, TranslationEngine } from './types';
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+function fakeTimers() {
+  let nextId = 0;
+  const timers = new Map<number, { fn: () => void; ms: number }>();
+  return {
+    setTimer: (fn: () => void, ms: number): unknown => {
+      const id = ++nextId;
+      timers.set(id, { fn, ms });
+      return id;
+    },
+    clearTimer: (handle: unknown): void => {
+      timers.delete(handle as number);
+    },
+    fire(): void {
+      for (const [id, timer] of [...timers]) {
+        timers.delete(id);
+        timer.fn();
+      }
+    },
+    pending(): number[] {
+      return [...timers.values()].map((timer) => timer.ms);
+    },
+  };
+}
 
 function fakeEngine() {
   const state = {
@@ -281,5 +305,69 @@ describe('createTranslationRunner', () => {
     );
     expect(result).toEqual({ status: 'complete', source: 'en' });
     expect(segments).toEqual([{ index: 0, text: '[Hello]' }]);
+  });
+
+  it('detect 永远 pending 时取消：立即 cancelled，后面的任务照常完成', async () => {
+    const { engine } = fakeEngine();
+    const timers = fakeTimers();
+    const never = new Promise<DetectedLanguage[]>(() => undefined);
+    let detectCalls = 0;
+    engine.detect = vi.fn(() => {
+      detectCalls += 1;
+      return detectCalls === 1 ? never : Promise.resolve([{ language: 'en', confidence: 0.99 }]);
+    });
+    const service = createTranslationRunner(engine, { setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+    const first = service.translate({ segments: ['One'], target: 'zh' });
+    const second = service.translate({ segments: ['Two'], target: 'zh' });
+    await flush();
+    expect(engine.detect).toHaveBeenCalledTimes(1);
+
+    service.cancel(first.id);
+    await expect(first.result).resolves.toEqual({ status: 'cancelled', done: 0 });
+    await expect(second.result).resolves.toEqual({ status: 'complete', source: 'en' });
+    expect(engine.translate).toHaveBeenCalledWith('en', 'zh', 'Two', expect.any(AbortSignal));
+    expect(timers.pending()).toEqual([]);
+  });
+
+  it('availability 永远 pending → 超时 engine-failed，后续任务照常，放弃的 Promise reject 不产生未处理 rejection', async () => {
+    const { engine } = fakeEngine();
+    const timers = fakeTimers();
+    let rejectFirst!: (err: unknown) => void;
+    const firstAvailability = new Promise<ModelAvailability>((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    let availabilityCalls = 0;
+    engine.availability = vi.fn(() => {
+      availabilityCalls += 1;
+      return availabilityCalls === 1 ? firstAvailability : Promise.resolve<ModelAvailability>('available');
+    });
+    const unhandled: unknown[] = [];
+    const onUnhandled = (err: unknown): void => {
+      unhandled.push(err);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const service = createTranslationRunner(engine, { setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+      const first = service.translate({ segments: ['One'], target: 'zh', source: 'en' });
+      const second = service.translate({ segments: ['Two'], target: 'zh', source: 'en' });
+      await flush();
+      expect(engine.availability).toHaveBeenCalledTimes(1);
+      expect(timers.pending()).toEqual([STEP_TIMEOUT_MS]);
+
+      timers.fire();
+      await expect(first.result).resolves.toEqual({
+        status: 'failed',
+        error: { code: 'engine-failed', message: `TimeoutError: availability exceeded ${STEP_TIMEOUT_MS}ms` },
+        source: 'en',
+        done: 0,
+      });
+      await expect(second.result).resolves.toEqual({ status: 'complete', source: 'en' });
+
+      rejectFirst(new Error('late availability failure'));
+      await flush();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 });

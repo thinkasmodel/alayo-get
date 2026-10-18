@@ -75,10 +75,9 @@ function connectedClient(makeEngine: () => TranslationEngine): TranslationServic
   return createTranslateClient({
     hasDocument: async () => true,
     createDocument: async () => undefined,
-    closeDocument: async () => undefined,
     connect: () => client,
     newId: () => `job-${++nextId}`,
-    // 连接都是即时的，不需要真的等计时器；避免留下 60 秒的空闲关闭定时器。
+    // 连接都是即时的，不需要真的等计时器。
     setTimer: () => 0,
     clearTimer: () => undefined,
   });
