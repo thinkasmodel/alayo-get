@@ -29,6 +29,15 @@ const HTML_TABLE_DROP_TAGS = new Set([
 /** `href` 只留这几种协议（或页内锚点）；`src` 只留 http(s)。 */
 const SAFE_HREF = /^(?:https?:|mailto:|#)/i;
 const SAFE_SRC = /^https?:/i;
+/** 白名单外的块级包装：没有块级子元素时换成 `<p>`，否则去标签留子节点。 */
+const BLOCK_WRAPPER_TAGS = new Set([
+  'DIV', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'MAIN', 'ASIDE', 'NAV', 'FIGURE', 'FIGCAPTION',
+  'ADDRESS', 'CENTER', 'DETAILS', 'SUMMARY', 'FIELDSET', 'LEGEND',
+]);
+/** 块级内容：出现这些直接子元素时，块级包装去标签而不是换成 `<p>`。 */
+const BLOCK_CONTENT_TAGS = new Set([
+  'P', 'UL', 'OL', 'DL', 'BLOCKQUOTE', 'PRE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR',
+]);
 /** 格子里出现这些元素时，GFM 表格表达不了，改写成 HTML 表。 */
 const BLOCK_IN_CELL = 'pre, blockquote, table, hr, h1, h2, h3, h4, h5, h6';
 /** Turndown 的列表标记：`-   ` 与 `1.  ` 后面补齐到内容列的空格。 */
@@ -161,15 +170,33 @@ function gfmTable(turndown: TurndownService, bodyRows: HTMLElement[]): string {
   return lines.join('\n');
 }
 
-/** 先删危险元素，再给白名单外的元素去标签留文字；只用于写成 HTML 的表格。 */
+/** 去掉元素标签，把子节点挪到原位置。 */
+function unwrapElement(element: Element): void {
+  element.replaceWith(...Array.from(element.childNodes));
+}
+
+/** 把元素换成 `<p>`，子节点原样保留。 */
+function replaceWithParagraph(element: Element): void {
+  const paragraph = element.ownerDocument.createElement('p');
+  while (element.firstChild) paragraph.appendChild(element.firstChild);
+  element.replaceWith(paragraph);
+}
+
+/** 先删危险元素，再处理白名单外元素；只用于写成 HTML 的表格。 */
 function stripUnsafeElements(root: Element): void {
   for (const element of Array.from(root.querySelectorAll('*'))) {
     if (HTML_TABLE_DROP_TAGS.has(element.tagName)) element.remove();
   }
+  // 从内到外处理：块级包装里的块级子元素先变成最终的 P / 或被展开。
   for (const element of Array.from(root.querySelectorAll('*')).reverse()) {
-    if (!HTML_TABLE_KEEP_TAGS.has(element.tagName)) {
-      element.replaceWith(...Array.from(element.childNodes));
+    if (HTML_TABLE_KEEP_TAGS.has(element.tagName)) continue;
+    if (!BLOCK_WRAPPER_TAGS.has(element.tagName)) {
+      unwrapElement(element);
+      continue;
     }
+    const hasBlockChild = Array.from(element.children).some((child) => BLOCK_CONTENT_TAGS.has(child.tagName));
+    if (hasBlockChild) unwrapElement(element);
+    else replaceWithParagraph(element);
   }
 }
 

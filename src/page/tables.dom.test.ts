@@ -93,7 +93,7 @@ describe('addTableRules：HTML 表元素与地址白名单', () => {
     const md = turndown().turndown(
       '<table><tr><td rowspan="2"><span><font>Text</font></span><div>D</div></td><td>1</td></tr><tr><td>2</td></tr></table>',
     );
-    expect(md).toContain('<span>Text</span>D');
+    expect(md).toContain('<span>Text</span><p>D</p>');
     expect(md).not.toContain('<font');
     expect(md).not.toContain('<div');
   });
@@ -112,5 +112,21 @@ describe('addTableRules：HTML 表元素与地址白名单', () => {
     expect(md).not.toContain('data:image');
     expect(md).not.toContain('alt="d"');
     expect(md).toContain('<img src="https://a.example/i.png" alt="i">');
+  });
+});
+
+describe('addTableRules：块级包装保留段落边界', () => {
+  it('没有块级子元素的 div 换成 p，两个 div 不会粘成一段', () => {
+    const md = turndown().turndown(
+      '<table><tr><td rowspan="2"><div>First</div><div>Second</div></td><td>1</td></tr><tr><td>2</td></tr></table>',
+    );
+    expect(md).toContain('<p>First</p><p>Second</p>');
+  });
+
+  it('已经有块级子元素的 div 只去标签，内部段落原样保留', () => {
+    const md = turndown().turndown(
+      '<table><tr><td rowspan="2"><div><p>A</p><p>B</p></div></td><td>1</td></tr><tr><td>2</td></tr></table>',
+    );
+    expect(md).toContain('<p>A</p><p>B</p>');
   });
 });

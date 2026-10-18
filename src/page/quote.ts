@@ -44,12 +44,12 @@ const TABLE_STRUCTURE_TAGS = new Set(['TR', 'THEAD', 'TBODY', 'TFOOT', 'TABLE'])
 
 /**
  * 选区起止都在同一张表里时，逐层浅拷贝公共祖先到最近的 TABLE，把 cloneContents 丢掉的表格结构补回来。
- * 公共祖先是 TD/TH（选区在一格之内）或不在表里时原样返回。table 是原页面上的那张表，用于核对起点格子。
+ * 公共祖先是 TD/TH（选区在一格之内）或不在表里时原样返回。
  */
-function wrapTableStructure(range: Range, content: Node, holder: Document): { content: Node; table: Element | null } {
+function wrapTableStructure(range: Range, content: Node, holder: Document): Node {
   const common = range.commonAncestorContainer;
   let ancestor = common.nodeType === 1 ? (common as Element) : common.parentElement;
-  if (!ancestor || !TABLE_STRUCTURE_TAGS.has(ancestor.tagName)) return { content, table: null };
+  if (!ancestor || !TABLE_STRUCTURE_TAGS.has(ancestor.tagName)) return content;
   const chain: Element[] = [];
   while (ancestor) {
     chain.push(ancestor);
@@ -58,24 +58,14 @@ function wrapTableStructure(range: Range, content: Node, holder: Document): { co
   }
   // 表格结构标签理论上一定有 TABLE 祖先；没有就什么都不补。
   const outer = chain[chain.length - 1];
-  if (!outer || outer.tagName !== 'TABLE') return { content, table: null };
+  if (!outer || outer.tagName !== 'TABLE') return content;
   let wrapped = content;
   for (const element of chain) {
     const wrapper = holder.importNode(element.cloneNode(false), false);
     wrapper.appendChild(wrapped);
     wrapped = wrapper;
   }
-  return { content: wrapped, table: outer };
-}
-
-/** 最近的 TABLE 祖先（含自身）。 */
-function nearestTable(element: Element): Element | null {
-  let node: Element | null = element;
-  while (node) {
-    if (node.tagName === 'TABLE') return node;
-    node = node.parentElement;
-  }
-  return null;
+  return wrapped;
 }
 
 /** `colspan` 的数值；缺省、非法或 ≤1 都按 1。 */
@@ -85,21 +75,20 @@ function colspanOf(cell: Element): number {
 }
 
 /**
- * 选区从一行中间开始时，cloneContents 会省略起点格子之前的格子；在包好的表格第一行前面补同样标签的空格子。
- * 起点不在格子里、或起点格子不在补回来的这张表里时原样返回。
+ * 选区从一行中间开始时，cloneContents 会省略起点格子之前的格子；在最终内容里按文档顺序找第一个 TR，
+ * 在它开头补同样标签的空格子。起点不在格子里、或内容里没有 TR（例如选区在一格之内）时原样返回。
  */
-function prependOmittedCells(range: Range, content: Node, table: Element | null, holder: Document): Node {
-  if (!table) return content;
+function prependOmittedCells(range: Range, content: Node, holder: Document): Node {
   const start = range.startContainer;
   let cell = start.nodeType === 1 ? (start as Element) : start.parentElement;
   while (cell && cell.tagName !== 'TD' && cell.tagName !== 'TH') cell = cell.parentElement;
-  if (!cell || nearestTable(cell) !== table || content.nodeType !== 1) return content;
+  if (!cell) return content;
   let missing = 0;
   for (let previous = cell.previousElementSibling; previous; previous = previous.previousElementSibling) {
     if (previous.tagName === 'TD' || previous.tagName === 'TH') missing += colspanOf(previous);
   }
-  if (missing === 0) return content;
-  const row = (content as Element).querySelector('tr');
+  if (missing === 0 || (content.nodeType !== 1 && content.nodeType !== 11)) return content;
+  const row = (content as ParentNode).querySelector('tr');
   if (!row) return content;
   const tag = cell.tagName.toLowerCase();
   for (let i = 0; i < missing; i += 1) {
@@ -140,8 +129,8 @@ export function rangeToMarkdown(range: Range, pageUrl: string): string {
     wrapper.appendChild(content);
     content = wrapper;
   }
-  const wrapped = wrapTableStructure(range, content, holder);
-  content = prependOmittedCells(range, wrapped.content, wrapped.table, holder);
+  content = wrapTableStructure(range, content, holder);
+  content = prependOmittedCells(range, content, holder);
   container.append(content);
   // 相对地址按选区所在文档的 baseURI（含 <base href>）解析；没有 <base>（baseURI 等于文档地址）时沿用传入的页面地址
   const ownerDoc = range.startContainer.ownerDocument;

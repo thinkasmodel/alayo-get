@@ -108,6 +108,23 @@ describe('captureQuote（capture-quote 的页面一侧）', () => {
     expect(md).toContain('| Pear | $80 |');
   });
 
+  it('选区从表头第二格 Price 起到表格后的段落：同样补回本行前面被省略的 Name 格子', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Price</th></tr></thead>',
+      '<tbody><tr><td>Apple</td><td>$100</td></tr><tr><td>Pear</td><td>$80</td></tr></tbody></table>',
+      '<p id="after">Closing text after the table.</p>',
+    ].join('');
+    const price = document.querySelectorAll('th')[1]?.firstChild;
+    const closing = document.querySelector('#after')?.firstChild;
+    if (!(price instanceof Text) || !(closing instanceof Text)) throw new Error('表格或表格后段落里没有文字');
+    selectAcross(price, 0, closing, 'Closing text'.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('|   | Price |');
+    expect(md).toContain('| Apple | $100 |');
+    expect(md).toContain('Closing');
+  });
+
   it('选区只覆盖 tbody 的第二、三行：公共祖先是 TBODY，写成空表头＋两行数据', () => {
     document.body.innerHTML = [
       '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
