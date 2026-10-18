@@ -137,3 +137,25 @@ describe('addTableRules：块级包装保留段落边界', () => {
     expect(md).toContain('<p>First</p><p>tail one</p><p>head two</p><p>Last</p>');
   });
 });
+
+describe('addTableRules：跨行占位计入列数与通栏判定', () => {
+  it('上面行的 rowspan 决定列数，末尾 colspan=2 不再误判为通栏行', () => {
+    const md = turndown().turndown(
+      '<table><tr><td rowspan="3">A</td><td>B</td></tr><tr><td>D</td></tr><tr><td colspan="2">C</td></tr></table>',
+    );
+    expect(md).toBe(
+      '<table><tr><td rowspan="3">A</td><td>B</td></tr><tr><td>D</td></tr><tr><td colspan="2">C</td></tr></table>',
+    );
+    // C 仍在表格里，没有被移到表外写成单独段落
+    expect(md.split('\n').filter((line) => line.trim() === 'C')).toEqual([]);
+  });
+
+  it('超大 colspan 封顶后仍识别为通栏首行并移到表外', () => {
+    const md = turndown().turndown(
+      '<table><tr><td colspan="100000">Header</td></tr><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>',
+    );
+    expect(md).toContain('Header\n\n|   |   |');
+    expect(md).toContain('| A | B |');
+    expect(md).toContain('| C | D |');
+  });
+});

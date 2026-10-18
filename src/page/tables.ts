@@ -86,21 +86,62 @@ function rowspanOf(cell: Element): number {
   return Number.isFinite(value) && value >= 0 ? value : 1;
 }
 
-/** 表格列数：各行格子 `colspan` 之和的最大值。 */
-function columnCount(rows: HTMLElement[]): number {
-  let columns = 0;
-  for (const row of rows) {
-    let count = 0;
-    for (const cell of rowCells(row)) count += spanOf(cell, 'colspan');
-    columns = Math.max(columns, count);
-  }
-  return columns;
+/** 占位网格：整表列数，以及每行放格子前是否已有上面行的跨行占位延伸进来。 */
+interface TableGrid {
+  columns: number;
+  incoming: boolean[];
 }
 
-/** 通栏行：只有一个格子，且该格 `colspan` 覆盖整张表。 */
-function isBannerRow(row: Element, columns: number): boolean {
+/** 网格里的 colspan：非法或 ≤1 按 1，最大 1000（HTML 规范同值）。 */
+function gridColspan(cell: Element): number {
+  const value = Number.parseInt(cell.getAttribute('colspan') ?? '', 10);
+  if (!Number.isFinite(value) || value <= 1) return 1;
+  return Math.min(value, 1000);
+}
+
+/** 网格里的 rowspan：0 跨到行组末尾，>1 压到行组剩余行数，非法或负数按 1。 */
+function gridRowspan(cell: Element, rowIndex: number, rows: HTMLElement[]): number {
+  const raw = cell.getAttribute('rowspan');
+  if (raw === null) return 1;
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value) || value < 0) return 1;
+  const remaining = rowspanLimit(rowIndex, rows);
+  if (value === 0) return remaining;
+  if (value === 1) return 1;
+  return Math.min(value, remaining);
+}
+
+/** 按 HTML 表格模型逐行放格子：跳过上面行跨行占住的列位，再占 colspan 列、rowspan 行。 */
+function buildTableGrid(rows: HTMLElement[]): TableGrid {
+  const occupied: boolean[][] = Array.from({ length: rows.length }, () => []);
+  const incoming = new Array<boolean>(rows.length).fill(false);
+  let columns = 0;
+  rows.forEach((row, rowIndex) => {
+    const slots = occupied[rowIndex];
+    if (!slots) return;
+    incoming[rowIndex] = slots.some(Boolean);
+    let col = 0;
+    for (const cell of rowCells(row)) {
+      while (slots[col]) col += 1;
+      const colspan = gridColspan(cell);
+      const rowspan = gridRowspan(cell, rowIndex, rows);
+      for (let dr = 0; dr < rowspan && rowIndex + dr < rows.length; dr += 1) {
+        const target = occupied[rowIndex + dr];
+        if (!target) continue;
+        for (let dc = 0; dc < colspan; dc += 1) target[col + dc] = true;
+      }
+      col += colspan;
+      columns = Math.max(columns, col);
+    }
+  });
+  return { columns, incoming };
+}
+
+/** 通栏行：只有一个格子、本行没有上面行的跨行占位，且该格 colspan（封顶后）覆盖整表列数。 */
+function isBannerRow(row: Element, rowIndex: number, grid: TableGrid): boolean {
+  if (grid.columns <= 1 || grid.incoming[rowIndex]) return false;
   const cells = rowCells(row);
-  return cells.length === 1 && spanOf(cells[0] as Element, 'colspan') >= columns;
+  return cells.length === 1 && gridColspan(cells[0] as Element) >= grid.columns;
 }
 
 /** 排版表：里面套着表格、主体行只有一格、或主体行不超过一行。 */
@@ -320,14 +361,14 @@ function htmlTable(table: HTMLElement, bodyRows: HTMLElement[]): string {
 /** `table` 元素的转换规则。 */
 function convertTable(turndown: TurndownService, content: string, table: HTMLElement): string {
   const rows = tableRows(table);
-  const columns = columnCount(rows);
+  const grid = buildTableGrid(rows);
 
   // 首尾通栏行：只有多列表格才有「通栏」可言。
   let start = 0;
   let end = rows.length;
-  if (columns > 1) {
-    while (start < rows.length && isBannerRow(rows[start] as Element, columns)) start += 1;
-    while (end > start && isBannerRow(rows[end - 1] as Element, columns)) end -= 1;
+  if (grid.columns > 1) {
+    while (start < rows.length && isBannerRow(rows[start] as Element, start, grid)) start += 1;
+    while (end > start && isBannerRow(rows[end - 1] as Element, end - 1, grid)) end -= 1;
   }
   const leading = rows.slice(0, start);
   const body = rows.slice(start, end);
