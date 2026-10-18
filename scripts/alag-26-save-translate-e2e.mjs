@@ -143,8 +143,15 @@ try {
     b.onclick = () => { window.dl = Promise.all([Translator.create({ sourceLanguage: 'en', targetLanguage: 'zh' }), LanguageDetector.create()]).then(() => 'ok', (e) => e.name + ': ' + e.message); };
     document.body.appendChild(b); })()`);
   await send('Target.activateTarget', { targetId }); await send('Page.bringToFront', {}, opt);
-  for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x: 80, y: 50, button: 'left', clickCount: 1 }, opt);
-  const dl = await evaluate(opt, 'window.dl', 300000);
+  // 全新环境里第一次创建翻译器偶发 NotSupportedError（ALAG-24 实测 7 次里 2 次），点击最多重试 3 次。
+  let dl;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x: 80, y: 50, button: 'left', clickCount: 1 }, opt);
+    dl = await evaluate(opt, 'window.dl', 300000);
+    if (dl === 'ok' || !String(dl).startsWith('NotSupportedError')) break;
+    log('download retry', attempt, dl);
+    await sleep(3000);
+  }
   check('点击下载 en→zh＋检测模型', dl === 'ok', dl);
 
   const openTab = async (url) => {
