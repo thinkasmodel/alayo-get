@@ -219,3 +219,53 @@ describe('planBilingual：同一行多层列表标记与列表边界（续修 7�
     expect(applyTranslations(md, [], 'web').md).toBe(md);
   });
 });
+
+describe('planBilingual / applyTranslations：NBSP 与跨行行内结构（续修 9）', () => {
+  it('顶层链接跨两行：整段送翻，原文两行与链接逐字节不变', () => {
+    const body = turndown.turndown('<p><a href="https://example.com">First<br>&nbsp;second</a></p>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['First second']);
+    expect(plan.units).toHaveLength(1);
+    expect(plan.units[0]?.perLine).toBeFalsy();
+
+    const result = applyTranslations(md, itemsFor(plan, { 'First second': '第一第二' }), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md).toContain('[First  \n\u00a0second](https://example.com)');
+    expect(result.md).toContain('\n\n第一第二\n');
+  });
+
+  it('跨行强调：整段送翻，原文两行逐字节不变', () => {
+    const body = turndown.turndown('<p><strong>bold<br>text</strong> after</p>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['bold text after']);
+    expect(plan.units).toHaveLength(1);
+    expect(plan.units[0]?.perLine).toBeFalsy();
+
+    const result = applyTranslations(md, itemsFor(plan, { 'bold text after': '粗体文字之后' }), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md).toContain('**bold  \ntext** after');
+    expect(result.md).toContain('\n\n粗体文字之后\n');
+  });
+
+  it('行首 NBSP 的普通段落当正文、照常翻译', () => {
+    const body = turndown.turndown('<p>&nbsp;leading nbsp paragraph</p>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['leading nbsp paragraph']);
+    expect(plan.units).toHaveLength(1);
+
+    const result = applyTranslations(md, itemsFor(plan, { 'leading nbsp paragraph': 'NBSP 开头正文' }), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md).toContain('\u00a0leading nbsp paragraph\n\nNBSP 开头正文');
+  });
+
+  it('顶层段落后跟有缩进、非块开头的行：不建单元，文件逐字节不变', () => {
+    const md = withFrontmatter('Top paragraph.\n indented continuation');
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([]);
+    expect(plan.units).toEqual([]);
+    expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+});

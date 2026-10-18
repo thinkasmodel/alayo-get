@@ -46,11 +46,22 @@ export interface PlainText {
 
 const PLACEHOLDER = /⟦c(\d+)⟧/gi;
 
-const BLANK = /^\s*$/;
+const BLANK = /^[ \t]*$/;
+
+/** 只去掉首尾的空格与 tab；NBSP 等其他空白是正文。 */
+function trimSpaceTab(text: string): string {
+  return text.replace(/^[ \t]+|[ \t]+$/g, '');
+}
+
+/** 只去掉行首的空格与 tab；NBSP 等其他空白是正文。 */
+function trimSpaceTabStart(text: string): string {
+  return text.replace(/^[ \t]+/, '');
+}
+
 const FENCE_OPEN = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 const ATX_HEADING = /^(#{1,6}) (.*)$/;
 const QUOTE_LINE = /^ {0,3}>/;
-const LIST_ITEM = /^(\s*)((?:[-*+]|\d+[.)]))(\s+)(.*)$/;
+const LIST_ITEM = /^([ \t]*)((?:[-*+]|\d+[.)]))([ \t]+)(.*)$/;
 const HR = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/;
 /** X 作者串的一级标题：`# @handle - …`。 */
 const X_HEADING = /^# @[A-Za-z0-9_]{1,15} - /;
@@ -140,15 +151,30 @@ function stripHardBreak(line: string): string {
   return out;
 }
 
+/** 这一行的行内结构是否自足：未转义的链接方括号、反引号、强调标记都成对。 */
+function inlineStructuresBalanced(line: string): boolean {
+  const clean = line.replace(/\\[\s\S]/g, '');
+  const count = (text: string, pattern: RegExp): number => (text.match(pattern) ?? []).length;
+  if (count(clean, /\[/g) !== count(clean, /\]/g)) return false;
+  if (count(clean, /`/g) % 2 !== 0) return false;
+  if (count(clean, /\*\*/g) % 2 !== 0) return false;
+  if (count(clean.replace(/\*\*/g, ''), /\*/g) % 2 !== 0) return false;
+  if (count(clean, /__/g) % 2 !== 0) return false;
+  if (count(clean.replace(/__/g, ''), /_/g) % 2 !== 0) return false;
+  if (count(clean, /~~/g) % 2 !== 0) return false;
+  return true;
+}
+
 /** 整段只有图片/链接/自动链接（`[原文](…)`、卡片链接、`▶ 视频` 行）：不翻。 */
 function isLinkOnly(raw: string): boolean {
-  const rest = raw
-    .trim()
+  // 跨行链接的文字也是正文：不能按「纯链接」跳过（续修 9）。
+  if (raw.includes('\n') && /\[[^\]]*\]\(/.test(raw)) return false;
+  const rest = trimSpaceTab(raw)
     .replace(/!\[(?:\\.|[^\]\\])*\]\((?:\\.|[^)])*\)/g, '')
     .replace(/\[((?:\\.|[^\]\\])*)\]\((?:\\.|[^)])*\)/g, '')
     .replace(/<[A-Za-z][A-Za-z0-9+.-]*:[^<>\s]+>/g, '')
     .replace(/<[^<>\s]+@[^<>\s]+>/g, '');
-  return rest.trim() === '';
+  return BLANK.test(rest);
 }
 
 /** 是否是一层引用块的行。 */
@@ -163,7 +189,7 @@ function stripQuote(line: string): string {
 
 /** HTML 块行（`<` 开头）；自动链接 `<https://…>` 不算。 */
 function isHtmlLine(line: string): boolean {
-  const trimmed = line.trimStart();
+  const trimmed = trimSpaceTabStart(line);
   if (!trimmed.startsWith('<')) return false;
   // 自动链接（含邮件地址）不是 HTML 块。
   if (/^<[A-Za-z][A-Za-z0-9+.-]*:/.test(trimmed)) return false;
@@ -175,7 +201,7 @@ function isHtmlLine(line: string): boolean {
 function startsBlock(line: string): boolean {
   if (ATX_HEADING.test(line) || FENCE_OPEN.test(line) || isQuote(line) || HR.test(line)) return true;
   if (LIST_ITEM.test(line)) return true;
-  if (line.trimStart().startsWith('|')) return true;
+  if (trimSpaceTabStart(line).startsWith('|')) return true;
   if (isHtmlLine(line)) return true;
   return false;
 }
@@ -187,7 +213,7 @@ function isListItemLine(line: string): boolean {
 
 /** 前导空白宽度（按字符数；列表缩进也按字符算）。 */
 function indentOf(line: string): number {
-  return /^\s*/.exec(line)?.[0].length ?? 0;
+  return /^[ \t]*/.exec(line)?.[0].length ?? 0;
 }
 
 interface Containers {
@@ -248,7 +274,7 @@ function openFence(line: string): FenceMark | null {
 
 /** 是不是 mark 对应的围栏关闭行：同字符、长度不小于开头、后面只有空白。 */
 function closeFence(line: string, mark: FenceMark): boolean {
-  const m = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
+  const m = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
   return !!m && m[1]?.[0] === mark.char && (m[1]?.length ?? 0) >= mark.length;
 }
 
@@ -265,7 +291,7 @@ function containerFenceEnd(lines: string[], start: number, col: number, mark: Fe
   for (let i = start + 1; i < lines.length; i += 1) {
     const line = lines[i] ?? '';
     if (BLANK.test(line)) continue;
-    const content = indentOf(line) >= col ? line.slice(col) : line.trim();
+    const content = indentOf(line) >= col ? line.slice(col) : trimSpaceTab(line);
     if (closeFence(content, mark)) return i;
   }
   return lines.length - 1;
@@ -294,7 +320,7 @@ function listFenceAfter(lines: string[], start: number, col: number, mark: Fence
     const indent = indentOf(line);
     if (indent < col) {
       // 缩进回到列表外：恰好是关闭行就收尾，否则保守地在这里停止跳过。
-      return closeFence(line.trim(), mark) ? i + 1 : i;
+      return closeFence(trimSpaceTab(line), mark) ? i + 1 : i;
     }
     if (closeFence(line.slice(col), mark)) return i + 1;
   }
@@ -325,7 +351,7 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     if (kind === 'quote-paragraph') {
       if (next === undefined) return true;
       if (BLANK.test(next)) return true;
-      return isQuote(next) && stripQuote(next).trim() === '';
+      return isQuote(next) && BLANK.test(stripQuote(next));
     }
     if (kind === 'list-item' || kind === 'list-paragraph') {
       if (next === undefined) return true;
@@ -448,7 +474,7 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       continue;
     }
 
-    if (line.trimStart().startsWith('|')) {
+    if (trimSpaceTabStart(line).startsWith('|')) {
       listCols.length = 0;
       sawBlank = false;
       i += 1;
@@ -517,8 +543,9 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       }
 
       const hard = rawLines.some((raw) => hasHardBreak(raw));
-      const rawSegments = hard ? rawLines : [rawLines.join('\n')];
-      pushUnit('list-item', i, j - 1, lines.slice(i, j), rawSegments, { indent: col, perLine: hard });
+      const perLine = hard && rawLines.every((raw) => inlineStructuresBalanced(raw));
+      const rawSegments = perLine ? rawLines : [rawLines.join('\n')];
+      pushUnit('list-item', i, j - 1, lines.slice(i, j), rawSegments, { indent: col, perLine });
       i = j;
       continue;
     }
@@ -593,9 +620,17 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       j += 1;
     }
     if (raws.length > 0) {
+      const next = lines[j];
+      if (next !== undefined && !BLANK.test(next) && !startsBlock(next)) {
+        // 只因缩进等非块原因停下：不建单元，跳过余下非空行到空行，原文不动。
+        while (j < lines.length && !BLANK.test(lines[j] ?? '')) j += 1;
+        i = j;
+        continue;
+      }
       const hard = raws.some((raw) => hasHardBreak(raw));
-      const rawSegments = hard ? raws : [raws.join('\n')];
-      pushUnit('paragraph', start, j - 1, raws, rawSegments, { perLine: hard });
+      const perLine = hard && raws.every((raw) => inlineStructuresBalanced(raw));
+      const rawSegments = perLine ? raws : [raws.join('\n')];
+      pushUnit('paragraph', start, j - 1, raws, rawSegments, { perLine });
       i = j;
     } else {
       i += 1;
@@ -636,12 +671,12 @@ function scanQuote(
   let sawList = false;
   let from = 0;
   while (from < stripped.length) {
-    while (from < stripped.length && (fenced[from] || (stripped[from] ?? '').trim() === '')) from += 1;
+    while (from < stripped.length && (fenced[from] || BLANK.test(stripped[from] ?? ''))) from += 1;
     if (from >= stripped.length) break;
     let to = from;
-    while (to < stripped.length && !fenced[to] && (stripped[to] ?? '').trim() !== '') to += 1;
+    while (to < stripped.length && !fenced[to] && !BLANK.test(stripped[to] ?? '')) to += 1;
     const rawContent = stripped.slice(from, to);
-    const contentLines = rawContent.map((line) => stripHardBreak(line.trim()));
+    const contentLines = rawContent.map((line) => stripHardBreak(trimSpaceTab(line)));
     const raw = contentLines.join(' ');
     const isXAuthor = medium === 'x' && X_QUOTE_AUTHOR.test(contentLines.join('\n'));
     const hasList = rawContent.some((line) => LIST_ITEM.test(line));
@@ -652,9 +687,9 @@ function scanQuote(
         LIST_ITEM.test(line) ||
         ATX_HEADING.test(line) ||
         FENCE_OPEN.test(line) ||
-        line.trimStart().startsWith('|') ||
+        trimSpaceTabStart(line).startsWith('|') ||
         isHtmlLine(line) ||
-        /^\s/.test(line),
+        /^[ \t]/.test(line),
     );
     if (!sawList && !isXAuthor && !nonParagraph) {
       pushUnit('quote-paragraph', start + from, start + to - 1, rawLines.slice(from, to), [raw]);
@@ -663,7 +698,7 @@ function scanQuote(
   }
 
   // 引用块后面紧跟不带 `>` 的懒续行（普通文字）：它不是独立的顶层段落，原样跳过。
-  if (stripped.some((line) => line.trim() !== '')) {
+  if (stripped.some((line) => !BLANK.test(line))) {
     const next = lines[i];
     if (next !== undefined && !BLANK.test(next) && !startsBlock(next)) {
       while (i < lines.length) {
