@@ -135,14 +135,21 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
 
   /**
    * 已连上的 Port 断开：丢掉缓存的 Port，下一个任务重新建文档/连接。
-   * 已发出但还没收到任何消息的任务在新连接上重发一次；收到过消息、已重发过或已请求取消的照旧 host-lost。
+   * - 还没发出的任务：保留，重新排队，不消耗重发额度；
+   * - 已发出、没收到过消息、没重发过、没请求取消的：照旧在新连接上重发一次；
+   * - 其余：host-lost。
    */
   const handlePortLost = (lost: Port): void => {
     if (port !== lost) return;
     port = null;
     documentPromise = null;
     for (const job of [...jobs.values()]) {
-      if (job.sent && !job.received && !job.resent && !job.cancelRequested) {
+      if (!job.sent) {
+        // 从未发出过：连接恢复后照常发；sendJob 的 sent 守卫保证只发一次。
+        scheduleJob(job);
+        continue;
+      }
+      if (!job.received && !job.resent && !job.cancelRequested) {
         job.sent = false;
         job.resent = true;
         scheduleJob(job);

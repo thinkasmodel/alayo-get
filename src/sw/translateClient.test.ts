@@ -38,12 +38,16 @@ class FakePort<In, Out> implements PortLike<In, Out> {
   readonly sent: Out[] = [];
   disconnectCalls = 0;
   disconnectOnHello = false;
+  throwOnTranslate = false;
   private messageListeners: Array<(message: In) => void> = [];
   private disconnectListeners: Array<() => void> = [];
 
   constructor(readonly name = 'translate') {}
 
   postMessage(message: Out): void {
+    if (this.throwOnTranslate && (message as { type?: string }).type === 'translate') {
+      throw new Error('translate post failed');
+    }
     this.sent.push(message);
     if (this.disconnectOnHello && (message as { type?: string }).type === 'hello') {
       queueMicrotask(() => this.remoteDisconnect());
@@ -328,6 +332,77 @@ describe('createTranslateClient', () => {
     await expect(job.result).resolves.toEqual({ status: 'failed', error: { code: 'host-lost' }, done: 0 });
     await flush();
     expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('握手后发送第一个任务抛错：未发出的第二个任务保留，重连后两个各发一次并完成', async () => {
+    const { deps, ports, connect, clock } = setup();
+    const service = createTranslateClient(deps);
+    const first = start(service);
+    const second = start(service);
+    await flush();
+
+    const firstPort = ports[0];
+    if (firstPort) firstPort.throwOnTranslate = true;
+    firstPort?.receive({ type: 'hello-ack' });
+    await flush();
+    expect(firstPort?.sent.filter((message) => message.type === 'translate')).toEqual([]);
+
+    await clock.advance(CONNECT_RETRY_MS);
+    expect(connect).toHaveBeenCalledTimes(2);
+    const secondPort = ports[1];
+    secondPort?.receive({ type: 'hello-ack' });
+    await flush();
+
+    const sent = secondPort?.sent.filter((message) => message.type === 'translate') ?? [];
+    expect(sent).toHaveLength(2);
+    expect(sent.map((message) => (message.type === 'translate' ? message.jobId : '')).sort()).toEqual([first.id, second.id].sort());
+    secondPort?.receive({ type: 'result', jobId: first.id, result: { status: 'complete', source: 'en' } });
+    secondPort?.receive({ type: 'result', jobId: second.id, result: { status: 'complete', source: 'en' } });
+    await expect(Promise.all([first.result, second.result])).resolves.toEqual([
+      { status: 'complete', source: 'en' },
+      { status: 'complete', source: 'en' },
+    ]);
+  });
+
+  it('两次连接都在发送时抛错：已重发的第一个 host-lost，未发出的第二个保留到下一次连接', async () => {
+    const { deps, ports, connect, clock } = setup();
+    const service = createTranslateClient(deps);
+    const first = start(service);
+    const second = start(service);
+    await flush();
+
+    const firstPort = ports[0];
+    if (firstPort) firstPort.throwOnTranslate = true;
+    firstPort?.receive({ type: 'hello-ack' });
+    await flush();
+    await clock.advance(CONNECT_RETRY_MS);
+    expect(connect).toHaveBeenCalledTimes(2);
+
+    const secondPort = ports[1];
+    if (secondPort) secondPort.throwOnTranslate = true;
+    secondPort?.receive({ type: 'hello-ack' });
+    await flush();
+
+    // 第一个任务已用掉唯一一次重发额度，第二次发送又失败 → host-lost。
+    await expect(first.result).resolves.toEqual({ status: 'failed', error: { code: 'host-lost' }, done: 0 });
+    // 第二个任务从未发出过，不能被判 host-lost；第三次连接应该还能把它发出去。
+    // 若第三次连接的发送也失败，它这时才第一次 sent=true、没有收到消息、没有重发过，按规则获得一次重发额度，
+    // 仍不会立即 host-lost；这里让第三次连接成功，验证它能完成。
+    let secondSettled = false;
+    void second.result.then(() => {
+      secondSettled = true;
+    });
+    await flush();
+    expect(secondSettled).toBe(false);
+
+    await clock.advance(CONNECT_RETRY_MS);
+    expect(connect).toHaveBeenCalledTimes(3);
+    const thirdPort = ports[2];
+    thirdPort?.receive({ type: 'hello-ack' });
+    await flush();
+    expect(thirdPort?.sent.filter((message) => message.type === 'translate')).toEqual([{ type: 'translate', jobId: second.id, request }]);
+    thirdPort?.receive({ type: 'result', jobId: second.id, result: { status: 'complete', source: 'en' } });
+    await expect(second.result).resolves.toEqual({ status: 'complete', source: 'en' });
   });
 
   it('收到过 segment 后断开：不重发，host-lost 且 done 为已收段数', async () => {
