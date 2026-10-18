@@ -265,7 +265,7 @@ describe('startClipTranslation：取消、失败与中断', () => {
 });
 
 describe('startClipTranslation：翻译中途文件被改名', () => {
-  it('按已保存记录跟到新文件名，标题改动保留；被改掉的标题进 missing', async () => {
+  it('按已保存记录跟到新文件名，标题改动保留；显示标题免插，最终 complete', async () => {
     const job = start();
     await settle();
     const segments = translator.requests[0]?.segments ?? [];
@@ -280,13 +280,13 @@ describe('startClipTranslation：翻译中途文件被改名', () => {
     translator.finish({ status: 'complete', source: 'en' });
     const outcome = await job.done;
 
-    expect(outcome.status).toBe('partial');
-    expect(outcome.applied).toBe(planBilingual(original, 'web').units.length - 1);
+    expect(outcome.status).toBe('complete');
+    expect(outcome.applied).toBe(planBilingual(original, 'web').units.length);
     const md = library.text('新标题.md') ?? '';
     expect(md).toContain('title: "新标题"');
     expect(md).toContain('\n# 新标题\n');
     expect(md).not.toContain('\n# 小型图书馆如何使他们的目录保持活力\n');
-    expect(md).toContain('translation: "partial"');
+    expect(md).toContain('translation: "complete"');
     expect(md).toContain('大多数小型图书馆');
     expect(await index.get(SOURCE)).toMatchObject({ file: '新标题.md', title: '新标题' });
   });

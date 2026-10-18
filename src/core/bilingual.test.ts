@@ -249,15 +249,36 @@ describe('applyTranslations：在被改过的文件上插入', () => {
     );
   });
 
-  it('正文标题行被 updateDisplayedTitle 改了：该标题进 missing，其他照常', () => {
+  it('正文显示标题行被 updateDisplayedTitle 改了：标题免插进 applied，其他照常', () => {
     const md = mini(body);
     const plan = planBilingual(md, 'web');
     const edited = updateDisplayedTitle(md, 'Old title', 'Renamed', SOURCE);
     const result = applyTranslations(edited, translatedItems(plan, table, 'zh'), 'web');
-    expect(result.missing.map((u) => u.kind)).toEqual(['heading']);
-    expect(result.applied.map((u) => u.kind)).toEqual(['paragraph', 'paragraph']);
+    expect(result.missing).toEqual([]);
+    expect(result.applied.map((u) => u.kind)).toEqual(['heading', 'paragraph', 'paragraph']);
+    expect(result.applied[0]?.displayTitle).toBe(true);
     expect(bodyOf(result.md)).toContain('# Renamed\n\nFirst paragraph.\n\n第一段。');
     expect(bodyOf(result.md)).not.toContain('旧标题');
+  });
+
+  it('正文里第二个一级标题被用户改了仍进 missing', () => {
+    const md = mini('# Display\n\nFirst paragraph.\n\n# Second\n\nSecond paragraph.');
+    const plan = planBilingual(md, 'web');
+    expect(plan.units.filter((u) => u.displayTitle).map((u) => u.sourceLines.join('\n'))).toEqual(['# Display']);
+    const table2: Record<string, string> = {
+      Display: '显示',
+      'First paragraph.': '第一段。',
+      Second: '第二',
+      'Second paragraph.': '第二段。',
+    };
+    const edited = md.replace('# Second', '# Renamed second');
+    const result = applyTranslations(edited, translatedItems(plan, table2, 'zh'), 'web');
+    expect(result.missing.map((u) => u.sourceLines.join('\n'))).toEqual(['# Second']);
+    expect(result.applied.map((u) => u.kind)).toEqual(['heading', 'paragraph', 'paragraph']);
+    expect(bodyOf(result.md)).toContain('# Display\n\n# 显示');
+    expect(bodyOf(result.md)).toContain('First paragraph.\n\n第一段。');
+    expect(bodyOf(result.md)).not.toContain('# 第二');
+    expect(bodyOf(result.md)).toContain('# Renamed second');
   });
 
   it('某段被用户改了：该段进 missing，其他照常', () => {
@@ -409,5 +430,20 @@ describe('planBilingual：引用块里的硬换行（续修 C）', () => {
     const result = applyTranslations(md, [{ unit, lines }], 'web');
     expect(result.missing).toEqual([]);
     expect(bodyOf(result.md)).toBe('\n> line one\\\n> line two\n>\n> 第一行 第二行\n');
+  });
+});
+
+describe('planBilingual：显示标题行（续修 2）', () => {
+  it('只给正文第一个非空的一级标题打 displayTitle', () => {
+    const plan = planFor('# Display\n\nText.\n\n# Second\n\nMore.');
+    expect(plan.units.filter((unit) => unit.kind === 'heading').map((unit) => unit.displayTitle)).toEqual([true, false]);
+  });
+
+  it('第一个非空行不是一级标题时不打标记', () => {
+    const plan = planFor('Intro.\n\n# Later heading');
+    expect(plan.units.find((unit) => unit.kind === 'heading')?.displayTitle).toBe(false);
+
+    const plan2 = planFor('## Second level first\n\n# Later H1');
+    expect(plan2.units.filter((unit) => unit.kind === 'heading').map((unit) => unit.displayTitle)).toEqual([false, false]);
   });
 });

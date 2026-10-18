@@ -28,6 +28,8 @@ export interface Unit {
   perLine?: boolean;
   /** perLine 时不送翻的行（与 sourceLines 对齐）：原文去掉硬换行标记后的样子；null 表示这一行要翻。 */
   passthrough?: Array<string | null>;
+  /** 正文第一个非空行、且是一级 ATX 标题：这一行由扩展自己维护（改标题时同步改），找不到时按免插计。 */
+  displayTitle?: boolean;
 }
 
 export interface BilingualPlan {
@@ -218,7 +220,7 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     end: number,
     sourceLines: string[],
     rawSegments: string[],
-    extra: Pick<Unit, 'indent' | 'headingLevel' | 'perLine'> = {},
+    extra: Pick<Unit, 'indent' | 'headingLevel' | 'perLine' | 'displayTitle'> = {},
   ): void => {
     const normalized = rawSegments.map(stripHardBreak);
     let plains: PlainText[];
@@ -266,6 +268,8 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
   };
 
   let i = bodyStartLine(lines);
+  /** 正文第一个非空行还没遇到。 */
+  let firstContent = true;
   /** 当前列表各层内容列的栈（从外到内）。 */
   const listCols: number[] = [];
   let sawBlank = false;
@@ -278,6 +282,10 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       i += 1;
       continue;
     }
+
+    // 与 updateDisplayedTitle 认定的是同一行：正文第一个非空行。
+    const isFirstContent = firstContent;
+    firstContent = false;
 
     const fence = FENCE_OPEN.exec(line);
     if (fence) {
@@ -294,7 +302,7 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       const title = heading[2] ?? '';
       const level = heading[1]?.length ?? 1;
       if (!(medium === 'x' && level === 1 && X_HEADING.test(line))) {
-        pushUnit('heading', i, i, [line], [title], { headingLevel: level });
+        pushUnit('heading', i, i, [line], [title], { headingLevel: level, displayTitle: isFirstContent && level === 1 });
       }
       i += 1;
       continue;
@@ -575,14 +583,30 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
   const applied: Unit[] = [];
   const missing: Unit[] = [];
   const edits: LineEdit[] = [];
+  const planDisplay = plan.units.find((unit) => unit.displayTitle);
   let cursor = 0;
 
   for (const item of items) {
+    if (item.unit.displayTitle) {
+      // 显示标题行是扩展自己维护的：改标题后这一块找不到，不算 missing，也不插任何行。
+      if (planDisplay && sameSourceLines(planDisplay, item.unit)) {
+        applied.push(item.unit);
+        if (item.lines.length > 0 && !follows(lines, planDisplay, item.lines)) {
+          edits.push({ index: planDisplay.end + 1, deleteCount: 0, lines: item.lines });
+        }
+      } else {
+        applied.push(item.unit);
+      }
+      continue;
+    }
+
     let insertAt = -1;
     let alreadyAt = -1;
     for (let k = cursor; k < plan.units.length; k += 1) {
       const candidate = plan.units[k];
       if (!candidate || candidate.kind !== item.unit.kind) continue;
+      // 显示标题块只由 displayTitle 分支处理，其他单元不能把它当普通同文字块。
+      if (candidate.displayTitle) continue;
       if (!sameSourceLines(candidate, item.unit)) continue;
       if (follows(lines, candidate, item.lines)) {
         // 这一块已经有同样译文：记下，继续找后面同文字、还没译文的块（续修 A）。
