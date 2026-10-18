@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>表格剪藏样张</title>
+<style>
+:root{--bg:#F1F2F4;--card:#FFFFFF;--ink:#23252C;--dim:#72767F;--cap:#6E7280;--acc:#1F6F43;--line:rgba(35,37,44,.12);--th:#F6F7F9}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#16171B;--card:#1F2026;--ink:#E6E7EA;--dim:#8A8E98;--cap:#9599A3;--acc:#6FCF97;--line:rgba(255,255,255,.12);--th:#26272E}}
+:root[data-theme="dark"]{--bg:#16171B;--card:#1F2026;--ink:#E6E7EA;--dim:#8A8E98;--cap:#9599A3;--acc:#6FCF97;--line:rgba(255,255,255,.12);--th:#26272E}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1{font-size:18px;margin:0 0 4px} .intro{font-size:13px;color:var(--cap);margin:0 0 24px;max-width:900px;line-height:20px}
+.wrap{padding:32px 16px;max-width:1500px;margin:0 auto}
+.row{margin-bottom:32px} .col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px}
+.lab{font-size:13px;font-weight:600;line-height:18px} .lab span{display:block;font-weight:400;color:var(--cap);font-size:12px} .lab em{font-style:normal;color:var(--acc);font-size:12px;margin-left:6px}
+.k{font-size:11px;color:var(--dim);margin-bottom:8px;font-weight:600}
+.card{background:var(--card);border-radius:12px;box-shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px var(--line);padding:16px 18px;overflow-x:auto;min-width:0}
+.code{margin:0 0 12px;font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:17px;white-space:pre-wrap;word-break:break-all}
+.render{font-size:13px;line-height:19px;overflow-x:auto} .render p{margin:0 0 10px}
+.render table{border-collapse:collapse;font-size:12px;margin:0 0 10px} .render th,.render td{border:1px solid var(--line);padding:4px 8px;vertical-align:top;text-align:left} .render th{background:var(--th);font-weight:600}
+.render a{color:inherit} .render code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px} .render pre{margin:0;font-size:11px}
+.cap{font-size:12px;line-height:18px;color:var(--cap);max-width:1100px} .cap code,.spec code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:11px}
+.spec{font-size:13px;line-height:20px} .spec p{margin:0 0 8px}
+</style></head><body><div class="wrap">
+<h1>表格剪藏样张（ALAG-40）</h1>
+<p class="intro">网页表格现在存下来会被拆成一格一段。下面是补上表格转换后剪藏文件里的样子：左边是 Markdown 源码，右边是渲染效果。所有例子都是真实页面在真实 Chrome 里经 Defuddle 抽正文、再用原型规则转换的实际输出，只截短了行数。④⑤ 各有两种写法，需要选一种。</p>
+<div class="row"><div class="col wide"><div class="lab">① 普通数据表<span>Rust 程序设计语言 · 附录 B 运算符表（56 行，节选 7 行）</span></div>
+<div class="pair"><div class="card"><div class="k">Markdown 源码</div><pre class="code">| Operator | Example | Explanation | Overloadable? |
+| --- | --- | --- | --- |
+| `!` | `ident!(...)`, `ident!{...}`, `ident![...]` | Macro expansion |   |
+| `!` | `!expr` | Bitwise or logical complement | `Not` |
+| `!=` | `expr != expr` | Nonequality comparison | `PartialEq` |
+| `\|` | `pat \| pat` | Pattern alternatives |   |
+| `\|` | `expr \| expr` | Bitwise OR | `BitOr` |
+| `\|=` | `var \|= expr` | Bitwise OR and assignment | `BitOrAssign` |</pre></div><div class="card render"><div class="k">渲染效果（markdown-it 按 GFM 规则渲染，Obsidian、GitHub 的规则相同）</div><table>
+<thead>
+<tr>
+<th>Operator</th>
+<th>Example</th>
+<th>Explanation</th>
+<th>Overloadable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>!</code></td>
+<td><code>ident!(...)</code>, <code>ident!{...}</code>, <code>ident![...]</code></td>
+<td>Macro expansion</td>
+<td></td>
+</tr>
+<tr>
+<td><code>!</code></td>
+<td><code>!expr</code></td>
+<td>Bitwise or logical complement</td>
+<td><code>Not</code></td>
+</tr>
+<tr>
+<td><code>!=</code></td>
+<td><code>expr != expr</code></td>
+<td>Nonequality comparison</td>
+<td><code>PartialEq</code></td>
+</tr>
+<tr>
+<td><code>|</code></td>
+<td><code>pat | pat</code></td>
+<td>Pattern alternatives</td>
+<td></td>
+</tr>
+<tr>
+<td><code>|</code></td>
+<td><code>expr | expr</code></td>
+<td>Bitwise OR</td>
+<td><code>BitOr</code></td>
+</tr>
+<tr>
+<td><code>|=</code></td>
+<td><code>var |= expr</code></td>
+<td>Bitwise OR and assignment</td>
+<td><code>BitOrAssign</code></td>
+</tr>
+</tbody>
+</table>
+</div></div>
+<div class="cap">第一行是表头就照用。格子里的行内代码、链接照常保留；格子内容里的 <code>|</code> 写成 <code>\|</code>，否则会被当成列分隔（倒数三行）。空格子写一个空格。</div></div></div>
+<div class="row"><div class="col wide"><div class="lab">② 格子里有换行<span>SQLite · Datatypes 亲和性规则表（全表）</span></div>
+<div class="pair"><div class="card"><div class="k">Markdown 源码</div><pre class="code">| Example Typenames From The&lt;br&gt;CREATE TABLE Statement&lt;br&gt;or CAST Expression | Resulting Affinity | Rule Used To Determine Affinity |
+| --- | --- | --- |
+| INT&lt;br&gt;INTEGER&lt;br&gt;TINYINT&lt;br&gt;SMALLINT&lt;br&gt;MEDIUMINT&lt;br&gt;BIGINT&lt;br&gt;UNSIGNED BIG INT&lt;br&gt;INT2&lt;br&gt;INT8 | INTEGER | 1 |
+| CHARACTER(20)&lt;br&gt;VARCHAR(255)&lt;br&gt;VARYING CHARACTER(255)&lt;br&gt;NCHAR(55)&lt;br&gt;NATIVE CHARACTER(70)&lt;br&gt;NVARCHAR(100)&lt;br&gt;TEXT&lt;br&gt;CLOB | TEXT | 2 |
+| BLOB&lt;br&gt;_no datatype specified_ | BLOB | 3 |
+| REAL&lt;br&gt;DOUBLE&lt;br&gt;DOUBLE PRECISION&lt;br&gt;FLOAT | REAL | 4 |
+| NUMERIC&lt;br&gt;DECIMAL(10,5)&lt;br&gt;BOOLEAN&lt;br&gt;DATE&lt;br&gt;DATETIME | NUMERIC | 5 |</pre></div><div class="card render"><div class="k">渲染效果（markdown-it 按 GFM 规则渲染，Obsidian、GitHub 的规则相同）</div><table>
+<thead>
+<tr>
+<th>Example Typenames From The<br>CREATE TABLE Statement<br>or CAST Expression</th>
+<th>Resulting Affinity</th>
+<th>Rule Used To Determine Affinity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>INT<br>INTEGER<br>TINYINT<br>SMALLINT<br>MEDIUMINT<br>BIGINT<br>UNSIGNED BIG INT<br>INT2<br>INT8</td>
+<td>INTEGER</td>
+<td>1</td>
+</tr>
+<tr>
+<td>CHARACTER(20)<br>VARCHAR(255)<br>VARYING CHARACTER(255)<br>NCHAR(55)<br>NATIVE CHARACTER(70)<br>NVARCHAR(100)<br>TEXT<br>CLOB</td>
+<td>TEXT</td>
+<td>2</td>
+</tr>
+<tr>
+<td>BLOB<br><em>no datatype specified</em></td>
+<td>BLOB</td>
+<td>3</td>
+</tr>
+<tr>
+<td>REAL<br>DOUBLE<br>DOUBLE PRECISION<br>FLOAT</td>
+<td>REAL</td>
+<td>4</td>
+</tr>
+<tr>
+<td>NUMERIC<br>DECIMAL(10,5)<br>BOOLEAN<br>DATE<br>DATETIME</td>
+<td>NUMERIC</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+</div></div>
+<div class="cap">格子里的 <code>&lt;br&gt;</code>、多个段落，写成 <code>&lt;br&gt;</code> 留在同一格里。GFM 表格每行只能占一行源码，这是唯一能保住格内换行的写法；Obsidian、GitHub 都会把它渲染成换行。</div></div></div>
+<div class="row"><div class="col wide"><div class="lab">③ 表题和资料来源移到表格外<span>维基百科 Tokyo · 1876–1905 气候表（14 列，节选 3 行）</span></div>
+<div class="pair"><div class="card"><div class="k">Markdown 源码</div><pre class="code">Climate data for Tokyo, 1876–1905 normals
+
+| Month | Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec | Year |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Mean maximum °C (°F) | 14.9&lt;br&gt;(58.8) | 15.7&lt;br&gt;(60.3) | 19.6&lt;br&gt;(67.3) | 24.0&lt;br&gt;(75.2) | 26.9&lt;br&gt;(80.4) | 30.0&lt;br&gt;(86.0) | 32.5&lt;br&gt;(90.5) | 33.4&lt;br&gt;(92.1) | 31.6&lt;br&gt;(88.9) | 26.1&lt;br&gt;(79.0) | 21.6&lt;br&gt;(70.9) | 17.7&lt;br&gt;(63.9) | 34.0&lt;br&gt;(93.2) |
+| Mean daily maximum °C (°F) | 8.3&lt;br&gt;(46.9) | 8.7&lt;br&gt;(47.7) | 11.9&lt;br&gt;(53.4) | 17.2&lt;br&gt;(63.0) | 21.1&lt;br&gt;(70.0) | 24.5&lt;br&gt;(76.1) | 28.1&lt;br&gt;(82.6) | 29.8&lt;br&gt;(85.6) | 26.1&lt;br&gt;(79.0) | 20.5&lt;br&gt;(68.9) | 15.5&lt;br&gt;(59.9) | 11.0&lt;br&gt;(51.8) | 18.6&lt;br&gt;(65.5) |
+| Daily mean °C (°F) | 2.9&lt;br&gt;(37.2) | 3.6&lt;br&gt;(38.5) | 6.9&lt;br&gt;(44.4) | 12.4&lt;br&gt;(54.3) | 16.6&lt;br&gt;(61.9) | 20.5&lt;br&gt;(68.9) | 24.1&lt;br&gt;(75.4) | 25.5&lt;br&gt;(77.9) | 22.1&lt;br&gt;(71.8) | 15.9&lt;br&gt;(60.6) | 10.2&lt;br&gt;(50.4) | 5.3&lt;br&gt;(41.5) | 13.8&lt;br&gt;(56.8) |
+
+Source: [Japan Meteorological Agency](https://en.wikipedia.org/wiki/Japan_Meteorological_Agency "Japan Meteorological Agency")[121](#fn:121)</pre></div><div class="card render"><div class="k">渲染效果（markdown-it 按 GFM 规则渲染，Obsidian、GitHub 的规则相同）</div><p>Climate data for Tokyo, 1876–1905 normals</p>
+<table>
+<thead>
+<tr>
+<th>Month</th>
+<th>Jan</th>
+<th>Feb</th>
+<th>Mar</th>
+<th>Apr</th>
+<th>May</th>
+<th>Jun</th>
+<th>Jul</th>
+<th>Aug</th>
+<th>Sep</th>
+<th>Oct</th>
+<th>Nov</th>
+<th>Dec</th>
+<th>Year</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mean maximum °C (°F)</td>
+<td>14.9<br>(58.8)</td>
+<td>15.7<br>(60.3)</td>
+<td>19.6<br>(67.3)</td>
+<td>24.0<br>(75.2)</td>
+<td>26.9<br>(80.4)</td>
+<td>30.0<br>(86.0)</td>
+<td>32.5<br>(90.5)</td>
+<td>33.4<br>(92.1)</td>
+<td>31.6<br>(88.9)</td>
+<td>26.1<br>(79.0)</td>
+<td>21.6<br>(70.9)</td>
+<td>17.7<br>(63.9)</td>
+<td>34.0<br>(93.2)</td>
+</tr>
+<tr>
+<td>Mean daily maximum °C (°F)</td>
+<td>8.3<br>(46.9)</td>
+<td>8.7<br>(47.7)</td>
+<td>11.9<br>(53.4)</td>
+<td>17.2<br>(63.0)</td>
+<td>21.1<br>(70.0)</td>
+<td>24.5<br>(76.1)</td>
+<td>28.1<br>(82.6)</td>
+<td>29.8<br>(85.6)</td>
+<td>26.1<br>(79.0)</td>
+<td>20.5<br>(68.9)</td>
+<td>15.5<br>(59.9)</td>
+<td>11.0<br>(51.8)</td>
+<td>18.6<br>(65.5)</td>
+</tr>
+<tr>
+<td>Daily mean °C (°F)</td>
+<td>2.9<br>(37.2)</td>
+<td>3.6<br>(38.5)</td>
+<td>6.9<br>(44.4)</td>
+<td>12.4<br>(54.3)</td>
+<td>16.6<br>(61.9)</td>
+<td>20.5<br>(68.9)</td>
+<td>24.1<br>(75.4)</td>
+<td>25.5<br>(77.9)</td>
+<td>22.1<br>(71.8)</td>
+<td>15.9<br>(60.6)</td>
+<td>10.2<br>(50.4)</td>
+<td>5.3<br>(41.5)</td>
+<td>13.8<br>(56.8)</td>
+</tr>
+</tbody>
+</table>
+<p>Source: <a href="https://en.wikipedia.org/wiki/Japan_Meteorological_Agency" title="Japan Meteorological Agency">Japan Meteorological Agency</a><a href="#fn:121">121</a></p>
+</div></div>
+<div class="cap">维基的气候表、统计表常把表题放在第一行、资料来源放在最后一行，各占一个横跨整张表的格子。这种首尾「通栏行」提到表格前后，写成普通段落；表格本身就没有合并单元格了，能写成 GFM 表格。真实页面里 4 张气候表都靠这条规则转成了 GFM。</div></div></div>
+<div class="row"><div class="col wide"><div class="lab">④ 没有表头行（MDN 元素属性表，左列是行标题）<span>两种写法，选一种</span></div><div class="pair">
+<div class="card"><div class="k">A 补一行空表头 · 推荐</div><pre class="code">|   |   |
+| --- | --- |
+| [Content categories](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories) | [Flow content](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories#flow_content) |
+| Permitted content | In this order:&lt;br&gt;1. an optional [`&lt;caption&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/caption) element,&lt;br&gt;2. zero or more [`&lt;colgroup&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/colgroup) elements,&lt;br&gt;3. an optional [`&lt;thead&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/thead) element,&lt;br&gt;4. either one of the following:&lt;br&gt;- zero or more [`&lt;tbody&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tbody) elements&lt;br&gt;- one or more [`&lt;tr&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tr) elements&lt;br&gt;5. an optional [`&lt;tfoot&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tfoot) element |
+| Tag omission | None, both the starting and ending tag are mandatory. |
+| Permitted parents | Any element that accepts flow content |
+| Implicit ARIA role | `table` |
+| Permitted ARIA roles | Any |
+| DOM interface | [`HTMLTableElement`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement) |</pre><div class="render"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories">Content categories</a></td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories#flow_content">Flow content</a></td>
+</tr>
+<tr>
+<td>Permitted content</td>
+<td>In this order:<br>1. an optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/caption"><code>&lt;caption&gt;</code></a> element,<br>2. zero or more <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/colgroup"><code>&lt;colgroup&gt;</code></a> elements,<br>3. an optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/thead"><code>&lt;thead&gt;</code></a> element,<br>4. either one of the following:<br>- zero or more <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tbody"><code>&lt;tbody&gt;</code></a> elements<br>- one or more <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tr"><code>&lt;tr&gt;</code></a> elements<br>5. an optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tfoot"><code>&lt;tfoot&gt;</code></a> element</td>
+</tr>
+<tr>
+<td>Tag omission</td>
+<td>None, both the starting and ending tag are mandatory.</td>
+</tr>
+<tr>
+<td>Permitted parents</td>
+<td>Any element that accepts flow content</td>
+</tr>
+<tr>
+<td>Implicit ARIA role</td>
+<td><code>table</code></td>
+</tr>
+<tr>
+<td>Permitted ARIA roles</td>
+<td>Any</td>
+</tr>
+<tr>
+<td>DOM interface</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement"><code>HTMLTableElement</code></a></td>
+</tr>
+</tbody>
+</table>
+</div></div>
+<div class="card"><div class="k">B 第一行当表头（Obsidian 自家剪藏插件的做法）</div><pre class="code">| [Content categories](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories) | [Flow content](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories#flow_content) |
+| --- | --- |
+| Permitted content | In this order:&lt;br&gt;1. an optional [`&lt;caption&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/caption) element,&lt;br&gt;2. zero or more [`&lt;colgroup&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/colgroup) elements,&lt;br&gt;3. an optional [`&lt;thead&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/thead) element,&lt;br&gt;4. either one of the following:&lt;br&gt;- zero or more [`&lt;tbody&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tbody) elements&lt;br&gt;- one or more [`&lt;tr&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tr) elements&lt;br&gt;5. an optional [`&lt;tfoot&gt;`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tfoot) element |
+| Tag omission | None, both the starting and ending tag are mandatory. |
+| Permitted parents | Any element that accepts flow content |
+| Implicit ARIA role | `table` |
+| Permitted ARIA roles | Any |
+| DOM interface | [`HTMLTableElement`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement) |</pre><div class="render"><table>
+<thead>
+<tr>
+<th><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories">Content categories</a></th>
+<th><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories#flow_content">Flow content</a></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Permitted content</td>
+<td>In this order:<br>1. an optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/caption"><code>&lt;caption&gt;</code></a> element,<br>2. zero or more <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/colgroup"><code>&lt;colgroup&gt;</code></a> elements,<br>3. an optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/thead"><code>&lt;thead&gt;</code></a> element,<br>4. either one of the following:<br>- zero or more <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tbody"><code>&lt;tbody&gt;</code></a> elements<br>- one or more <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tr"><code>&lt;tr&gt;</code></a> elements<br>5. an optional <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/tfoot"><code>&lt;tfoot&gt;</code></a> element</td>
+</tr>
+<tr>
+<td>Tag omission</td>
+<td>None, both the starting and ending tag are mandatory.</td>
+</tr>
+<tr>
+<td>Permitted parents</td>
+<td>Any element that accepts flow content</td>
+</tr>
+<tr>
+<td>Implicit ARIA role</td>
+<td><code>table</code></td>
+</tr>
+<tr>
+<td>Permitted ARIA roles</td>
+<td>Any</td>
+</tr>
+<tr>
+<td>DOM interface</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement"><code>HTMLTableElement</code></a></td>
+</tr>
+</tbody>
+</table>
+</div></div>
+</div><div class="cap">GFM 表格必须有表头行。网页上第一行全是 <code>&lt;th&gt;</code> 或在 <code>&lt;thead&gt;</code> 里才算表头。没有表头的表：A 在上面补一行空格子，数据一行不动，代价是渲染出来顶上有一条空的表头；B 把第一行数据加粗当表头，看着整齐，但「Content categories」被误当成了列名。<br>格子里的列表（「Permitted content」那格）：每项前面保留 <code>1.</code> 或 <code>-</code>，项与项之间用 <code>&lt;br&gt;</code>，仍是 GFM 表格。</div></div></div>
+<div class="row"><div class="col wide"><div class="lab">⑤ 表格中间有合并单元格<span>维基百科 Tokyo · 东京都市町村表（64 行，节选前 6 行）。两种写法，选一种</span></div><div class="pair">
+<div class="card"><div class="k">A 整张表写成清理过的 HTML · 推荐</div><pre class="code">Municipalities in Tokyo
+
+&lt;table&gt;&lt;tr&gt;&lt;th rowspan="2"&gt;Flag, name &lt;small&gt;w/o suffix&lt;/small&gt;&lt;/th&gt;&lt;th colspan="3"&gt;Full name&lt;/th&gt;&lt;th rowspan="2"&gt;&lt;a href="https://en.wikipedia.org/wiki/Districts_of_Japan"&gt;District&lt;/a&gt; or&lt;br&gt;&lt;a href="https://en.wikipedia.org/wiki/Subprefectures_of_Japan"&gt;Subprefecture&lt;/a&gt;&lt;/th&gt;&lt;th rowspan="2"&gt;Population&lt;/th&gt;&lt;th rowspan="2"&gt;&lt;a href="https://en.wikipedia.org/wiki/Local_Autonomy_Law"&gt;LPE&lt;/a&gt; code&lt;br&gt;&lt;small&gt;(w/o checksum)&lt;/small&gt;&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;th&gt;&lt;small&gt;&lt;a href="https://en.wikipedia.org/wiki/Japanese_writing_system"&gt;Japanese&lt;/a&gt;&lt;/small&gt;&lt;/th&gt;&lt;th&gt;&lt;small&gt;&lt;a href="https://en.wikipedia.org/wiki/Romanization_of_Japanese"&gt;Transcription&lt;/a&gt;&lt;/small&gt;&lt;/th&gt;&lt;th&gt;&lt;small&gt;&lt;a href="https://en.wikipedia.org/wiki/English_language"&gt;Translation&lt;/a&gt;&lt;/small&gt;&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;a href="https://en.wikipedia.org/wiki/Adachi,_Tokyo"&gt;Adachi&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;span&gt;&lt;span&gt;足立区&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Adachi-ku&lt;/td&gt;&lt;td&gt;Adachi Ward&lt;/td&gt;&lt;td rowspan="49"&gt;—&lt;/td&gt;&lt;td&gt;674,067&lt;/td&gt;&lt;td&gt;13121&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;a href="https://en.wikipedia.org/wiki/Arakawa,_Tokyo"&gt;Arakawa&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;span&gt;&lt;span&gt;荒川区&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Arakawa-ku&lt;/td&gt;&lt;td&gt;Arakawa Ward&lt;/td&gt;&lt;td&gt;213,648&lt;/td&gt;&lt;td&gt;13118&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;a href="https://en.wikipedia.org/wiki/Bunky%C5%8D"&gt;Bunkyō&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;span&gt;&lt;span&gt;文京区&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Bunkyō-ku&lt;/td&gt;&lt;td&gt;Bunkyō Ward&lt;/td&gt;&lt;td&gt;223,389&lt;/td&gt;&lt;td&gt;13105&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;a href="https://en.wikipedia.org/wiki/Chiyoda,_Tokyo"&gt;Chiyoda&lt;/a&gt;&lt;/td&gt;&lt;td&gt;&lt;span&gt;&lt;span&gt;千代田区&lt;/span&gt;&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Chiyoda-ku&lt;/td&gt;&lt;td&gt;Chiyoda Ward&lt;/td&gt;&lt;td&gt;59,441&lt;/td&gt;&lt;td&gt;13101&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;</pre><div class="render"><p>Municipalities in Tokyo</p>
+<table><tr><th rowspan="2">Flag, name <small>w/o suffix</small></th><th colspan="3">Full name</th><th rowspan="2"><a href="https://en.wikipedia.org/wiki/Districts_of_Japan">District</a> or<br><a href="https://en.wikipedia.org/wiki/Subprefectures_of_Japan">Subprefecture</a></th><th rowspan="2">Population</th><th rowspan="2"><a href="https://en.wikipedia.org/wiki/Local_Autonomy_Law">LPE</a> code<br><small>(w/o checksum)</small></th></tr><tr><th><small><a href="https://en.wikipedia.org/wiki/Japanese_writing_system">Japanese</a></small></th><th><small><a href="https://en.wikipedia.org/wiki/Romanization_of_Japanese">Transcription</a></small></th><th><small><a href="https://en.wikipedia.org/wiki/English_language">Translation</a></small></th></tr><tr><td><a href="https://en.wikipedia.org/wiki/Adachi,_Tokyo">Adachi</a></td><td><span><span>足立区</span></span></td><td>Adachi-ku</td><td>Adachi Ward</td><td rowspan="49">—</td><td>674,067</td><td>13121</td></tr><tr><td><a href="https://en.wikipedia.org/wiki/Arakawa,_Tokyo">Arakawa</a></td><td><span><span>荒川区</span></span></td><td>Arakawa-ku</td><td>Arakawa Ward</td><td>213,648</td><td>13118</td></tr><tr><td><a href="https://en.wikipedia.org/wiki/Bunky%C5%8D">Bunkyō</a></td><td><span><span>文京区</span></span></td><td>Bunkyō-ku</td><td>Bunkyō Ward</td><td>223,389</td><td>13105</td></tr><tr><td><a href="https://en.wikipedia.org/wiki/Chiyoda,_Tokyo">Chiyoda</a></td><td><span><span>千代田区</span></span></td><td>Chiyoda-ku</td><td>Chiyoda Ward</td><td>59,441</td><td>13101</td></tr></table></div></div>
+<div class="card"><div class="k">B 展开成 GFM，合并的位置留空</div><pre class="code">Municipalities in Tokyo
+
+| Flag, name w/o suffix | Full name |   |   | [District](https://en.wikipedia.org/wiki/Districts_of_Japan "Districts of Japan") or&lt;br&gt;[Subprefecture](https://en.wikipedia.org/wiki/Subprefectures_of_Japan "Subprefectures of Japan") | Population | [LPE](https://en.wikipedia.org/wiki/Local_Autonomy_Law "Local Autonomy Law") code&lt;br&gt;(w/o checksum) |
+| --- | --- | --- | --- | --- | --- | --- |
+|   | [Japanese](https://en.wikipedia.org/wiki/Japanese_writing_system "Japanese writing system") | [Transcription](https://en.wikipedia.org/wiki/Romanization_of_Japanese "Romanization of Japanese") | [Translation](https://en.wikipedia.org/wiki/English_language "English language") |   |   |   |
+| [Adachi](https://en.wikipedia.org/wiki/Adachi,_Tokyo "Adachi, Tokyo") | 足立区 | Adachi-ku | Adachi Ward | — | 674,067 | 13121 |
+| [Arakawa](https://en.wikipedia.org/wiki/Arakawa,_Tokyo "Arakawa, Tokyo") | 荒川区 | Arakawa-ku | Arakawa Ward |   | 213,648 | 13118 |
+| [Bunkyō](https://en.wikipedia.org/wiki/Bunky%C5%8D "Bunkyō") | 文京区 | Bunkyō-ku | Bunkyō Ward |   | 223,389 | 13105 |</pre><div class="render"><p>Municipalities in Tokyo</p>
+<table>
+<thead>
+<tr>
+<th>Flag, name w/o suffix</th>
+<th>Full name</th>
+<th></th>
+<th></th>
+<th><a href="https://en.wikipedia.org/wiki/Districts_of_Japan" title="Districts of Japan">District</a> or<br><a href="https://en.wikipedia.org/wiki/Subprefectures_of_Japan" title="Subprefectures of Japan">Subprefecture</a></th>
+<th>Population</th>
+<th><a href="https://en.wikipedia.org/wiki/Local_Autonomy_Law" title="Local Autonomy Law">LPE</a> code<br>(w/o checksum)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td><a href="https://en.wikipedia.org/wiki/Japanese_writing_system" title="Japanese writing system">Japanese</a></td>
+<td><a href="https://en.wikipedia.org/wiki/Romanization_of_Japanese" title="Romanization of Japanese">Transcription</a></td>
+<td><a href="https://en.wikipedia.org/wiki/English_language" title="English language">Translation</a></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://en.wikipedia.org/wiki/Adachi,_Tokyo" title="Adachi, Tokyo">Adachi</a></td>
+<td>足立区</td>
+<td>Adachi-ku</td>
+<td>Adachi Ward</td>
+<td>—</td>
+<td>674,067</td>
+<td>13121</td>
+</tr>
+<tr>
+<td><a href="https://en.wikipedia.org/wiki/Arakawa,_Tokyo" title="Arakawa, Tokyo">Arakawa</a></td>
+<td>荒川区</td>
+<td>Arakawa-ku</td>
+<td>Arakawa Ward</td>
+<td></td>
+<td>213,648</td>
+<td>13118</td>
+</tr>
+<tr>
+<td><a href="https://en.wikipedia.org/wiki/Bunky%C5%8D" title="Bunkyō">Bunkyō</a></td>
+<td>文京区</td>
+<td>Bunkyō-ku</td>
+<td>Bunkyō Ward</td>
+<td></td>
+<td>223,389</td>
+<td>13105</td>
+</tr>
+</tbody>
+</table>
+</div></div>
+</div><div class="cap">GFM 表格表达不了合并单元格。A：只留 <code>href</code>、<code>src</code>、<code>alt</code>、<code>colspan</code>、<code>rowspan</code> 五个属性，去掉 class、style 等，整张表写在一行里（中间不能有空行，否则 Markdown 会把 HTML 块截断）。Obsidian、GitHub 都支持在 Markdown 里写 HTML 表格，表格结构完整；缺点是源码里是一长行 HTML，不好手改，格子里的链接是 <code>&lt;a&gt;</code> 而不是 Markdown 链接。Obsidian 自家剪藏插件也是这样处理的。B：源码好读，但意思变了——「Full name」下面的两列标题被挤成了第二行数据，「District or Subprefecture」那一列原本一个「—」管 23 行，展开后只有第一行有值。真实页面 46 张表里有 4 张属于这种。</div></div></div>
+<div class="row"><div class="col wide"><div class="lab">⑥ 格子里有代码块<span>维基百科 Markdown · 语法对照表（全表）</span></div>
+<div class="pair"><div class="card"><div class="k">Markdown 源码</div><pre class="code">&lt;table&gt;&lt;tr&gt;&lt;th&gt;Text using Markdown syntax&lt;/th&gt;&lt;th&gt;Corresponding HTML produced by a Markdown processor&lt;/th&gt;&lt;th&gt;Text viewed in a browser&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;Heading&amp;#10;=======&amp;#10;&amp;#10;Sub-heading&amp;#10;-----------&amp;#10;&amp;#10;# Alternative heading&amp;#10;&amp;#10;## Alternative sub-heading&amp;#10;&amp;#10;Paragraphs are separated &amp;#10;by a blank line.&amp;#10;&amp;#10;Two spaces at the end of a line  &amp;#10;produce a line break.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;&amp;lt;h1&amp;gt;Heading&amp;lt;/h1&amp;gt;&amp;#10;&amp;#10;&amp;lt;h2&amp;gt;Sub-heading&amp;lt;/h2&amp;gt;&amp;#10;&amp;#10;&amp;lt;h1&amp;gt;Alternative heading&amp;lt;/h1&amp;gt;&amp;#10;&amp;#10;&amp;lt;h2&amp;gt;Alternative sub-heading&amp;lt;/h2&amp;gt;&amp;#10;&amp;#10;&amp;lt;p&amp;gt;Paragraphs are separated&amp;#10;by a blank line.&amp;lt;/p&amp;gt;&amp;#10;&amp;#10;&amp;lt;p&amp;gt;Two spaces at the end of a line&amp;lt;br /&amp;gt;&amp;#10;produce a line break.&amp;lt;/p&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;p&gt;Heading&lt;/p&gt;&lt;p&gt;Sub-heading&lt;/p&gt;&lt;p&gt;Alternative heading&lt;/p&gt;&lt;p&gt;Alternative sub-heading&lt;/p&gt;&lt;p&gt;Paragraphs are separated by a blank line.&lt;/p&gt;&lt;p&gt;Two spaces at the end of a line&lt;br&gt;produce a line break.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;Text attributes *italic*, **bold**, `monospace`.&amp;#10;&amp;#10;Horizontal rule:&amp;#10;&amp;#10;---&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;&amp;lt;p&amp;gt;Text attributes &amp;lt;em&amp;gt;italic&amp;lt;/em&amp;gt;, &amp;lt;strong&amp;gt;bold&amp;lt;/strong&amp;gt;, &amp;lt;code&amp;gt;monospace&amp;lt;/code&amp;gt;.&amp;lt;/p&amp;gt;&amp;#10;&amp;#10;&amp;lt;p&amp;gt;Horizontal rule:&amp;lt;/p&amp;gt;&amp;#10;&amp;#10;&amp;lt;hr /&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;Text attributes &lt;i&gt;italic&lt;/i&gt;, &lt;b&gt;bold&lt;/b&gt;, &lt;code&gt;monospace&lt;/code&gt;.&lt;p&gt;Horizontal rule:&lt;/p&gt;&lt;hr&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;Bullet lists nested within numbered list:&amp;#10;&amp;#10;  1. fruits&amp;#10;     * apple&amp;#10;     * banana&amp;#10;  2. vegetables&amp;#10;     - carrot&amp;#10;     - broccoli&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;&amp;lt;p&amp;gt;Bullet lists nested within numbered list:&amp;lt;/p&amp;gt;&amp;#10;&amp;#10;&amp;lt;ol&amp;gt;&amp;#10;  &amp;lt;li&amp;gt;fruits &amp;lt;ul&amp;gt;&amp;#10;      &amp;lt;li&amp;gt;apple&amp;lt;/li&amp;gt;&amp;#10;      &amp;lt;li&amp;gt;banana&amp;lt;/li&amp;gt;&amp;#10;  &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;&amp;#10;  &amp;lt;li&amp;gt;vegetables &amp;lt;ul&amp;gt;&amp;#10;      &amp;lt;li&amp;gt;carrot&amp;lt;/li&amp;gt;&amp;#10;      &amp;lt;li&amp;gt;broccoli&amp;lt;/li&amp;gt;&amp;#10;  &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;&amp;#10;&amp;lt;/ol&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;Bullet lists nested within numbered list:&lt;ol&gt;&lt;li&gt;fruits&lt;ul&gt;&lt;li&gt;apple&lt;/li&gt;&lt;li&gt;banana&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;li&gt;vegetables&lt;ul&gt;&lt;li&gt;carrot&lt;/li&gt;&lt;li&gt;broccoli&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;/ol&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;A [link](http://example.com).&amp;#10;&amp;#10;![Image](Icon-pictures.png "icon")&amp;#10;&amp;#10;&amp;gt; Markdown uses email-style&amp;#10;characters for blockquoting.&amp;#10;&amp;gt;&amp;#10;&amp;gt; Multiple paragraphs need to be prepended individually.&amp;#10;&amp;#10;Most inline &amp;lt;abbr title="Hypertext Markup Language"&amp;gt;HTML&amp;lt;/abbr&amp;gt; tags are supported.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;div&gt;&lt;pre&gt;&lt;code&gt;&amp;lt;p&amp;gt;A &amp;lt;a href="http://example.com"&amp;gt;link&amp;lt;/a&amp;gt;.&amp;lt;/p&amp;gt;&amp;#10;&amp;#10;&amp;lt;p&amp;gt;&amp;lt;img alt="Image" title="icon" src="Icon-pictures.png" /&amp;gt;&amp;lt;/p&amp;gt;&amp;#10;&amp;#10;&amp;lt;blockquote&amp;gt;&amp;#10;&amp;lt;p&amp;gt;Markdown uses email-style characters for blockquoting.&amp;lt;/p&amp;gt;&amp;#10;&amp;lt;p&amp;gt;Multiple paragraphs need to be prepended individually.&amp;lt;/p&amp;gt;&amp;#10;&amp;lt;/blockquote&amp;gt;&amp;#10;&amp;#10;&amp;lt;p&amp;gt;Most inline &amp;lt;abbr title="Hypertext Markup Language"&amp;gt;HTML&amp;lt;/abbr&amp;gt; tags are supported.&amp;lt;/p&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/td&gt;&lt;td&gt;A &lt;a href="https://example.com/"&gt;link&lt;/a&gt;.&lt;p&gt;&lt;img src="https://en.wikipedia.org/wiki/File:Icon-pictures.png" alt="Image"&gt;&lt;/p&gt;&lt;blockquote&gt;&lt;p&gt;Markdown uses email-style characters for blockquoting.&lt;/p&gt;&lt;p&gt;Multiple paragraphs need to be prepended individually.&lt;/p&gt;&lt;/blockquote&gt;&lt;p&gt;Most inline &lt;abbr&gt;HTML&lt;/abbr&gt; tags are supported.&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;</pre></div><div class="card render"><div class="k">渲染效果（markdown-it 按 GFM 规则渲染，Obsidian、GitHub 的规则相同）</div><table><tr><th>Text using Markdown syntax</th><th>Corresponding HTML produced by a Markdown processor</th><th>Text viewed in a browser</th></tr><tr><td><div><pre><code>Heading&#10;=======&#10;&#10;Sub-heading&#10;-----------&#10;&#10;# Alternative heading&#10;&#10;## Alternative sub-heading&#10;&#10;Paragraphs are separated &#10;by a blank line.&#10;&#10;Two spaces at the end of a line  &#10;produce a line break.</code></pre></div></td><td><div><pre><code>&lt;h1&gt;Heading&lt;/h1&gt;&#10;&#10;&lt;h2&gt;Sub-heading&lt;/h2&gt;&#10;&#10;&lt;h1&gt;Alternative heading&lt;/h1&gt;&#10;&#10;&lt;h2&gt;Alternative sub-heading&lt;/h2&gt;&#10;&#10;&lt;p&gt;Paragraphs are separated&#10;by a blank line.&lt;/p&gt;&#10;&#10;&lt;p&gt;Two spaces at the end of a line&lt;br /&gt;&#10;produce a line break.&lt;/p&gt;</code></pre></div></td><td><p>Heading</p><p>Sub-heading</p><p>Alternative heading</p><p>Alternative sub-heading</p><p>Paragraphs are separated by a blank line.</p><p>Two spaces at the end of a line<br>produce a line break.</p></td></tr><tr><td><div><pre><code>Text attributes *italic*, **bold**, `monospace`.&#10;&#10;Horizontal rule:&#10;&#10;---</code></pre></div></td><td><div><pre><code>&lt;p&gt;Text attributes &lt;em&gt;italic&lt;/em&gt;, &lt;strong&gt;bold&lt;/strong&gt;, &lt;code&gt;monospace&lt;/code&gt;.&lt;/p&gt;&#10;&#10;&lt;p&gt;Horizontal rule:&lt;/p&gt;&#10;&#10;&lt;hr /&gt;</code></pre></div></td><td>Text attributes <i>italic</i>, <b>bold</b>, <code>monospace</code>.<p>Horizontal rule:</p><hr></td></tr><tr><td><div><pre><code>Bullet lists nested within numbered list:&#10;&#10;  1. fruits&#10;     * apple&#10;     * banana&#10;  2. vegetables&#10;     - carrot&#10;     - broccoli</code></pre></div></td><td><div><pre><code>&lt;p&gt;Bullet lists nested within numbered list:&lt;/p&gt;&#10;&#10;&lt;ol&gt;&#10;  &lt;li&gt;fruits &lt;ul&gt;&#10;      &lt;li&gt;apple&lt;/li&gt;&#10;      &lt;li&gt;banana&lt;/li&gt;&#10;  &lt;/ul&gt;&lt;/li&gt;&#10;  &lt;li&gt;vegetables &lt;ul&gt;&#10;      &lt;li&gt;carrot&lt;/li&gt;&#10;      &lt;li&gt;broccoli&lt;/li&gt;&#10;  &lt;/ul&gt;&lt;/li&gt;&#10;&lt;/ol&gt;</code></pre></div></td><td>Bullet lists nested within numbered list:<ol><li>fruits<ul><li>apple</li><li>banana</li></ul></li><li>vegetables<ul><li>carrot</li><li>broccoli</li></ul></li></ol></td></tr><tr><td><div><pre><code>A [link](http://example.com).&#10;&#10;![Image](Icon-pictures.png "icon")&#10;&#10;&gt; Markdown uses email-style&#10;characters for blockquoting.&#10;&gt;&#10;&gt; Multiple paragraphs need to be prepended individually.&#10;&#10;Most inline &lt;abbr title="Hypertext Markup Language"&gt;HTML&lt;/abbr&gt; tags are supported.</code></pre></div></td><td><div><pre><code>&lt;p&gt;A &lt;a href="http://example.com"&gt;link&lt;/a&gt;.&lt;/p&gt;&#10;&#10;&lt;p&gt;&lt;img alt="Image" title="icon" src="Icon-pictures.png" /&gt;&lt;/p&gt;&#10;&#10;&lt;blockquote&gt;&#10;&lt;p&gt;Markdown uses email-style characters for blockquoting.&lt;/p&gt;&#10;&lt;p&gt;Multiple paragraphs need to be prepended individually.&lt;/p&gt;&#10;&lt;/blockquote&gt;&#10;&#10;&lt;p&gt;Most inline &lt;abbr title="Hypertext Markup Language"&gt;HTML&lt;/abbr&gt; tags are supported.&lt;/p&gt;</code></pre></div></td><td>A <a href="https://example.com/">link</a>.<p><img src="https://en.wikipedia.org/wiki/File:Icon-pictures.png" alt="Image"></p><blockquote><p>Markdown uses email-style characters for blockquoting.</p><p>Multiple paragraphs need to be prepended individually.</p></blockquote><p>Most inline <abbr>HTML</abbr> tags are supported.</p></td></tr></table></div></div>
+<div class="cap">格子里有代码块、引用块、嵌套表格时，GFM 表格装不下，同 ⑤A 写成 HTML；代码块里的换行写成 <code>&amp;#10;</code> 保留。真实页面里只有这一张。</div></div></div>
+<div class="row"><div class="col wide"><div class="lab">规则汇总</div><div class="card spec">
+<p><b>写成 GFM 表格</b>：除下面两种以外的表。第一行是表头（全是 <code>&lt;th&gt;</code> 或在 <code>&lt;thead&gt;</code> 里）就照用，否则按 ④ 的选择处理；行短的用空格子补齐；首尾通栏行移到表外（③）；表格的 <code>&lt;caption&gt;</code> 写成表格前一段。格子里：换行、段落、列表项用 <code>&lt;br&gt;</code> 接，<code>|</code> 写成 <code>\|</code>。</p>
+<p><b>写成 HTML</b>：表格中间有合并单元格（⑤，按选择），或格子里有代码块、引用块（⑥）。</p>
+<p><b>拆成段落（和现在一样）</b>：排版用的表——里面套着表格、只有一个格子、或只有一行。真实 Chrome 里 Defuddle 已经把维基的导航框、信息框、GitHub 文件列表这类都去掉了，正文里剩下的基本是数据表。</p>
+<p><b>真实页面实测</b>（真实 Chrome 打开 10 个页面，Defuddle 抽正文后共 46 张表）：41 张写成 GFM，5 张写成 HTML（4 张合并单元格、1 张格内代码块），0 张拆段。</p>
+<p><b>翻译（ALAG-26）</b>：表格不翻——GFM 表格和 HTML 表格整块跳过，和原设计稿一致。移到表外的表题、资料来源是普通段落，照常翻译。</p>
+<p><b>范围</b>：网页剪藏（<code>src/page/extract.ts</code>）和选中文字存为摘录（<code>src/page/quote.ts</code>）用同一套规则。X 的内容没有表格，不涉及。</p>
+</div></div></div>
+</div></body></html>
