@@ -1,6 +1,6 @@
 # Chrome Web Store privacy practices: permission justifications
 
-English text for the "Privacy practices" tab of the developer console: the single-purpose description, one justification per permission, and the remote-code declaration. The permissions are the ones declared in `wxt.config.ts` (`storage`, `scripting`, `contextMenus`, `activeTab`, `tabs`, host permission `<all_urls>`). Each paragraph was checked against the source on 2026-10-08; the file references in brackets are for maintainers and are not part of the text to paste.
+English text for the "Privacy practices" tab of the developer console: the single-purpose description, one justification per permission, and the remote-code declaration. The permissions are the ones declared in `wxt.config.ts` (`storage`, `scripting`, `contextMenus`, `activeTab`, `tabs`, `offscreen`, host permission `<all_urls>`). Each paragraph was checked against the source on 2026-10-08, the `offscreen` paragraph on 2026-10-18; the file references in brackets are for maintainers and are not part of the text to paste.
 
 ## Single purpose
 
@@ -31,6 +31,10 @@ Used for the extension's own local records, which never leave the device. `chrom
 ### `contextMenus`
 
 Used to add "Save to Alayo Get" items to the right-click menu for a page, a link, an image, a video, an audio element and selected text. Choosing one of these items is how the user saves a specific link, media file or text selection. [`src/sw/menus.ts`, `src/sw/route.ts`]
+
+### `offscreen`
+
+Used to open one hidden extension page that runs the browser's built-in, on-device Translator and LanguageDetector APIs. Chrome documents these APIs as available only in window contexts, not in workers, so translation requested by the service worker runs in this offscreen document. The text is translated on the device by Chrome's own language models and is not sent to any server, by the extension or by the API. When a language model is missing, Chrome downloads it from Google's component servers; this happens only after the user clicks a button on one of the extension's own pages, and the download contains the model, not any of the user's text. The document is created only while there is translation work and is closed after a minute without any. Chrome's offscreen API has no reason value for translation, so the document is created with the `DOM_PARSER` reason and its justification string states the actual use. [`src/sw/translateClient.ts`, `src/entrypoints/offscreen/`, `src/core/translate/`; on-device behaviour measured in `docs/research/ALAG-24-results.md`]
 
 ## Remote code
 

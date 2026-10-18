@@ -18,7 +18,7 @@ export default defineConfig({
     default_locale: 'en',
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
-    permissions: ['storage', 'scripting', 'contextMenus', 'activeTab', 'tabs'],
+    permissions: ['storage', 'scripting', 'contextMenus', 'activeTab', 'tabs', 'offscreen'],
     host_permissions: ['<all_urls>'],
     commands: {
       'save-page': {
