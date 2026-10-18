@@ -44,6 +44,20 @@ const clip: ClipSummary = {
   savedAt: '2026-10-18T05:40:00.000Z',
 };
 
+const simpleRecord: SavedEntry = {
+  id: SIMPLE_ID,
+  file: SIMPLE_FILE,
+  title: 'Simple',
+  medium: 'web',
+  source: SIMPLE_SOURCE,
+  savedAt: '2026-10-18T05:40:00.000Z',
+  tags: [],
+};
+
+function simple(body: string): string {
+  return `---\nid: "${SIMPLE_ID}"\nsource: "${SIMPLE_SOURCE}"\nmedium: "web"\ntitle: "Simple"\nauthor: ""\npublished: ""\ncaptured: "2026-10-18T00:00:00.000Z"\nsite: "example.com"\ntags: []\nnote: ""\nextract: "full"\n---\n\n${body}\n`;
+}
+
 class FakeTranslation implements TranslationService {
   readonly requests: TranslateRequest[] = [];
   readonly cancelled: string[] = [];
@@ -403,20 +417,6 @@ describe('startClipTranslation：与保存共用剪藏库锁', () => {
 });
 
 describe('startClipTranslation：空白译文（续修 3B）', () => {
-  const simpleRecord: SavedEntry = {
-    id: SIMPLE_ID,
-    file: SIMPLE_FILE,
-    title: 'Simple',
-    medium: 'web',
-    source: SIMPLE_SOURCE,
-    savedAt: '2026-10-18T05:40:00.000Z',
-    tags: [],
-  };
-
-  function simple(body: string): string {
-    return `---\nid: "${SIMPLE_ID}"\nsource: "${SIMPLE_SOURCE}"\nmedium: "web"\ntitle: "Simple"\nauthor: ""\npublished: ""\ncaptured: "2026-10-18T00:00:00.000Z"\nsite: "example.com"\ntags: []\nnote: ""\nextract: "full"\n---\n\n${body}\n`;
-  }
-
   async function open(body: string) {
     const md = simple(body);
     library.files.set(SIMPLE_FILE, md);
@@ -455,5 +455,30 @@ describe('startClipTranslation：空白译文（续修 3B）', () => {
     const after = library.text(SIMPLE_FILE) ?? '';
     expect(bodyOf(after)).toBe('\nHello world.\n\nSecond paragraph.\n\n第二段。\n');
     expect(after).toContain('translation: "partial"');
+  });
+});
+
+describe('startClipTranslation：列表项硬换行续行（续修 4B）', () => {
+  it('Turndown 的 <li>First line<br>Second line</li> 两行都送翻，最终 complete', async () => {
+    // Turndown 对 <ul><li>First line<br>Second line</li></ul> 的实际输出。
+    const md = simple('-   First line  \n    Second line');
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const job = startClipTranslation({ id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' }, deps());
+    await settle();
+    expect(translator.requests[0]?.segments).toEqual(['First line', 'Second line']);
+
+    translator.emitSource('en');
+    translator.emitSegment(0, '第一行');
+    translator.emitSegment(1, '第二行');
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('complete');
+    expect(outcome.applied).toBe(1);
+    expect(outcome.total).toBe(1);
+
+    const after = library.text(SIMPLE_FILE) ?? '';
+    expect(bodyOf(after)).toBe('\n-   First line  \n    Second line\\\n    第一行\\\n    第二行\n');
+    expect(after).toContain('translation: "complete"');
   });
 });

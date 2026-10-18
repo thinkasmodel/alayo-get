@@ -185,6 +185,42 @@ function indentOf(line: string): number {
   return /^\s*/.exec(line)?.[0].length ?? 0;
 }
 
+interface Containers {
+  /** 去掉行首所有连续容器标记后的内容。 */
+  content: string;
+  /** 最内层容器的内容列（字符数，相对整行）。 */
+  col: number;
+  /** 各层列表内容列（外→内）；引用标记不占列表列。 */
+  cols: number[];
+}
+
+/** 剥掉行首所有连续的列表标记（含空格）与 `>` 引用标记；用于同一行开多层容器的识别。 */
+function stripContainers(line: string): Containers {
+  let rest = line;
+  let offset = 0;
+  const cols: number[] = [];
+  for (;;) {
+    const list = LIST_ITEM.exec(rest);
+    if (list) {
+      const indent = list[1]?.length ?? 0;
+      const marker = list[2] ?? '';
+      const gap = list[3]?.length ?? 0;
+      offset += indent + marker.length + gap;
+      cols.push(offset);
+      rest = list[4] ?? '';
+      continue;
+    }
+    const quote = /^ {0,3}> ?/.exec(rest);
+    if (quote) {
+      offset += quote[0].length;
+      rest = rest.slice(quote[0].length);
+      continue;
+    }
+    break;
+  }
+  return { content: rest, col: offset, cols };
+}
+
 interface FenceMark {
   char: string;
   length: number;
@@ -212,14 +248,26 @@ function fenceEnd(lines: string[], start: number, mark: FenceMark): number {
   return lines.length - 1;
 }
 
-/** 标出整段里 fenced code 占用的行（含空行）；没有闭合时标到末尾。 */
+/** 引用块里的围栏结束行：按开头那层的内容列剥掉缩进后判断；没有闭合时到引用块结束。 */
+function containerFenceEnd(lines: string[], start: number, col: number, mark: FenceMark): number {
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? '';
+    if (BLANK.test(line)) continue;
+    const content = indentOf(line) >= col ? line.slice(col) : line.trim();
+    if (closeFence(content, mark)) return i;
+  }
+  return lines.length - 1;
+}
+
+/** 标出整段里 fenced code 占用的行（含空行）；先剥掉同一行的所有容器标记。 */
 function fenceMask(lines: string[]): boolean[] {
   const mask = new Array<boolean>(lines.length).fill(false);
   for (let i = 0; i < lines.length; i += 1) {
     if (mask[i]) continue;
-    const mark = openFence(lines[i] ?? '');
+    const containers = stripContainers(lines[i] ?? '');
+    const mark = openFence(containers.content);
     if (!mark) continue;
-    const close = fenceEnd(lines, i, mark);
+    const close = containerFenceEnd(lines, i, containers.col, mark);
     for (let j = i; j <= close && j < lines.length; j += 1) mask[j] = true;
     i = close;
   }
@@ -390,19 +438,35 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       const gap = list[3] ?? '';
       const content = list[4] ?? '';
       const col = indent + marker.length + gap.length;
+      const containers = stripContainers(line);
       while (listCols.length > 0 && (listCols[listCols.length - 1] ?? 0) > indent) listCols.pop();
-      listCols.push(col);
+      for (const c of containers.cols.length > 0 ? containers.cols : [col]) listCols.push(c);
       sawBlank = false;
-      // 列表项第一行本身就是围栏（Turndown 的 <li><pre> 会这样写）：整块代码不翻。
-      const firstFence = openFence(content);
+
+      // 同一行开多层容器（如 "-   -   ```"）：剩下是围栏就整块跳过，不当列表项。
+      const firstFence = openFence(containers.content);
       if (firstFence) {
-        i = listFenceAfter(lines, i, col, firstFence);
+        i = listFenceAfter(lines, i, containers.col, firstFence);
         continue;
       }
-      if (content.trim() !== '') {
-        pushUnit('list-item', i, i, [line], [content], { indent: col });
+
+      // 列表项首段 = 首行 + 紧跟的续行（缩进不小于内容列、且不是新的块），直到空行。
+      const rawLines: string[] = [content];
+      let j = i + 1;
+      while (j < lines.length) {
+        const current = lines[j] ?? '';
+        if (BLANK.test(current)) break;
+        if (indentOf(current) < col) break;
+        if (indentOf(current) >= col + 4) break;
+        const rest = current.slice(col);
+        if (startsBlock(rest)) break;
+        rawLines.push(rest);
+        j += 1;
       }
-      i += 1;
+      const hard = rawLines.some((raw) => hasHardBreak(raw));
+      const rawSegments = hard ? rawLines : [rawLines.join('\n')];
+      pushUnit('list-item', i, j - 1, lines.slice(i, j), rawSegments, { indent: col, perLine: hard });
+      i = j;
       continue;
     }
 
@@ -558,6 +622,10 @@ function renderPerLine(unit: Unit, translations: string[], target: string): stri
   }
   if (next !== translations.length) return null;
   if (same) return [];
+  if (unit.kind === 'list-item') {
+    const indent = ' '.repeat(unit.indent ?? 0);
+    return lines.map((line, index) => `${indent}${line}${index < lines.length - 1 ? '\\' : ''}`);
+  }
   return ['', ...lines.map((line, index) => (index < lines.length - 1 ? `${line}\\` : line))];
 }
 
@@ -618,11 +686,13 @@ export interface ApplyTranslationsResult {
 
 /** 写回时列表项原文末尾加了硬换行 `\`；比较原文时两种写法算同一个块。 */
 function sameSourceLines(a: Unit, b: Unit): boolean {
-  if (a.sourceLines.length !== b.sourceLines.length) return false;
+  if (a.sourceLines.length !== b.sourceLines.length || a.sourceLines.length === 0) return false;
   if (a.sourceLines.every((line, index) => line === b.sourceLines[index])) return true;
-  if (a.kind !== 'list-item' || b.kind !== 'list-item' || a.sourceLines.length !== 1) return false;
-  const left = a.sourceLines[0] ?? '';
-  const right = b.sourceLines[0] ?? '';
+  if (a.kind !== 'list-item' || b.kind !== 'list-item') return false;
+  const last = a.sourceLines.length - 1;
+  if (!a.sourceLines.every((line, index) => index === last || line === b.sourceLines[index])) return false;
+  const left = a.sourceLines[last] ?? '';
+  const right = b.sourceLines[last] ?? '';
   return left === `${right}\\` || right === `${left}\\`;
 }
 
@@ -708,9 +778,9 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
     applied.push(item.unit);
 
     if (item.unit.kind === 'list-item') {
-      const original = lines[target.start] ?? '';
+      const original = lines[target.end] ?? '';
       const withBreak = hasHardBreak(original) ? original : `${original}\\`;
-      edits.push({ index: target.start, deleteCount: 1, lines: [withBreak, ...item.lines] });
+      edits.push({ index: target.end, deleteCount: 1, lines: [withBreak, ...item.lines] });
     } else {
       edits.push({ index: target.end + 1, deleteCount: 0, lines: item.lines });
     }
