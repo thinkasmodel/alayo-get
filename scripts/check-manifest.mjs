@@ -9,9 +9,12 @@ const fail = (msg) => {
 };
 
 if (m.manifest_version !== 3) fail('manifest_version 不是 3');
-for (const p of ['storage', 'scripting', 'contextMenus', 'activeTab', 'tabs']) {
+for (const p of ['storage', 'scripting', 'contextMenus', 'activeTab', 'tabs', 'offscreen']) {
   if (!m.permissions?.includes(p)) fail(`缺少权限 ${p}`);
 }
+// 翻译层用功能检测代替最低版本（ALAG-25）：不设 minimum_chrome_version，没有 Translator 时报 unsupported-browser。
+if (m.minimum_chrome_version !== undefined) fail('不应设置 minimum_chrome_version（ALAG-25）');
+if (!existsSync(`${dir}/offscreen.html`)) fail('构建产物缺少 offscreen.html');
 if (!m.host_permissions?.includes('<all_urls>')) fail('host_permissions 缺少 <all_urls>');
 const key = m.commands?.['save-page']?.suggested_key;
 if (key?.default !== 'Alt+Shift+S' || key?.mac !== 'Alt+Shift+S') fail('save-page 快捷键不是 Alt+Shift+S');

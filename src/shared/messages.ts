@@ -1,5 +1,6 @@
 // 消息与 Port 协议的字面量和类型。冻结于 tasks/briefs/ALAG-2A.md「协议」段，Brief B 依赖，不改字面量。
 import type { Capture, EditFields, LostEdit, LostEditNotice, PanelState, QuoteCaptureInfo, SaveOutcome } from './types';
+import type { TranslateRequest, TranslateResult } from '../core/translate/types';
 
 // ---- 页面内消息（tabs.sendMessage / runtime.onMessage）
 
@@ -95,6 +96,18 @@ export type SwToPanel =
   | { type: 'state'; state: PanelState; baseline?: number }
   /** 写回失败留下的草稿全量与本次面板会话里已处理完的通知；连接后立刻推一次，之后每次变化都推（ALAG-20）。 */
   | { type: 'lost-edits'; edits: LostEdit[]; notices: LostEditNotice[] };
+
+// ---- 翻译 Port（ALAG-25）：SW 发起 runtime.connect，offscreen 文档接收
+
+export const TRANSLATE_PORT = 'translate';
+
+export type SwToTranslateHost = { type: 'hello' } | { type: 'translate'; jobId: string; request: TranslateRequest } | { type: 'cancel'; jobId: string };
+
+export type TranslateHostToSw =
+  | { type: 'hello-ack' }
+  | { type: 'source'; jobId: string; source: string }
+  | { type: 'segment'; jobId: string; index: number; text: string }
+  | { type: 'result'; jobId: string; result: TranslateResult };
 
 export function isCaptureError(r: CaptureResponse): r is CaptureError {
   return typeof (r as CaptureError).error === 'string';
