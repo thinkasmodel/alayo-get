@@ -25,12 +25,26 @@ function stripContainers(line: string): string {
   return line.replace(/^(?:\s*>)+/, '');
 }
 
-/** 单行 HTML 表格：去掉引用标记和前导空白后，以 `<table` 开头、以 `</table>` 结尾。 */
 const HTML_TABLE_START = /^<table(?=[\s>])/i;
 const HTML_TABLE_END = /<\/table>\s*$/i;
+const LIST_PREFIX = /^(?:[-*+]|\d{1,9}[.)])[ \t]+/;
 
+/** 反复去掉行首空白、引用标记和列表标记，直到不再变化（Turndown 把列表项里的表格写成 `-   <table>`）。 */
+function stripHtmlTablePrefixes(line: string): string {
+  let content = line;
+  for (;;) {
+    const next = content
+      .replace(/^[ \t]+/, '')
+      .replace(/^>[ \t]*/, '')
+      .replace(LIST_PREFIX, '');
+    if (next === content) return content;
+    content = next;
+  }
+}
+
+/** 单行 HTML 表格：去掉引用/列表标记与前导空白后，以 `<table` 开头、以 `</table>` 结尾。 */
 function isHtmlTableLine(line: string): boolean {
-  const content = stripContainers(line).replace(/^\s+/, '');
+  const content = stripHtmlTablePrefixes(line);
   return HTML_TABLE_START.test(content) && HTML_TABLE_END.test(content);
 }
 

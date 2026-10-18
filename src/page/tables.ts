@@ -14,6 +14,21 @@ const STRUCTURAL_TAGS = new Set([
 ]);
 /** HTML 表里每个元素只保留的属性。 */
 const KEEP_ATTRIBUTES = new Set(['href', 'src', 'alt', 'colspan', 'rowspan']);
+/** HTML 表里允许出现的元素；其余元素去标签留子节点。 */
+const HTML_TABLE_KEEP_TAGS = new Set([
+  'TABLE', 'TR', 'TD', 'TH', 'A', 'IMG', 'BR', 'P', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'DEL', 'INS',
+  'CODE', 'PRE', 'KBD', 'SAMP', 'VAR', 'SUB', 'SUP', 'SMALL', 'MARK', 'ABBR', 'CITE', 'Q', 'TIME',
+  'SPAN', 'UL', 'OL', 'LI', 'DL', 'DT', 'DD', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR',
+]);
+/** 这些元素连内容一起删除，避免把脚本、表单、嵌入内容写进摘录。 */
+const HTML_TABLE_DROP_TAGS = new Set([
+  'SCRIPT', 'STYLE', 'TEMPLATE', 'NOSCRIPT', 'IFRAME', 'FRAME', 'OBJECT', 'EMBED', 'APPLET', 'SVG',
+  'MATH', 'CANVAS', 'AUDIO', 'VIDEO', 'SOURCE', 'TRACK', 'FORM', 'INPUT', 'BUTTON', 'SELECT',
+  'TEXTAREA', 'OPTION', 'LINK', 'META', 'BASE',
+]);
+/** `href` 只留这几种协议（或页内锚点）；`src` 只留 http(s)。 */
+const SAFE_HREF = /^(?:https?:|mailto:|#)/i;
+const SAFE_SRC = /^https?:/i;
 /** 格子里出现这些元素时，GFM 表格表达不了，改写成 HTML 表。 */
 const BLOCK_IN_CELL = 'pre, blockquote, table, hr, h1, h2, h3, h4, h5, h6';
 /** Turndown 的列表标记：`-   ` 与 `1.  ` 后面补齐到内容列的空格。 */
@@ -146,12 +161,31 @@ function gfmTable(turndown: TurndownService, bodyRows: HTMLElement[]): string {
   return lines.join('\n');
 }
 
-/** 去掉除 `href`/`src`/`alt`/`colspan`/`rowspan` 外的所有属性（含表格自身）。 */
-function stripAttributes(root: Element): void {
+/** 先删危险元素，再给白名单外的元素去标签留文字；只用于写成 HTML 的表格。 */
+function stripUnsafeElements(root: Element): void {
+  for (const element of Array.from(root.querySelectorAll('*'))) {
+    if (HTML_TABLE_DROP_TAGS.has(element.tagName)) element.remove();
+  }
+  for (const element of Array.from(root.querySelectorAll('*')).reverse()) {
+    if (!HTML_TABLE_KEEP_TAGS.has(element.tagName)) {
+      element.replaceWith(...Array.from(element.childNodes));
+    }
+  }
+}
+
+/** 属性只留白名单；`href`/`src` 只留安全协议，删掉 `src` 的 `img` 整个移除。 */
+function sanitizeAttributes(root: Element): void {
   for (const element of [root, ...Array.from(root.querySelectorAll('*'))]) {
     for (const attribute of Array.from(element.attributes)) {
       if (!KEEP_ATTRIBUTES.has(attribute.name.toLowerCase())) element.removeAttribute(attribute.name);
     }
+    const href = element.getAttribute('href');
+    if (href !== null && !SAFE_HREF.test(href.trim())) element.removeAttribute('href');
+    const src = element.getAttribute('src');
+    if (src !== null && !SAFE_SRC.test(src.trim())) element.removeAttribute('src');
+  }
+  for (const img of Array.from(root.querySelectorAll('img'))) {
+    if (!img.hasAttribute('src')) img.remove();
   }
 }
 
@@ -186,8 +220,8 @@ function singleLineHtml(html: string): string {
   return withPre.replace(/[\r\n]+/g, ' ');
 }
 
-/** `rowspan="0"` 换算成明确行数：从本行到原行组最后一个主体行（没有行组时整张表）的行数。 */
-function zeroRowspanLength(rowIndex: number, bodyRows: HTMLElement[]): number {
+/** 跨行上限：从本行到原行组最后一个主体行（没有行组时整张表）的行数。 */
+function rowspanLimit(rowIndex: number, bodyRows: HTMLElement[]): number {
   const group = bodyRows[rowIndex]?.parentElement;
   const inSection = !!group && SECTION_TAGS.has(group.tagName);
   let last = rowIndex;
@@ -204,14 +238,21 @@ function htmlTable(table: HTMLElement, bodyRows: HTMLElement[]): string {
     const clone = row.cloneNode(true) as HTMLElement;
     const cells = rowCells(row);
     const clonedCells = rowCells(clone);
-    const length = zeroRowspanLength(rowIndex, bodyRows);
+    const limit = rowspanLimit(rowIndex, bodyRows);
     cells.forEach((cell, cellIndex) => {
       const cloned = clonedCells[cellIndex];
-      if (cloned && rowspanOf(cell) === 0) cloned.setAttribute('rowspan', String(length));
+      if (!cloned) return;
+      const declared = rowspanOf(cell);
+      if (declared === 1) return;
+      // 0 表示跨到行组末尾，按上限算；超过上限的显式值也压到本行组末尾。
+      const resolved = Math.min(declared === 0 ? Number.POSITIVE_INFINITY : declared, limit);
+      if (resolved <= 1) cloned.removeAttribute('rowspan');
+      else cloned.setAttribute('rowspan', String(resolved));
     });
     shell.appendChild(clone);
   });
-  stripAttributes(shell);
+  stripUnsafeElements(shell);
+  sanitizeAttributes(shell);
   cleanWhitespace(shell);
   return singleLineHtml(shell.outerHTML);
 }

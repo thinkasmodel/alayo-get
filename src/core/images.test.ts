@@ -88,6 +88,22 @@ describe('HTML 表格行里的图片（单行 HTML）', () => {
     expect(rewriteImages(md, LOCAL)).toBe(md);
   });
 
+  it('列表项（含嵌套、引用块）里的 HTML 表格行同样识别 <img src>', () => {
+    const image = '<img src="https://a.example/1.png">';
+    const table = `<table><tr><td>${image}</td></tr></table>`;
+    const lines = [
+      `-   ${table}`,
+      `1.  ${table}`,
+      `    -   ${table}`,
+      `> -   ${table}`,
+    ];
+    for (const line of lines) expect(planImages(line).map((p) => p.url)).toEqual(['https://a.example/1.png']);
+  });
+
+  it('普通列表项里的 Markdown 图片照旧识别', () => {
+    expect(planImages('- ![x](https://a.example/m.png)')).toEqual([{ url: 'https://a.example/m.png', index: 1 }]);
+  });
+
   it('命名实体与十进制/十六进制数字引用都解码，改写范围指向引号内原文', () => {
     const line = '<table><tr><td><img src="https://a.example/i.png?q=&quot;hi&quot;&amp;lt=&#33;&#x21;" alt=""></td></tr></table>';
     const url = 'https://a.example/i.png?q="hi"&lt=!!';

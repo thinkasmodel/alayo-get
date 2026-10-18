@@ -91,6 +91,23 @@ describe('captureQuote（capture-quote 的页面一侧）', () => {
     expect(md).toContain('| Beta | 2 |');
   });
 
+  it('选区从表头第二格 Price 开始：补回本行前面被省略的 Name 格子', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Price</th></tr></thead>',
+      '<tbody><tr><td>Apple</td><td>$100</td></tr><tr><td>Pear</td><td>$80</td></tr></tbody></table>',
+    ].join('');
+    const price = document.querySelectorAll('th')[1]?.firstChild;
+    const lastCells = document.querySelectorAll('td');
+    const last = lastCells[lastCells.length - 1]?.firstChild;
+    if (!(price instanceof Text) || !(last instanceof Text)) throw new Error('表格里没有文字');
+    selectAcross(price, 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('|   | Price |');
+    expect(md).toContain('| Apple | $100 |');
+    expect(md).toContain('| Pear | $80 |');
+  });
+
   it('选区只覆盖 tbody 的第二、三行：公共祖先是 TBODY，写成空表头＋两行数据', () => {
     document.body.innerHTML = [
       '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',

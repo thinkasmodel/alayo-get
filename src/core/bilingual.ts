@@ -543,18 +543,21 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
       continue;
     }
 
-    if (trimSpaceTabStart(line).startsWith('|')) {
-      listCols.length = 0;
+    const tableLine = trimSpaceTabStart(line).startsWith('|');
+    if (tableLine || isHtmlLine(line)) {
+      // 列表项里的表格/HTML 块不打断列表上下文：保留缩进到某一层内容列的列表栈，
+      // 表格后面的缩进段落才能照常当列表段落翻。表格/HTML 块本身仍不建单元。
+      const lead = indentOf(line);
+      const col = listCols.length > 0 ? [...listCols].reverse().find((c) => c <= lead) : undefined;
+      if (col !== undefined && lead < col + 4) {
+        while (listCols.length > 0 && (listCols[listCols.length - 1] ?? 0) > col) listCols.pop();
+      } else {
+        listCols.length = 0;
+      }
       sawBlank = false;
       i += 1;
-      continue;
-    }
-
-    if (isHtmlLine(line)) {
-      listCols.length = 0;
-      sawBlank = false;
+      if (tableLine) continue;
       // HTML 块到空行为止（保守：认不出结构就不翻）。
-      i += 1;
       while (i < lines.length && !BLANK.test(lines[i] ?? '')) i += 1;
       continue;
     }

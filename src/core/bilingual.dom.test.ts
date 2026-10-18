@@ -347,3 +347,78 @@ describe('planBilingual / applyTranslations：网页表格（ALAG-40）', () => 
     expect(result.md).toContain('译文');
   });
 });
+
+describe('planBilingual：列表项里的表格不打断列表上下文（ALAG-40 续修 2）', () => {
+  const tableTurndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
+  addTableRules(tableTurndown);
+  const gfmTable = '<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>Alpha</td><td>1</td></tr></tbody></table>';
+  const htmlTable = '<table><tr><td rowspan="2">A</td><td>1</td></tr><tr><td>2</td></tr></table>';
+  const isTableLine = (line: string): boolean => line.trimStart().startsWith('|') || line.trimStart().startsWith('<table');
+
+  function translateAll(md: string) {
+    const plan = planBilingual(md, 'web');
+    const translations: Record<string, string> = {};
+    for (const segment of plan.segments) translations[segment] = '译文';
+    const result = applyTranslations(md, itemsFor(plan, translations), 'web');
+    return { plan, result };
+  }
+
+  it('GFM 表格前后的段落都送翻，写回后表格行逐字节不变', () => {
+    const body = tableTurndown.turndown(
+      `<ul><li><p>Introduction paragraph here.</p>${gfmTable}<p>Concluding paragraph here.</p></li><li>Second item text.</li></ul>`,
+    );
+    const md = withFrontmatter(body);
+    const tableLines = md.split('\n').filter(isTableLine);
+    expect(tableLines).toHaveLength(3);
+
+    const { plan, result } = translateAll(md);
+    expect(plan.segments).toEqual(
+      expect.arrayContaining(['Introduction paragraph here.', 'Concluding paragraph here.', 'Second item text.']),
+    );
+    for (const unit of plan.units) expect(unit.sourceLines.some(isTableLine)).toBe(false);
+    expect(result.missing).toEqual([]);
+    expect(result.md.split('\n').filter(isTableLine)).toEqual(tableLines);
+  });
+
+  it('单行 HTML 表格前后的段落同样都送翻，<table> 行不变', () => {
+    const body = tableTurndown.turndown(
+      `<ul><li><p>Introduction paragraph here.</p>${htmlTable}<p>Concluding paragraph here.</p></li><li>Second item text.</li></ul>`,
+    );
+    const md = withFrontmatter(body);
+    const tableLines = md.split('\n').filter(isTableLine);
+    expect(tableLines).toHaveLength(1);
+    expect(tableLines[0]).toContain('<table');
+
+    const { plan, result } = translateAll(md);
+    expect(plan.segments).toEqual(
+      expect.arrayContaining(['Introduction paragraph here.', 'Concluding paragraph here.', 'Second item text.']),
+    );
+    for (const unit of plan.units) expect(unit.sourceLines.some(isTableLine)).toBe(false);
+    expect(result.missing).toEqual([]);
+    expect(result.md.split('\n').filter(isTableLine)).toEqual(tableLines);
+  });
+
+  it('嵌套列表第二层里的表格，前后段落同样都送翻', () => {
+    const body = tableTurndown.turndown(
+      `<ul><li>Outer item.<ul><li><p>Introduction paragraph here.</p>${gfmTable}<p>Concluding paragraph here.</p></li></ul></li></ul>`,
+    );
+    const md = withFrontmatter(body);
+    const { plan, result } = translateAll(md);
+    expect(plan.segments).toEqual(expect.arrayContaining(['Introduction paragraph here.', 'Concluding paragraph here.']));
+    for (const unit of plan.units) expect(unit.sourceLines.some(isTableLine)).toBe(false);
+    expect(result.missing).toEqual([]);
+    expect(result.md.split('\n').filter(isTableLine)).toEqual(md.split('\n').filter(isTableLine));
+  });
+
+  it('列表项首行就是 HTML 表格：不建含 <table> 的单元，后面的列表段落照常翻', () => {
+    const body = tableTurndown.turndown(`<ul><li>${htmlTable}<p>Following paragraph here.</p></li></ul>`);
+    const md = withFrontmatter(body);
+    const { plan, result } = translateAll(md);
+    expect(plan.segments).toContain('Following paragraph here.');
+    for (const unit of plan.units) {
+      expect(unit.sourceLines.some((line) => line.trimStart().startsWith('<table'))).toBe(false);
+    }
+    expect(result.missing).toEqual([]);
+    expect(result.md.split('\n').filter(isTableLine)).toEqual(md.split('\n').filter(isTableLine));
+  });
+});

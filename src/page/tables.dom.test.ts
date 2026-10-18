@@ -59,4 +59,58 @@ describe('addTableRules：rowspan="0"', () => {
     );
     expect(md).not.toContain('rowspan="0"');
   });
+
+  it('超过原行组末尾的显式 rowspan 压到组内，结果为 1 时删掉属性', () => {
+    const html = [
+      '<table><thead><tr><th rowspan="2">K</th><th colspan="2">V</th></tr></thead>',
+      '<tbody><tr><td>a</td><td>1</td><td>2</td></tr><tr><td>b</td><td>3</td><td>4</td></tr></tbody></table>',
+    ].join('');
+    expect(turndown().turndown(html)).toBe(
+      '<table><tr><th>K</th><th colspan="2">V</th></tr><tr><td>a</td><td>1</td><td>2</td></tr><tr><td>b</td><td>3</td><td>4</td></tr></table>',
+    );
+  });
+});
+
+describe('addTableRules：HTML 表元素与地址白名单', () => {
+  it('脚本、样式、嵌入与表单元素连内容一起删除', () => {
+    const md = turndown().turndown(
+      [
+        '<table><tr><td rowspan="2">A</td><td>',
+        '<script>alert(1)</script><style>td{}</style>',
+        '<iframe src="https://a.example/"></iframe><button>x</button>T',
+        '</td></tr><tr><td>B</td></tr></table>',
+      ].join(''),
+    );
+    expect(md).not.toContain('script');
+    expect(md).not.toContain('alert');
+    expect(md).not.toContain('style');
+    expect(md).not.toContain('iframe');
+    expect(md).not.toContain('button');
+    expect(md).toContain('>T<');
+  });
+
+  it('白名单外的元素去标签留文字', () => {
+    const md = turndown().turndown(
+      '<table><tr><td rowspan="2"><span><font>Text</font></span><div>D</div></td><td>1</td></tr><tr><td>2</td></tr></table>',
+    );
+    expect(md).toContain('<span>Text</span>D');
+    expect(md).not.toContain('<font');
+    expect(md).not.toContain('<div');
+  });
+
+  it('链接只留 http(s)/mailto/#，图片只留 http(s)，删掉 src 的 img 整个移除', () => {
+    const md = turndown().turndown(
+      [
+        '<table><tr><td rowspan="2">',
+        '<a href="javascript:alert(1)">J</a><a href="https://a.example/">H</a>',
+        '<img src="data:image/png;base64,AAAA" alt="d"><img src="https://a.example/i.png" alt="i">',
+        '</td><td>1</td></tr><tr><td>2</td></tr></table>',
+      ].join(''),
+    );
+    expect(md).toContain('<a>J</a>');
+    expect(md).toContain('<a href="https://a.example/">H</a>');
+    expect(md).not.toContain('data:image');
+    expect(md).not.toContain('alt="d"');
+    expect(md).toContain('<img src="https://a.example/i.png" alt="i">');
+  });
 });
