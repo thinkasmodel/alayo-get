@@ -175,9 +175,11 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
         return;
       }
       const result = applyTranslations(located.md, itemsFor(batch), request.medium);
-      for (const unit of result.applied) applied.add(unit);
+      const candidates = result.applied.filter((unit) => !applied.has(unit));
       const md = setTranslationFields(result.md, { lang: sourceLang, translated_to: target, translation: 'partial' });
+      // 写成功（或确实不需要写）之后才算这些单元完成；写失败时 abort 的 applied 不含它们。
       if (md !== located.md) await deps.library.write(located.file, md);
+      for (const unit of candidates) applied.add(unit);
     });
   };
 
@@ -237,14 +239,18 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
         return;
       }
       let md = located.md;
+      let candidates: Unit[] = [];
       if (batch.length > 0) {
         const inserted = applyTranslations(md, itemsFor(batch), request.medium);
-        for (const unit of inserted.applied) applied.add(unit);
+        candidates = inserted.applied.filter((unit) => !applied.has(unit));
         md = inserted.md;
       }
-      status = applied.size >= total ? 'complete' : applied.size > 0 ? 'partial' : 'failed';
+      const appliedCount = applied.size + candidates.length;
+      status = appliedCount >= total ? 'complete' : appliedCount > 0 ? 'partial' : 'failed';
       const next = setTranslationFields(md, { lang: outcomeSource, translated_to: target, translation: status });
+      // 写成功（或确实不需要写）之后才把这些单元并入 applied；写失败时 abort 的 applied 不含它们。
       if (next !== located.md) await deps.library.write(located.file, next);
+      for (const unit of candidates) applied.add(unit);
     });
 
     if (aborted || finished) return;

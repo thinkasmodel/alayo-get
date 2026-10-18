@@ -130,3 +130,30 @@ describe('planBilingual：列表项硬换行续行（续修 4B）', () => {
     expect(bodyOf(result.md)).toBe('\n-   First line  \n    Second line\\\n    第一行\\\n    第二行\n');
   });
 });
+
+describe('planBilingual：引用块里的列表（续修 5A）', () => {
+  it('引用块里的列表整体不翻，插入译文不破坏列表/围栏', () => {
+    const body = turndown.turndown(
+      '<blockquote><ul><li>Outer<pre><code>const a = 1;</code></pre></li></ul></blockquote>',
+    );
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([]);
+    expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+
+  it('列表之前的普通段落照常翻，列表及其后的段落全部跳过', () => {
+    const body = turndown.turndown(
+      '<blockquote><p>Ordinary paragraph.</p><ul><li>Outer</li></ul><p>After paragraph.</p></blockquote>',
+    );
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['Ordinary paragraph.']);
+
+    const result = applyTranslations(md, itemsFor(plan, { 'Ordinary paragraph.': '普通段落。' }), 'web');
+    expect(result.missing).toEqual([]);
+    expect(result.md).toContain('普通段落。');
+    expect(result.md).toContain('> -   Outer');
+    expect(result.md).toContain('> After paragraph.');
+  });
+});

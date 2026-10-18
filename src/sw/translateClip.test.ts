@@ -482,3 +482,82 @@ describe('startClipTranslation：列表项硬换行续行（续修 4B）', () =>
     expect(after).toContain('translation: "complete"');
   });
 });
+
+describe('startClipTranslation：写回失败时 applied 只计落盘（续修 5B）', () => {
+  async function openSimple(body: string) {
+    const md = simple(body);
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const job = startClipTranslation({ id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' }, deps());
+    await settle();
+    return { md, job };
+  }
+
+  function failWrite(): void {
+    library.failWrite = {
+      match: (path) => path === SIMPLE_FILE,
+      error: Object.assign(new Error('disk full'), { name: 'NotAllowedError' }),
+    };
+  }
+
+  it('onSource 的 partial 写失败 → aborted，applied 0，文件不变', async () => {
+    const { md, job } = await openSimple('First paragraph.');
+    failWrite();
+    translator.emitSource('en');
+    await settle();
+
+    const outcome = await job.done;
+    expect(outcome.status).toBe('aborted');
+    expect(outcome.applied).toBe(0);
+    expect(library.text(SIMPLE_FILE)).toBe(md);
+    translator.finish({ status: 'cancelled', done: 0 });
+    await settle();
+  });
+
+  it('中间 flush 写失败 → aborted，applied 只计此前成功落盘的 1 个', async () => {
+    const { job } = await openSimple('First paragraph.\n\nSecond paragraph.');
+    expect(translator.requests[0]?.segments).toEqual(['First paragraph.', 'Second paragraph.']);
+    translator.emitSource('en');
+    await settle();
+    translator.emitSegment(0, '第一段。');
+    clock.tick(FLUSH_MS);
+    await settle();
+    let after = library.text(SIMPLE_FILE) ?? '';
+    expect(after).toContain('第一段。');
+    expect(after).toContain('translation: "partial"');
+
+    failWrite();
+    translator.emitSegment(1, '第二段。');
+    clock.tick(FLUSH_MS);
+    const outcome = await job.done;
+    expect(outcome.status).toBe('aborted');
+    expect(outcome.applied).toBe(1);
+    after = library.text(SIMPLE_FILE) ?? '';
+    expect(after).toContain('第一段。');
+    expect(after).not.toContain('第二段。');
+    translator.finish({ status: 'cancelled', done: 1 });
+    await settle();
+  });
+
+  it('最终写回失败 → aborted，applied 只计此前成功落盘的 1 个', async () => {
+    const { job } = await openSimple('First paragraph.\n\nSecond paragraph.');
+    translator.emitSource('en');
+    await settle();
+    translator.emitSegment(0, '第一段。');
+    clock.tick(FLUSH_MS);
+    await settle();
+    let after = library.text(SIMPLE_FILE) ?? '';
+    expect(after).toContain('第一段。');
+
+    failWrite();
+    translator.emitSegment(1, '第二段。');
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('aborted');
+    expect(outcome.applied).toBe(1);
+    after = library.text(SIMPLE_FILE) ?? '';
+    expect(after).toContain('第一段。');
+    expect(after).not.toContain('第二段。');
+    expect(after).toContain('translation: "partial"');
+  });
+});

@@ -575,6 +575,8 @@ function scanQuote(
   // 围栏跨空行跟踪：引用块里的代码块即使中间有空行，整块也不翻。
   const fenced = fenceMask(stripped);
 
+  // 引用块里出现过列表项后，后续段落可能只是列表的缩进/懒续行，全部不再翻。
+  let sawList = false;
   let from = 0;
   while (from < stripped.length) {
     while (from < stripped.length && (fenced[from] || (stripped[from] ?? '').trim() === '')) from += 1;
@@ -585,11 +587,19 @@ function scanQuote(
     const contentLines = rawContent.map((line) => stripHardBreak(line.trim()));
     const raw = contentLines.join(' ');
     const isXAuthor = medium === 'x' && X_QUOTE_AUTHOR.test(contentLines.join('\n'));
-    // 引用块里的代码块、表格、HTML、缩进代码同样不翻。
-    const skippedBlock = rawContent.some(
-      (line) => /^ {4,}\S/.test(line) || /^(`{3,}|~{3,})/.test(line.trim()) || line.trim().startsWith('|') || isHtmlLine(line),
+    const hasList = rawContent.some((line) => LIST_ITEM.test(line));
+    if (hasList) sawList = true;
+    // 引用块只翻普通段落：列表项/标题/围栏/表格/HTML/任何前导缩进都跳过整段（保守）。
+    const nonParagraph = rawContent.some(
+      (line) =>
+        LIST_ITEM.test(line) ||
+        ATX_HEADING.test(line) ||
+        FENCE_OPEN.test(line) ||
+        line.trimStart().startsWith('|') ||
+        isHtmlLine(line) ||
+        /^\s/.test(line),
     );
-    if (!isXAuthor && !skippedBlock) {
+    if (!sawList && !isXAuthor && !nonParagraph) {
       pushUnit('quote-paragraph', start + from, start + to - 1, rawLines.slice(from, to), [raw]);
     }
     from = to;
