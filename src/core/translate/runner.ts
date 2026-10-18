@@ -22,8 +22,12 @@ export interface RunnerOptions {
 
 export const DETECT_SAMPLE_CHARS = 2000;
 export const MIN_DETECT_CONFIDENCE = 0.5;
-/** 单次引擎调用最多等这么久。它是兜底：引擎自己的 create / 实例超时是 60 秒，先触发并完成清理。 */
-export const STEP_TIMEOUT_MS = 90_000;
+/**
+ * 单次引擎调用最多等这么久，只防不守约的引擎。引擎最坏 =
+ * create 60 秒 + 重试等待 3 秒 + create 60 秒 + 实例调用 60 秒 ≈ 183 秒；
+ * 兜底必须晚于它，保证引擎先超时并完成清理。
+ */
+export const STEP_TIMEOUT_MS = 200_000;
 
 /** 对引擎的一次等待：正常完成、被取消、超时或引擎报错。 */
 type StepResult<T> = { status: 'ok'; value: T } | { status: 'cancelled' } | { status: 'timeout'; step: string } | { status: 'error'; error: unknown };
