@@ -105,6 +105,8 @@ export type SwToTranslateHost = { type: 'hello' } | { type: 'translate'; jobId: 
 
 export type TranslateHostToSw =
   | { type: 'hello-ack' }
+  /** 有未结束任务时每 KEEPALIVE_MS 一条，刷新 SW 空闲计时；不带 jobId，不算任务消息。 */
+  | { type: 'keepalive' }
   | { type: 'source'; jobId: string; source: string }
   | { type: 'segment'; jobId: string; index: number; text: string }
   | { type: 'result'; jobId: string; result: TranslateResult };

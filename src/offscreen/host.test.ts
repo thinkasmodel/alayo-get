@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SwToTranslateHost, TranslateHostToSw } from '@/shared/messages';
 import type { TranslateHandlers, TranslateRequest, TranslateResult, TranslationService } from '@/core/translate/types';
 import type { PortLike } from '@/sw/ports';
-import { createIdleCloser, handleTranslateHostPort, IDLE_CLOSE_MS, type HostActivity } from './host';
+import { createIdleCloser, handleTranslateHostPort, IDLE_CLOSE_MS, KEEPALIVE_MS, type HostActivity } from './host';
 
 class FakePort<In, Out> implements PortLike<In, Out> {
   readonly sent: Out[] = [];
@@ -55,6 +55,32 @@ function fakeTimers() {
   };
 }
 
+function fakeIntervals() {
+  let nextId = 0;
+  const intervals = new Map<number, { fn: () => void; ms: number }>();
+  return {
+    setInterval: (fn: () => void, ms: number): unknown => {
+      const id = ++nextId;
+      intervals.set(id, { fn, ms });
+      return id;
+    },
+    clearInterval: (handle: unknown): void => {
+      intervals.delete(handle as number);
+    },
+    tick(times = 1): void {
+      for (let i = 0; i < times; i += 1) {
+        for (const interval of [...intervals.values()]) interval.fn();
+      }
+    },
+    count(): number {
+      return intervals.size;
+    },
+    period(): number | undefined {
+      return [...intervals.values()][0]?.ms;
+    },
+  };
+}
+
 class FakeService implements TranslationService {
   readonly calls: Array<{ request: TranslateRequest; handlers?: TranslateHandlers }> = [];
   readonly cancel = vi.fn();
@@ -78,9 +104,13 @@ class FakeService implements TranslationService {
 
 type HostPort = FakePort<SwToTranslateHost, TranslateHostToSw>;
 
-function open(service: TranslationService, activity?: HostActivity): HostPort {
+function open(
+  service: TranslationService,
+  activity?: HostActivity,
+  options?: { setInterval?: (fn: () => void, ms: number) => unknown; clearInterval?: (handle: unknown) => void },
+): HostPort {
   const port: HostPort = new FakePort('translate');
-  handleTranslateHostPort(port, service, activity);
+  handleTranslateHostPort(port, service, activity, options);
   return port;
 }
 
@@ -122,6 +152,8 @@ describe('handleTranslateHostPort', () => {
     expect(service.cancel).toHaveBeenCalledWith('task-2');
     port.send({ type: 'cancel', jobId: 'missing' });
     expect(service.cancel).toHaveBeenCalledTimes(1);
+    // 清掉未结束任务和 keepalive 计时器，避免测试留下真实 interval。
+    port.disconnect();
   });
 
   it('Port 断开 → 取消该 Port 上所有未结束的任务，之后不再 postMessage', async () => {
@@ -171,6 +203,69 @@ describe('handleTranslateHostPort', () => {
     await flush();
     expect(activity.end).toHaveBeenCalledTimes(2);
     expect(activity.begin).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('keepalive', () => {
+  it('有任务时每 KEEPALIVE_MS 发一次；任务结束后停止', async () => {
+    const service = new FakeService();
+    const timers = fakeIntervals();
+    const port = open(service, undefined, { setInterval: timers.setInterval, clearInterval: timers.clearInterval });
+    port.send({ type: 'translate', jobId: 'sw-1', request: { segments: ['a'], target: 'zh', source: 'en' } });
+    expect(timers.period()).toBe(KEEPALIVE_MS);
+
+    timers.tick(3);
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toHaveLength(3);
+
+    service.resolve('task-1', { status: 'complete', source: 'en' });
+    await flush();
+    expect(timers.count()).toBe(0);
+    timers.tick(3);
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toHaveLength(3);
+  });
+
+  it('没有任务时不发', () => {
+    const service = new FakeService();
+    const timers = fakeIntervals();
+    const port = open(service, undefined, { setInterval: timers.setInterval, clearInterval: timers.clearInterval });
+    expect(timers.count()).toBe(0);
+    timers.tick(3);
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toEqual([]);
+  });
+
+  it('Port 断开后停止计时，不再发', () => {
+    const service = new FakeService();
+    const timers = fakeIntervals();
+    const port = open(service, undefined, { setInterval: timers.setInterval, clearInterval: timers.clearInterval });
+    port.send({ type: 'translate', jobId: 'sw-1', request: { segments: ['a'], target: 'zh', source: 'en' } });
+    expect(timers.count()).toBe(1);
+
+    port.disconnect();
+    expect(timers.count()).toBe(0);
+    timers.tick(3);
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toEqual([]);
+  });
+
+  it('两个任务交错：第一个结束后继续，全部结束后停', async () => {
+    const service = new FakeService();
+    const timers = fakeIntervals();
+    const port = open(service, undefined, { setInterval: timers.setInterval, clearInterval: timers.clearInterval });
+    port.send({ type: 'translate', jobId: 'sw-1', request: { segments: ['a'], target: 'zh', source: 'en' } });
+    port.send({ type: 'translate', jobId: 'sw-2', request: { segments: ['b'], target: 'zh', source: 'en' } });
+
+    timers.tick();
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toHaveLength(1);
+    service.resolve('task-1', { status: 'complete', source: 'en' });
+    await flush();
+    expect(timers.count()).toBe(1);
+
+    timers.tick();
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toHaveLength(2);
+    service.resolve('task-2', { status: 'complete', source: 'en' });
+    await flush();
+    expect(timers.count()).toBe(0);
+    timers.tick();
+    expect(port.sent.filter((message) => message.type === 'keepalive')).toHaveLength(2);
   });
 });
 

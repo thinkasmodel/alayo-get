@@ -98,6 +98,9 @@ export function createTranslateClient(deps: TranslateClientDeps): TranslationSer
     switch (message.type) {
       case 'hello-ack':
         return;
+      case 'keepalive':
+        // 心跳只刷新 SW 空闲计时，不带 jobId，也不算任务收到过消息（重发判定不受影响）。
+        return;
       case 'source': {
         const job = jobs.get(message.jobId);
         if (!job || job.settled) return;

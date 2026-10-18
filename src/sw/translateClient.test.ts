@@ -346,6 +346,29 @@ describe('createTranslateClient', () => {
     expect(connect).toHaveBeenCalledTimes(1);
   });
 
+  it('收到 keepalive 不算任务消息：断线时仍重发并正常完成', async () => {
+    const { deps, ports, connect } = setup();
+    const service = createTranslateClient(deps);
+    const job = start(service);
+    await flush();
+    const first = ports[0];
+    first?.receive({ type: 'hello-ack' });
+    await flush();
+    expect(first?.sent.some((message) => message.type === 'translate')).toBe(true);
+
+    first?.receive({ type: 'keepalive' });
+    first?.remoteDisconnect();
+    await flush();
+    expect(connect).toHaveBeenCalledTimes(2);
+
+    const second = ports[1];
+    second?.receive({ type: 'hello-ack' });
+    await flush();
+    expect(second?.sent.filter((message) => message.type === 'translate')).toEqual([{ type: 'translate', jobId: job.id, request }]);
+    second?.receive({ type: 'result', jobId: job.id, result: { status: 'complete', source: 'en' } });
+    await expect(job.result).resolves.toEqual({ status: 'complete', source: 'en' });
+  });
+
   it('result 原样 resolve，done 以 host 给的为准', async () => {
     const { deps, ports } = setup();
     const service = createTranslateClient(deps);
