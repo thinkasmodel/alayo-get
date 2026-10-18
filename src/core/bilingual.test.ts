@@ -305,6 +305,8 @@ describe('applyTranslations：在被改过的文件上插入', () => {
     const twice = applyTranslations(once.md, items, 'web');
     expect(twice.applied).toHaveLength(2);
     expect(twice.missing).toEqual([]);
+    expect(twice.alreadyPresent).toHaveLength(2);
+    expect(twice.alreadyPresent).toEqual(items.map((item) => item.unit));
     expect(twice.md).toBe(once.md);
   });
 
@@ -498,5 +500,31 @@ describe('renderTranslation / applyTranslations：空白或缺失译文（续修
     expect(result.applied).toEqual([]);
     expect(result.missing).toEqual([unit]);
     expect(result.md).toBe(md);
+  });
+});
+
+describe('planBilingual / applyTranslations：引用段后的懒续行（续修 8A）', () => {
+  it('引用段后紧跟不带 > 的懒续行：不建单元，文件逐字节不变', () => {
+    const md = mini('> Quoted first line\nlazy continuation');
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([]);
+    expect(plan.units).toEqual([]);
+    expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+
+  it('当前文件被追加懒续行后：原引用段单元进 missing，文件不变', () => {
+    const original = mini('> Quoted first line');
+    const plan = planBilingual(original, 'web');
+    expect(plan.units).toHaveLength(1);
+    const unit = plan.units[0] as Unit;
+    const items = translatedItems(plan, { 'Quoted first line': '引用第一行' }, 'zh');
+    const current = mini('> Quoted first line\nlazy continuation');
+
+    const result = applyTranslations(current, items, 'web');
+    expect(result.applied).toEqual([]);
+    expect(result.missing).toHaveLength(1);
+    expect(result.missing[0]).toBe(unit);
+    expect(result.alreadyPresent).toEqual([]);
+    expect(result.md).toBe(current);
   });
 });

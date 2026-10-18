@@ -586,3 +586,42 @@ describe('startClipTranslation：列表项首行块结构（续修 6）', () => 
     expect(after).toContain('translation: "complete"');
   });
 });
+
+describe('startClipTranslation：不借用已译的同文字块（续修 8B）', () => {
+  it('A/B/A：flush 后改掉最后一个 A，最终 partial、applied=2，最后一段没有译文', async () => {
+    const md = simple('Same text.\n\nOther paragraph.\n\nSame text.');
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const job = startClipTranslation({ id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' }, deps());
+    await settle();
+    expect(translator.requests[0]?.segments).toEqual(['Same text.', 'Other paragraph.', 'Same text.']);
+
+    translator.emitSource('en');
+    await settle();
+    translator.emitSegment(0, '同样的文字。');
+    translator.emitSegment(1, '另一段。');
+    clock.tick(FLUSH_MS);
+    await settle();
+    let after = library.text(SIMPLE_FILE) ?? '';
+    expect(after).toContain('translation: "partial"');
+    expect(after).toContain('Same text.\n\n同样的文字。');
+    expect(after).toContain('Other paragraph.\n\n另一段。');
+
+    // 用户把最后一个 A 的原文改掉，它不再是可匹配的「同文字块」。
+    const at = after.lastIndexOf('Same text.');
+    const edited = after.slice(0, at) + 'Edited text.' + after.slice(at + 'Same text.'.length);
+    library.files.set(SIMPLE_FILE, edited);
+
+    translator.emitSegment(2, '同样的文字。');
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('partial');
+    expect(outcome.applied).toBe(2);
+    expect(outcome.total).toBe(3);
+
+    after = library.text(SIMPLE_FILE) ?? '';
+    expect(after).toContain('Edited text.');
+    expect(after).not.toContain('Edited text.\n\n同样的文字。');
+    expect(after).toContain('Same text.\n\n同样的文字。');
+  });
+});

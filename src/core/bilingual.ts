@@ -324,8 +324,8 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     const next = lines[end + 1];
     if (kind === 'quote-paragraph') {
       if (next === undefined) return true;
-      if (!isQuote(next)) return true;
-      return stripQuote(next).trim() === '';
+      if (BLANK.test(next)) return true;
+      return isQuote(next) && stripQuote(next).trim() === '';
     }
     if (kind === 'list-item' || kind === 'list-paragraph') {
       if (next === undefined) return true;
@@ -661,6 +661,18 @@ function scanQuote(
     }
     from = to;
   }
+
+  // 引用块后面紧跟不带 `>` 的懒续行（普通文字）：它不是独立的顶层段落，原样跳过。
+  if (stripped.some((line) => line.trim() !== '')) {
+    const next = lines[i];
+    if (next !== undefined && !BLANK.test(next) && !startsBlock(next)) {
+      while (i < lines.length) {
+        const line = lines[i] ?? '';
+        if (BLANK.test(line) || startsBlock(line)) break;
+        i += 1;
+      }
+    }
+  }
   return i;
 }
 
@@ -749,6 +761,8 @@ export interface ApplyTranslationsResult {
   md: string;
   applied: Unit[];
   missing: Unit[];
+  /** 只靠「同文字块已带同样译文」匹配上、本次没有插入的单元；它们仍出现在 applied 里。 */
+  alreadyPresent: Unit[];
 }
 
 /** 写回时列表项原文末尾加了硬换行 `\`；比较原文时两种写法算同一个块。 */
@@ -787,6 +801,7 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
   const lines = currentMd.split('\n');
   const applied: Unit[] = [];
   const missing: Unit[] = [];
+  const alreadyPresent: Unit[] = [];
   const edits: LineEdit[] = [];
   const planDisplay = plan.units.find((unit) => unit.displayTitle);
   let cursor = 0;
@@ -833,6 +848,7 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
       }
       // 同文字的块都已经译过：按已插入计，消费最前面那个，后续同批 item 还能各对应一块。
       applied.push(item.unit);
+      if (item.lines.length > 0) alreadyPresent.push(item.unit);
       cursor = alreadyAt + 1;
       continue;
     }
@@ -853,7 +869,7 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
     }
   }
 
-  if (edits.length === 0) return { md: currentMd, applied, missing };
+  if (edits.length === 0) return { md: currentMd, applied, missing, alreadyPresent };
 
   // 从后往前改，避免前面的插入移动后面的行号。同一行上既有替换（列表项）又有插入（前一个块的译文）时，
   // 替换先做：插入的行会出现在被替换的原文行之前，顺序才对。
@@ -862,5 +878,5 @@ export function applyTranslations(currentMd: string, items: TranslationItem[], m
   for (const edit of edits) {
     out.splice(edit.index, edit.deleteCount, ...edit.lines);
   }
-  return { md: out.join('\n'), applied, missing };
+  return { md: out.join('\n'), applied, missing, alreadyPresent };
 }

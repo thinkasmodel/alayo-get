@@ -175,7 +175,8 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
         return;
       }
       const result = applyTranslations(located.md, itemsFor(batch), request.medium);
-      const candidates = result.applied.filter((unit) => !applied.has(unit));
+      const present = new Set(result.alreadyPresent);
+      const candidates = result.applied.filter((unit) => !applied.has(unit) && !present.has(unit));
       const md = setTranslationFields(result.md, { lang: sourceLang, translated_to: target, translation: 'partial' });
       // 写成功（或确实不需要写）之后才算这些单元完成；写失败时 abort 的 applied 不含它们。
       if (md !== located.md) await deps.library.write(located.file, md);
@@ -242,7 +243,8 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
       let candidates: Unit[] = [];
       if (batch.length > 0) {
         const inserted = applyTranslations(md, itemsFor(batch), request.medium);
-        candidates = inserted.applied.filter((unit) => !applied.has(unit));
+        const present = new Set(inserted.alreadyPresent);
+        candidates = inserted.applied.filter((unit) => !applied.has(unit) && !present.has(unit));
         md = inserted.md;
       }
       const appliedCount = applied.size + candidates.length;
