@@ -55,6 +55,26 @@ describe('extractFromDocument', () => {
     expect(md).toMatch(/```[a-z]*\nfunction add\(a, b\) \{\n {2}return a \+ b;\n\}\nconsole\.log\(add\(1, 2\)\);\n```/);
     expect(md).not.toMatch(/^ {4}function add/m);
   });
+
+  it('正文里的 2×2 带表头表格：markdown 含 GFM 表格行', () => {
+    const url = 'https://example.com/table';
+    const filler = '这一段用来把正文长度撑过书签剪藏的阈值，确保走完整抽取而不是退化成书签。'.repeat(6);
+    const html = [
+      '<!doctype html><html><head><title>带表格的文章</title></head><body><article>',
+      '<h1>带表格的文章</h1>',
+      `<p>${filler}</p>`,
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>One</td></tr><tr><td>Beta</td><td>Two</td></tr></tbody></table>',
+      '<p>表格之后的结尾段落。</p>',
+      '</article></body></html>',
+    ].join('');
+    const capture = extractFromDocument(load(html, url), url);
+    const md = capture.markdown ?? '';
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | One |');
+    expect(md).toContain('| Beta | Two |');
+  });
 });
 
 // ALAG-8：Defuddle 的懒加载图片规则会把 img 上任何“像图片地址”的属性值换进 src；

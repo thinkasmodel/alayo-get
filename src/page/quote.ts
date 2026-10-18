@@ -2,6 +2,7 @@
 import TurndownService from 'turndown';
 import { generateFragmentFromRange } from 'text-fragments-polyfill/dist/fragment-generation-utils.js';
 import { fragmentUrl } from '@/core/textFragment';
+import { addTableRules } from './tables';
 import { t } from '@/shared/i18n';
 import type { QuoteCaptureResponse } from '@/shared/messages';
 
@@ -38,6 +39,115 @@ const BLOCK_TAGS = new Set([
   'SECTION', 'ARTICLE', 'ASIDE', 'NAV', 'MAIN', 'HEADER', 'FOOTER', 'FIGURE', 'FIGCAPTION', 'FORM', 'FIELDSET', 'DETAILS', 'HR',
 ]);
 
+/** 选区公共祖先落在这些表格结构标签里时，cloneContents 不会带上 table 祖先。 */
+const TABLE_STRUCTURE_TAGS = new Set(['TR', 'THEAD', 'TBODY', 'TFOOT', 'TABLE']);
+
+/** 从节点往上收集全部 TABLE 祖先；文本节点从父元素开始。 */
+function ancestorTables(node: Node): Element[] {
+  const tables: Element[] = [];
+  let element = node.nodeType === 1 ? (node as Element) : node.parentElement;
+  while (element) {
+    if (element.tagName === 'TABLE') tables.push(element);
+    element = element.parentElement;
+  }
+  return tables;
+}
+
+/** 表格自己的行：直接子 tr，或 thead/tbody/tfoot 的直接子 tr；不进嵌套表。 */
+function ownRows(table: Element): Element[] {
+  const rows: Element[] = [];
+  for (const child of Array.from(table.children)) {
+    if (child.tagName === 'TR') {
+      rows.push(child);
+    } else if (child.tagName === 'THEAD' || child.tagName === 'TBODY' || child.tagName === 'TFOOT') {
+      for (const row of Array.from(child.children)) {
+        if (row.tagName === 'TR') rows.push(row);
+      }
+    }
+  }
+  return rows;
+}
+
+/** 表里没有内嵌表，且行内格子的 colspan/rowspan 属性只要存在就必须 parseInt 为 1。 */
+function isSimpleTable(table: Element): boolean {
+  if (table.querySelector('table')) return false;
+  for (const row of ownRows(table)) {
+    for (const cell of Array.from(row.children)) {
+      if (cell.tagName !== 'TD' && cell.tagName !== 'TH') continue;
+      for (const name of ['colspan', 'rowspan']) {
+        const raw = cell.getAttribute(name);
+        if (raw !== null && Number.parseInt(raw, 10) !== 1) return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * 只有两端涉及的表格都简单、且都不在内嵌表里时才使用表格规则；A 为空时照旧使用。
+ * 这里看原页面 DOM 的属性字符串，不用 cell.colSpan/rowSpan（浏览器会把非法值规范成 1）。
+ */
+function useTableRules(range: Range): boolean {
+  const startTables = ancestorTables(range.startContainer);
+  const endTables = ancestorTables(range.endContainer);
+  if (startTables.length > 1 || endTables.length > 1) return false;
+  const tables = new Set<Element>([...startTables, ...endTables]);
+  for (const table of tables) {
+    if (!isSimpleTable(table)) return false;
+  }
+  return true;
+}
+
+/**
+ * 选区起止都在同一张表里时，逐层浅拷贝公共祖先到最近的 TABLE，把 cloneContents 丢掉的表格结构补回来。
+ * 公共祖先是 TD/TH（选区在一格之内）或不在表里时原样返回。
+ */
+function wrapTableStructure(range: Range, content: Node, holder: Document): Node {
+  const common = range.commonAncestorContainer;
+  let ancestor = common.nodeType === 1 ? (common as Element) : common.parentElement;
+  if (!ancestor || !TABLE_STRUCTURE_TAGS.has(ancestor.tagName)) return content;
+  const chain: Element[] = [];
+  while (ancestor) {
+    chain.push(ancestor);
+    if (ancestor.tagName === 'TABLE') break;
+    ancestor = ancestor.parentElement;
+  }
+  // 表格结构标签理论上一定有 TABLE 祖先；没有就什么都不补。
+  const outer = chain[chain.length - 1];
+  if (!outer || outer.tagName !== 'TABLE') return content;
+  let wrapped = content;
+  for (const element of chain) {
+    const wrapper = holder.importNode(element.cloneNode(false), false);
+    wrapper.appendChild(wrapped);
+    wrapped = wrapper;
+  }
+  return wrapped;
+}
+
+/**
+ * 选区从一行中间开始时，cloneContents 会省略起点格子之前的格子；在最终内容里按文档顺序找第一个 TR，
+ * 在它开头补同样标签的空格子。开头补格子的前提是表格规则已判定可用，此时 colspan 全为 1，只需数兄弟格子。
+ * 起点不在格子里、或内容里没有 TR（例如选区在一格之内）时原样返回。
+ */
+function prependOmittedCells(range: Range, content: Node, holder: Document): Node {
+  const start = range.startContainer;
+  let cell = start.nodeType === 1 ? (start as Element) : start.parentElement;
+  while (cell && cell.tagName !== 'TD' && cell.tagName !== 'TH') cell = cell.parentElement;
+  if (!cell) return content;
+  let missing = 0;
+  for (let previous = cell.previousElementSibling; previous; previous = previous.previousElementSibling) {
+    if (previous.tagName === 'TD' || previous.tagName === 'TH') missing += 1;
+  }
+  if (missing === 0 || (content.nodeType !== 1 && content.nodeType !== 11)) return content;
+  const row = (content as ParentNode).querySelector('tr');
+  if (!row) return content;
+  const tag = cell.tagName.toLowerCase();
+  for (let i = 0; i < missing; i += 1) {
+    row.insertBefore(holder.createElement(tag), row.firstChild);
+  }
+  return content;
+}
+
 /** 选区所在的行内格式祖先（A、STRONG 等），从最内层到最外层；遇到块级元素或 body 停止。 */
 function inlineFormatAncestors(range: Range): Element[] {
   const start = range.commonAncestorContainer;
@@ -62,6 +172,7 @@ function inlineFormatAncestors(range: Range): Element[] {
  * 图片换成链接文字 `[图片](地址)`（不下载）；再用与 extract.ts 相同配置的 Turndown 转换，去首尾空白。
  */
 export function rangeToMarkdown(range: Range, pageUrl: string): string {
+  const withTableRules = useTableRules(range);
   const holder = document.implementation.createHTMLDocument('');
   const container = holder.createElement('div');
   let content: Node = holder.importNode(range.cloneContents(), true);
@@ -70,6 +181,8 @@ export function rangeToMarkdown(range: Range, pageUrl: string): string {
     wrapper.appendChild(content);
     content = wrapper;
   }
+  content = wrapTableStructure(range, content, holder);
+  if (withTableRules) content = prependOmittedCells(range, content, holder);
   container.append(content);
   // 相对地址按选区所在文档的 baseURI（含 <base href>）解析；没有 <base>（baseURI 等于文档地址）时沿用传入的页面地址
   const ownerDoc = range.startContainer.ownerDocument;
@@ -90,6 +203,7 @@ export function rangeToMarkdown(range: Range, pageUrl: string): string {
     }
   }
   const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
+  if (withTableRules) addTableRules(turndown);
   return turndown.turndown(container).trim();
 }
 

@@ -57,6 +57,168 @@ describe('captureQuote（capture-quote 的页面一侧）', () => {
     expect(Number.isNaN(Date.parse(quote.selectedAt))).toBe(false);
   });
 
+  it('选区包含整张表：quote.markdown 含 GFM 表格行', () => {
+    document.body.innerHTML = [
+      '<p id="p">Read the table below.</p>',
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>1</td></tr><tr><td>Beta</td><td>2</td></tr></tbody></table>',
+    ].join('');
+    const last = document.querySelectorAll('td')[3]?.firstChild;
+    if (!(last instanceof Text)) throw new Error('表格最后没有文字');
+    selectAcross(textOf('#p'), 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+  });
+
+  it('选区从表头第一格到最后一行最后一格：补上 table 祖先，含表头与数据行', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>1</td></tr><tr><td>Beta</td><td>2</td></tr></tbody></table>',
+    ].join('');
+    const lastCells = document.querySelectorAll('td');
+    const last = lastCells[lastCells.length - 1]?.firstChild;
+    if (!(last instanceof Text)) throw new Error('表格最后没有文字');
+    selectAcross(textOf('th'), 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+  });
+
+  it('选区从表头第二格 Price 开始：补回本行前面被省略的 Name 格子', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Price</th></tr></thead>',
+      '<tbody><tr><td>Apple</td><td>$100</td></tr><tr><td>Pear</td><td>$80</td></tr></tbody></table>',
+    ].join('');
+    const price = document.querySelectorAll('th')[1]?.firstChild;
+    const lastCells = document.querySelectorAll('td');
+    const last = lastCells[lastCells.length - 1]?.firstChild;
+    if (!(price instanceof Text) || !(last instanceof Text)) throw new Error('表格里没有文字');
+    selectAcross(price, 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('|   | Price |');
+    expect(md).toContain('| Apple | $100 |');
+    expect(md).toContain('| Pear | $80 |');
+  });
+
+  it('选区从表头第二格 Price 起到表格后的段落：同样补回本行前面被省略的 Name 格子', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Price</th></tr></thead>',
+      '<tbody><tr><td>Apple</td><td>$100</td></tr><tr><td>Pear</td><td>$80</td></tr></tbody></table>',
+      '<p id="after">Closing text after the table.</p>',
+    ].join('');
+    const price = document.querySelectorAll('th')[1]?.firstChild;
+    const closing = document.querySelector('#after')?.firstChild;
+    if (!(price instanceof Text) || !(closing instanceof Text)) throw new Error('表格或表格后段落里没有文字');
+    selectAcross(price, 0, closing, 'Closing text'.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('|   | Price |');
+    expect(md).toContain('| Apple | $100 |');
+    expect(md).toContain('Closing');
+  });
+
+  it('含 rowspan 的表格：整条摘录不使用表格规则，退回一格一段', () => {
+    document.body.innerHTML = [
+      '<table><tr><th>Category</th><th>Item</th><th>Price</th></tr>',
+      '<tr><td rowspan="3">Fruit</td><td>Apple</td><td>1</td></tr>',
+      '<tr><td>Pear</td><td>2</td></tr>',
+      '<tr><td>Plum</td><td>3</td></tr></table>',
+    ].join('');
+    const cells = document.querySelectorAll('td');
+    const apple = cells[1]?.firstChild;
+    const last = cells[6]?.firstChild;
+    if (!(apple instanceof Text) || !(last instanceof Text)) throw new Error('表格里没有文字');
+    selectAcross(apple, 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md.split('\n').some((line) => line.trimStart().startsWith('|'))).toBe(false);
+    for (const text of ['Apple', 'Pear', 'Plum', '3']) expect(md).toContain(text);
+  });
+
+  it('内嵌表：整条摘录不使用表格规则，内嵌表的四格文字全部保留', () => {
+    document.body.innerHTML = [
+      '<table><tr><td>Outer left</td><td>',
+      '<p id="before">Before inner table.</p>',
+      '<table><thead><tr><th>H1</th><th>H2</th></tr></thead><tbody><tr><td>A1</td><td>B2</td></tr></tbody></table>',
+      '<p id="after">After inner table.</p>',
+      '</td></tr></table>',
+    ].join('');
+    const after = textOf('#after');
+    selectAcross(textOf('#before'), 0, after, after.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md.split('\n').some((line) => line.trimStart().startsWith('|'))).toBe(false);
+    for (const text of ['H1', 'H2', 'A1', 'B2']) expect(md).toContain(text);
+  });
+
+  it('超大 colspan：判定很快且不使用表格规则，退回一格一段', () => {
+    document.body.innerHTML =
+      '<table><tr><td colspan="1000000000">Wide</td><td>Right</td></tr><tr><td>A</td><td>B</td></tr></table>';
+    const cells = document.querySelectorAll('td');
+    const right = cells[1]?.firstChild;
+    const last = cells[3]?.firstChild;
+    if (!(right instanceof Text) || !(last instanceof Text)) throw new Error('表格里没有文字');
+    selectAcross(right, 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md.split('\n').some((line) => line.trimStart().startsWith('|'))).toBe(false);
+    expect(md).toContain('Right');
+    expect(md).toContain('B');
+  });
+
+  it('选区不碰表格：A 为空，整张简单表仍写成 GFM', () => {
+    document.body.innerHTML = [
+      '<p id="before">Before the table.</p>',
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>Alpha</td><td>1</td></tr></tbody></table>',
+      '<p id="after">After the table.</p>',
+    ].join('');
+    const after = textOf('#after');
+    selectAcross(textOf('#before'), 0, after, after.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| --- |');
+  });
+
+  it('选区只覆盖 tbody 的第二、三行：公共祖先是 TBODY，写成空表头＋两行数据', () => {
+    document.body.innerHTML = [
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>',
+      '<tbody><tr><td>Alpha</td><td>1</td></tr><tr><td>Beta</td><td>2</td></tr></tbody></table>',
+    ].join('');
+    const firstCell = document.querySelector('tbody td')?.firstChild;
+    const lastCells = document.querySelectorAll('tbody td');
+    const last = lastCells[lastCells.length - 1]?.firstChild;
+    if (!(firstCell instanceof Text) || !(last instanceof Text)) throw new Error('tbody 里没有文字');
+    selectAcross(firstCell, 0, last, last.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toContain('|   |   |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+    expect(md).not.toContain('| Name |');
+  });
+
+  it('选区在一个格子之内：仍是纯文字，不含 |', () => {
+    document.body.innerHTML =
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>Alpha</td><td>1</td></tr></tbody></table>';
+    const cell = document.querySelector('tbody td')?.firstChild;
+    if (!(cell instanceof Text)) throw new Error('格子里没有文字');
+    selectAcross(cell, 0, cell, cell.length);
+
+    const md = captureQuote(document, PAGE).quote?.markdown ?? '';
+    expect(md).toBe('Alpha');
+    expect(md).not.toContain('|');
+  });
+
   it('中文选区同样生成片段链接', () => {
     document.body.innerHTML = '<p id="p">每一次“我早就知道”，都是一次被删改的记忆。</p><p>另一段完全不同的内容。</p>';
     selectAcross(textOf('#p'), 0, textOf('#p'), 4);

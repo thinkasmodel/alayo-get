@@ -3,6 +3,7 @@ import Defuddle from 'defuddle';
 import TurndownService from 'turndown';
 import type { DefuddleResponse } from 'defuddle';
 import type { Capture } from '@/shared/types';
+import { addTableRules } from './tables';
 
 /** 正文短于此长度时退化为书签剪藏。 */
 export const MIN_TEXT_LENGTH = 200;
@@ -70,6 +71,7 @@ export function extractFromDocument(doc: Document, url: string): Capture {
     textLength = (container.textContent ?? '').replace(/\s+/g, ' ').trim().length;
     if (textLength >= MIN_TEXT_LENGTH) {
       const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
+      addTableRules(turndown);
       markdown = turndown.turndown(container);
     }
   }

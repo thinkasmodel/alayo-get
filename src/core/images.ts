@@ -20,9 +20,106 @@ export interface ImageRef {
 // 宁可多认出围栏（少改写），也不改坏代码示例。
 const FENCE_RE = /^\s*(`{3,}|~{3,})/;
 
-/** 去掉行首的引用块标记（可多层、可带空格）。 */
-function stripContainers(line: string): string {
-  return line.replace(/^(?:\s*>)+/, '');
+const HTML_TABLE_START = /^<table(?=[\s>])/i;
+const HTML_TABLE_END = /<\/table>\s*$/i;
+const LIST_PREFIX = /^(?:[-*+]|\d{1,9}[.)])[ \t]+/;
+
+/** 反复去掉行首空白、引用标记和列表标记，直到不再变化（列表项首行的表格/围栏都带这些前缀）。 */
+function stripHtmlTablePrefixes(line: string): string {
+  let content = line;
+  for (;;) {
+    const next = content
+      .replace(/^[ \t]+/, '')
+      .replace(/^>[ \t]*/, '')
+      .replace(LIST_PREFIX, '');
+    if (next === content) return content;
+    content = next;
+  }
+}
+
+/** 单行 HTML 表格：去掉引用/列表标记与前导空白后，以 `<table` 开头、以 `</table>` 结尾。 */
+function isHtmlTableLine(line: string): boolean {
+  const content = stripHtmlTablePrefixes(line);
+  return HTML_TABLE_START.test(content) && HTML_TABLE_END.test(content);
+}
+
+const HTML_IMG_TAG = /<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
+const NAMED_ENTITIES: Record<string, string> = { amp: '&', quot: '"', lt: '<', gt: '>', nbsp: '\u00a0' };
+
+/** 属性值里的 HTML 实体解码（至少覆盖图片地址会出现的命名实体与数字引用）。 */
+function decodeHtmlAttribute(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|quot|lt|gt|nbsp);/gi, (match, entity: string) => {
+    const name = entity.toLowerCase();
+    const code = name.startsWith('#x')
+      ? Number.parseInt(name.slice(2), 16)
+      : name.startsWith('#') ? Number.parseInt(name.slice(1), 10) : NaN;
+    if (Number.isFinite(code)) {
+      return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    }
+    return NAMED_ENTITIES[name] ?? match;
+  });
+}
+
+interface AttributeRange {
+  start: number;
+  end: number;
+  raw: string;
+}
+
+/**
+ * 在 `<img …>` 标签文本里按属性逐个扫描，找第一个名字为 `src` 的属性。
+ * 属性值里的 `src=` 文字不会被当成属性；支持双引号、单引号和不带引号的值。
+ */
+function findSrcAttribute(tag: string): AttributeRange | null {
+  let i = 4;
+  while (i < tag.length) {
+    while (i < tag.length && /\s/.test(tag[i] ?? '')) i += 1;
+    if (i >= tag.length || tag[i] === '>') break;
+    if (tag[i] === '/') {
+      i += 1;
+      continue;
+    }
+    const nameStart = i;
+    while (i < tag.length && !/[\s"'=<>/]/.test(tag[i] ?? '')) i += 1;
+    if (i === nameStart) {
+      i += 1;
+      continue;
+    }
+    const name = tag.slice(nameStart, i).toLowerCase();
+    while (i < tag.length && /\s/.test(tag[i] ?? '')) i += 1;
+    let valueStart = i;
+    let valueEnd = i;
+    if (tag[i] === '=') {
+      i += 1;
+      while (i < tag.length && /\s/.test(tag[i] ?? '')) i += 1;
+      const quote = tag[i];
+      if (quote === '"' || quote === "'") {
+        i += 1;
+        valueStart = i;
+        while (i < tag.length && tag[i] !== quote) i += 1;
+        valueEnd = i;
+        if (i < tag.length) i += 1;
+      } else {
+        valueStart = i;
+        while (i < tag.length && !/[\s>]/.test(tag[i] ?? '')) i += 1;
+        valueEnd = i;
+      }
+    }
+    if (name === 'src') return { start: valueStart, end: valueEnd, raw: tag.slice(valueStart, valueEnd) };
+  }
+  return null;
+}
+
+/** 单行 HTML 表格里的图片按 `<img src=…>` 认；属性值范围指向值的原文（不含引号）。 */
+function findHtmlTableImages(line: string, lineStart: number, refs: ImageRef[]): void {
+  HTML_IMG_TAG.lastIndex = 0;
+  for (let match = HTML_IMG_TAG.exec(line); match !== null; match = HTML_IMG_TAG.exec(line)) {
+    const tag = match[0];
+    const src = findSrcAttribute(tag);
+    if (!src) continue;
+    const start = lineStart + match.index + src.start;
+    refs.push({ url: decodeHtmlAttribute(src.raw), start, end: start + src.raw.length });
+  }
 }
 
 /** Markdown 里反斜杠可转义的 ASCII 标点。 */
@@ -92,7 +189,7 @@ export function findImages(markdown: string): ImageRef[] {
     const lineEnd = offset + line.length;
     offset = lineEnd + 1;
 
-    const content = stripContainers(line);
+    const content = stripHtmlTablePrefixes(line);
     const fenceMatch = FENCE_RE.exec(content);
     if (fence) {
       if (fenceMatch?.[1] && fenceMatch[1][0] === fence.char && fenceMatch[1].length >= fence.length && content.trim() === fenceMatch[1]) {
@@ -102,6 +199,12 @@ export function findImages(markdown: string): ImageRef[] {
     }
     if (fenceMatch?.[1]) {
       fence = { char: fenceMatch[1][0] ?? '`', length: fenceMatch[1].length };
+      continue;
+    }
+
+    // 单行 HTML 表格里的图片是 <img src>，不是 Markdown 语法；整行不做 Markdown 图片扫描。
+    if (isHtmlTableLine(line)) {
+      findHtmlTableImages(line, lineStart, refs);
       continue;
     }
 
