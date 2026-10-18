@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { buildBookmarkMarkdown, buildStreamMarkdown } from '@/core/document';
-import { emitFrontmatter } from '@/core/frontmatter';
+import { emitFrontmatter, setTranslationFields } from '@/core/frontmatter';
 import { serializeMediaMeta, type MediaMeta } from '@/core/media';
 import { MemoryLibrary } from '@/io/memoryLibrary';
 import { createSavedIndex, type SavedIndex } from '@/io/savedIndex';
@@ -341,5 +341,23 @@ describe('applyEdits：媒体文件本身被移走（ALAG-20 codex review 第 3 
     await expect(applyEdits(mediaClip, { note: '写不进去' }, { library, index })).rejects.toMatchObject({ name: 'NotFoundError' });
     expect(library.text(metaPath)).toBe(sidecar);
     expect(library.ops).toEqual([]);
+  });
+});
+
+describe('applyEdits：已翻译文件（ALAG-26）', () => {
+  it('改标题、标签、批注：三个翻译字段保留，正文标题同步，文件改名', async () => {
+    const translated = setTranslationFields(clipFile(), { lang: 'en', translated_to: 'zh', translation: 'complete' });
+    library.files.set('原标题.md', translated);
+    const next = await applyEdits(clip, { title: '新标题', tags: ['设计'], note: '批注' }, { library, index });
+
+    expect(next.file).toBe('新标题.md');
+    const md = library.text('新标题.md') ?? '';
+    expect(md).toContain('lang: "en"\ntranslated_to: "zh"\ntranslation: "complete"');
+    expect(md).toContain('title: "新标题"');
+    expect(md).toContain('tags: ["设计"]');
+    expect(md).toContain('note: "批注"');
+    expect(md).toContain('\n# 新标题\n');
+    expect(md.slice(md.indexOf('\n---\n') + 5)).toBe('\n# 新标题\n\n[原文](https://example.com/post)\n\n正文。\n');
+    expect(await index.get(SOURCE)).toMatchObject({ id: ID, file: '新标题.md', title: '新标题', tags: ['设计'] });
   });
 });

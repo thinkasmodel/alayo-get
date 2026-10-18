@@ -7,6 +7,7 @@ import { siteFromUrl } from '@/core/frontmatter';
 import { buildLostEditFile, lostEditFileName } from '@/core/lostEditFile';
 import type { ParsedStream } from '@/core/stream';
 import { tagSuggestions } from '@/core/tags';
+import type { TranslationService } from '@/core/translate/types';
 import { pinnedLibrary, type Library } from '@/io/library';
 import { createLostEdits } from '@/io/lostEdits';
 import { createPendingQueue } from '@/io/pending';
@@ -47,10 +48,19 @@ import { createMenuInstaller } from '@/sw/menus';
 import { captureLink, flushPending, saveClip, tooLargeForSession, type SaveDeps } from '@/sw/saveClip';
 import { probeMediaKind } from '@/sw/saveMedia';
 import { blobStreamCapture, captureStreamPage, netdiskStreamCapture, partialStreamCapture } from '@/sw/saveStream';
+import { chromeTranslateClientDeps, createTranslateClient } from '@/sw/translateClient';
+import { startClipTranslation } from '@/sw/translateClip';
 
 const CAPTURE_SCRIPT = '/content-scripts/capture.js';
 
 type Tab = Browser.tabs.Tab;
+
+/** 模块级懒建：第一次要求保存时翻译才创建真实翻译客户端（ALAG-26）。 */
+let translateService: TranslationService | null = null;
+function translationService(): TranslationService {
+  translateService ??= createTranslateClient(chromeTranslateClientDeps());
+  return translateService;
+}
 
 export default defineBackground(() => {
   const index = createSavedIndex();
@@ -220,18 +230,36 @@ export default defineBackground(() => {
   };
 
   /** 保存一份采集结果：剪藏库固定在开始这一刻，结果更新角标并记住所在库。 */
-  const saveCapture = async (capture: Capture, snapshot: boolean, onState?: (state: PanelState) => void) => {
+  const saveCapture = async (
+    capture: Capture,
+    snapshot: boolean,
+    onState?: (state: PanelState) => void,
+    options: { translateTo?: string } = {},
+  ) => {
     const d = deps(onState);
     const outcome = await saveClip({ capture, snapshot }, d);
     await afterOutcome(outcome, d.library);
+    // 保存时翻译（ALAG-26）：原文已经落盘，后台改写同一个文件；不 await，不拖慢保存结果。
+    const translateTo = options.translateTo?.trim();
+    if (outcome.state === 'saved' && (outcome.clip.medium === 'web' || outcome.clip.medium === 'x') && translateTo) {
+      try {
+        const { done } = startClipTranslation(
+          { id: outcome.clip.id, source: outcome.clip.source, medium: outcome.clip.medium, target: translateTo },
+          { library: d.library, index, lock: libraryLock, translator: translationService() },
+        );
+        void done.catch((err) => console.warn('[Alayo Get] 后台翻译失败', err));
+      } catch (err) {
+        console.warn('[Alayo Get] 启动后台翻译失败', err);
+      }
+    }
     return outcome;
   };
 
-  /** 快捷键、右键菜单、面板共用的保存当前页流程。 */
-  const savePage = async (tab: Tab, onState?: (state: PanelState) => void) => {
+  /** 快捷键、右键菜单、面板共用的保存当前页流程；options.translateTo 由面板的 start 消息带入。 */
+  const savePage = async (tab: Tab, onState?: (state: PanelState) => void, options: { translateTo?: string } = {}) => {
     onState?.(extractingState(tab));
     const capture = await captureTab(tab);
-    const outcome = await saveCapture(capture, false, onState);
+    const outcome = await saveCapture(capture, false, onState, options);
     return { capture, outcome };
   };
 
@@ -469,7 +497,7 @@ export default defineBackground(() => {
   browser.runtime.onConnect.addListener((port) => {
     if (port.name === PANEL_PORT) {
       handlePanelPort(port as unknown as PortLike<PanelToSw, SwToPanel>, {
-        savePage: async (tabId, onState) => savePage(await browser.tabs.get(tabId), onState),
+        savePage: async (tabId, onState, options) => savePage(await browser.tabs.get(tabId), onState, options),
         saveSnapshot: (capture, onState) => saveCapture(capture, true, onState),
         applyEdits: clips.editClip,
         findClip: clips.findClip,

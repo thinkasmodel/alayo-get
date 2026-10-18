@@ -16,8 +16,12 @@ export interface PortLike<In, Out> {
 }
 
 export interface PanelDeps {
-  /** 采集并保存 tabId 的页面，保存中经 onState 推送 saving 状态。 */
-  savePage(tabId: number, onState: (state: PanelState) => void): Promise<{ capture: Capture; outcome: SaveOutcome }>;
+  /** 采集并保存 tabId 的页面，保存中经 onState 推送 saving 状态；translateTo 非空时保存后翻译（ALAG-26）。 */
+  savePage(
+    tabId: number,
+    onState: (state: PanelState) => void,
+    options?: { translateTo?: string },
+  ): Promise<{ capture: Capture; outcome: SaveOutcome }>;
   /** 另存一份新快照。 */
   saveSnapshot(capture: Capture, onState: (state: PanelState) => void): Promise<SaveOutcome>;
   applyEdits(clip: ClipSummary, fields: EditFields): Promise<ClipSummary>;
@@ -254,7 +258,9 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         // 进行中或已经存成功的，忽略重复的 start；失败或需要授权结束后允许重试（codex review 第 5 轮）。
         if (started) return;
         started = true;
-        const { tabId } = message;
+        const { tabId, translateTo } = message;
+        const saveOptions: { translateTo?: string } = {};
+        if (translateTo !== undefined) saveOptions.translateTo = translateTo;
         track(
           (async () => {
             const pending = await pendingClip(tabId);
@@ -272,7 +278,7 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
               post({ state: editState(found), clip: found, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
               return;
             }
-            await deps.savePage(tabId, post).then((result) => {
+            await deps.savePage(tabId, post, saveOptions).then((result) => {
               capture = result.capture;
               settle(result.outcome);
               if (result.outcome.state === 'failed' || result.outcome.state === 'needs-permission') started = false;

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { emitFrontmatter, updateFrontmatter, type FrontmatterFields } from './frontmatter';
+import {
+  emitFrontmatter,
+  removeTranslationFields,
+  setTranslationFields,
+  updateFrontmatter,
+  type FrontmatterFields,
+} from './frontmatter';
 
 const base: FrontmatterFields = {
   id: '01JABCDEF0123456789XYZABCD',
@@ -132,5 +138,58 @@ describe('updateFrontmatter', () => {
 
   it('没有 --- 块时抛错', () => {
     expect(() => updateFrontmatter('# 没有 frontmatter\n', { note: 'x' })).toThrow();
+  });
+});
+
+describe('翻译状态字段（ALAG-26）', () => {
+  const md = emitFrontmatter(base) + '\n# 普通标题\n\n[原文](https://www.example.com/post?id=1)\n\n正文。\n';
+  const fields = { lang: 'en-US', translated_to: 'zh-TW', translation: 'complete' } as const;
+
+  it('首次插入在 extract 之后，顺序 lang、translated_to、translation，值规范化、其余字节不变', () => {
+    const out = setTranslationFields(md, fields);
+    expect(out).toBe(
+      md.replace(
+        'extract: "full"\n',
+        'extract: "full"\nlang: "en"\ntranslated_to: "zh-Hant"\ntranslation: "complete"\n',
+      ),
+    );
+    const block = parseBlock(out.slice(0, out.indexOf('\n---\n') + 5));
+    expect(block.lang).toBe('en');
+    expect(block.translated_to).toBe('zh-Hant');
+    expect(block.translation).toBe('complete');
+  });
+
+  it('三个键已存在时只换值，行数与其余内容不变', () => {
+    const first = setTranslationFields(md, fields);
+    const second = setTranslationFields(first, { lang: 'fr', translated_to: 'ja', translation: 'partial' });
+    expect(second).toBe(first.replace('lang: "en"', 'lang: "fr"').replace('translated_to: "zh-Hant"', 'translated_to: "ja"').replace('translation: "complete"', 'translation: "partial"'));
+    expect(second.split('\n')).toHaveLength(first.split('\n').length);
+  });
+
+  it('原文语言未知时 lang 写 ""', () => {
+    const out = setTranslationFields(md, { lang: '', translated_to: 'zh', translation: 'failed' });
+    expect(out).toContain('lang: ""\ntranslated_to: "zh"\ntranslation: "failed"\n');
+  });
+
+  it('removeTranslationFields 恢复成未翻译文件；没有字段时原样返回', () => {
+    const translated = setTranslationFields(md, fields);
+    expect(removeTranslationFields(translated)).toBe(md);
+    expect(removeTranslationFields(md)).toBe(md);
+    expect(removeTranslationFields('# 没有 frontmatter\n')).toBe('# 没有 frontmatter\n');
+  });
+
+  it('updateFrontmatter 与 readEditableFields 对多出的三行无感', () => {
+    const translated = setTranslationFields(md, fields);
+    const updated = updateFrontmatter(translated, { title: '新标题', tags: ['a'], note: '批注' });
+    expect(updated).toContain('lang: "en"\ntranslated_to: "zh-Hant"\ntranslation: "complete"');
+    expect(updated.split('\n')).toHaveLength(translated.split('\n').length);
+    expect(parseBlock(updated.slice(0, updated.indexOf('\n---\n') + 5))).toMatchObject({
+      lang: 'en',
+      translated_to: 'zh-Hant',
+      translation: 'complete',
+      title: '新标题',
+      tags: ['a'],
+      note: '批注',
+    });
   });
 });
