@@ -191,3 +191,31 @@ describe('planBilingual：列表项首行是块结构（续修 6）', () => {
     expect(plan.segments.some((segment) => segment.includes('Nested plain'))).toBe(true);
   });
 });
+
+describe('planBilingual：同一行多层列表标记与列表边界（续修 7）', () => {
+  it('同一行两层列表标记 + 硬换行：内容列取最内层，两行都送翻、缩进 8', () => {
+    const body = turndown.turndown('<ul><li><ul><li>First line<br>Second line</li></ul></li></ul>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual(['First line', 'Second line']);
+
+    const unit = plan.units[0] as Unit;
+    expect(unit.kind).toBe('list-item');
+    expect(unit.indent).toBe(8);
+    expect(unit.sourceLines).toEqual(['-   -   First line  ', '        Second line']);
+    const lines = renderTranslation(unit, ['第一行', '第二行'], 'zh');
+    expect(lines).toEqual(['        第一行\\', '        第二行']);
+
+    const result = applyTranslations(md, [{ unit, lines }], 'web');
+    expect(result.missing).toEqual([]);
+    expect(bodyOf(result.md)).toBe('\n-   -   First line  \n        Second line\\\n        第一行\\\n        第二行\n');
+  });
+
+  it('列表项首段后紧跟缩进不足内容列的懒续行：不建单元，文件逐字节不变', () => {
+    const md = withFrontmatter('-   Item\nlazy continuation');
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([]);
+    expect(plan.units).toEqual([]);
+    expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+});

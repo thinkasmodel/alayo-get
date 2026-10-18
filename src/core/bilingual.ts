@@ -180,6 +180,11 @@ function startsBlock(line: string): boolean {
   return false;
 }
 
+/** 行首是不是列表项（排除分隔线，如 `* * *` / `- - -`）。 */
+function isListItemLine(line: string): boolean {
+  return !HR.test(line) && LIST_ITEM.test(line);
+}
+
 /** 前导空白宽度（按字符数；列表缩进也按字符算）。 */
 function indentOf(line: string): number {
   return /^\s*/.exec(line)?.[0].length ?? 0;
@@ -314,6 +319,33 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
   const units: Unit[] = [];
   const segments: string[] = [];
 
+  /** 列表/引用单元的插入点后面必须是段落边界（续修 7B）。 */
+  const boundaryAfter = (end: number, kind: UnitKind): boolean => {
+    const next = lines[end + 1];
+    if (kind === 'quote-paragraph') {
+      if (next === undefined) return true;
+      if (!isQuote(next)) return true;
+      return stripQuote(next).trim() === '';
+    }
+    if (kind === 'list-item' || kind === 'list-paragraph') {
+      if (next === undefined) return true;
+      if (BLANK.test(next)) return true;
+      return isListItemLine(next);
+    }
+    return true;
+  };
+
+  /** 列表单元被拒绝后，跳过紧跟的懒续行，避免它被当成顶层段落再翻一次。 */
+  const skipLazyContinuation = (start: number): number => {
+    let i = start;
+    while (i < lines.length) {
+      const line = lines[i] ?? '';
+      if (BLANK.test(line) || isListItemLine(line)) break;
+      i += 1;
+    }
+    return i;
+  };
+
   const pushUnit = (
     kind: UnitKind,
     start: number,
@@ -322,6 +354,7 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     rawSegments: string[],
     extra: Pick<Unit, 'indent' | 'headingLevel' | 'perLine' | 'displayTitle'> = {},
   ): void => {
+    if (!boundaryAfter(end, kind)) return;
     const normalized = rawSegments.map(stripHardBreak);
     let plains: PlainText[];
     let passthrough: Array<string | null> | undefined;
@@ -441,11 +474,10 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     const list = LIST_ITEM.exec(line);
     if (list) {
       const indent = list[1]?.length ?? 0;
-      const marker = list[2] ?? '';
-      const gap = list[3] ?? '';
-      const content = list[4] ?? '';
-      const col = indent + marker.length + gap.length;
       const containers = stripContainers(line);
+      const inner = stripListMarkers(line);
+      const content = inner.content;
+      const col = inner.col;
       while (listCols.length > 0 && (listCols[listCols.length - 1] ?? 0) > indent) listCols.pop();
       for (const c of containers.cols.length > 0 ? containers.cols : [col]) listCols.push(c);
       sawBlank = false;
@@ -473,8 +505,14 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
 
       // 首行剥掉列表标记后是标题/引用/表格/HTML/分隔线等块结构：不建单元、不送翻，
       // 这一行和它的续行都原样不动（围栏已在前面 firstFence 处理）。
-      if (startsBlock(stripListMarkers(line).content)) {
-        i = j;
+      if (startsBlock(content)) {
+        i = boundaryAfter(j - 1, 'list-item') ? j : skipLazyContinuation(j);
+        continue;
+      }
+
+      // 插入点后面不是段落边界：不建单元，并跳过紧跟的懒续行，原文不动。
+      if (!boundaryAfter(j - 1, 'list-item')) {
+        i = skipLazyContinuation(j);
         continue;
       }
 
@@ -522,6 +560,10 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
           j += 1;
         }
         if (raws.length > 0) {
+          if (!boundaryAfter(j - 1, 'list-paragraph')) {
+            i = skipLazyContinuation(j);
+            continue;
+          }
           pushUnit('list-paragraph', start, j - 1, lines.slice(start, j), [raws.join('\n')], { indent: col });
           i = j;
           sawBlank = false;
