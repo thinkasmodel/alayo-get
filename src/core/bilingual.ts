@@ -381,6 +381,8 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     extra: Pick<Unit, 'indent' | 'headingLevel' | 'perLine' | 'displayTitle'> = {},
   ): void => {
     if (!boundaryAfter(end, kind)) return;
+    // 单元在行内结构中间被截断时不翻；容器标记不在 rawSegments 里，不会误伤列表/引用。
+    if (!inlineStructuresBalanced(rawSegments.join('\n'))) return;
     const normalized = rawSegments.map(stripHardBreak);
     let plains: PlainText[];
     let passthrough: Array<string | null> | undefined;
@@ -621,6 +623,14 @@ export function planBilingual(md: string, medium: Medium): BilingualPlan {
     }
     if (raws.length > 0) {
       const next = lines[j];
+      if (!inlineStructuresBalanced(raws.join('\n'))) {
+        // 本段被下一行块开头截断在链接/强调中间：整段不翻，并把后续非空行一并跳到空行。
+        if (next !== undefined && !BLANK.test(next)) {
+          while (j < lines.length && !BLANK.test(lines[j] ?? '')) j += 1;
+        }
+        i = j;
+        continue;
+      }
       if (next !== undefined && !BLANK.test(next) && !startsBlock(next)) {
         // 只因缩进等非块原因停下：不建单元，跳过余下非空行到空行，原文不动。
         while (j < lines.length && !BLANK.test(lines[j] ?? '')) j += 1;

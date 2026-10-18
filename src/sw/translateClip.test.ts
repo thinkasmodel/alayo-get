@@ -625,3 +625,18 @@ describe('startClipTranslation：不借用已译的同文字块（续修 8B）',
     expect(after).toContain('Same text.\n\n同样的文字。');
   });
 });
+
+describe('startClipTranslation：段落截断在行内结构中间（续修 10）', () => {
+  it('链接例子没有可翻单元 → skipped，不调翻译、文件不变', async () => {
+    // Turndown 对 <p><a href="https://example.com">First<br>| second</a></p> 的实际输出。
+    const md = simple('[First  \n| second](https://example.com)');
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const job = startClipTranslation({ id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' }, deps());
+
+    const outcome = await job.done;
+    expect(outcome).toEqual({ status: 'skipped', applied: 0, total: 0 });
+    expect(translator.requests).toHaveLength(0);
+    expect(library.text(SIMPLE_FILE)).toBe(md);
+  });
+});

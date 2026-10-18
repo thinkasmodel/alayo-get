@@ -269,3 +269,23 @@ describe('planBilingual / applyTranslations：NBSP 与跨行行内结构（续�
     expect(applyTranslations(md, [], 'web').md).toBe(md);
   });
 });
+
+describe('planBilingual：段落被块开头续行截断在行内结构中间（续修 10）', () => {
+  it('链接跨行且第二行以 | 开头：不建单元，文件逐字节不变', () => {
+    const body = turndown.turndown('<p><a href="https://example.com">First<br>| second</a></p>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([]);
+    expect(plan.units).toEqual([]);
+    expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+
+  it('强调跨行且第二行以 | 开头：不建单元，文件逐字节不变', () => {
+    const body = turndown.turndown('<p><strong>First<br>| second</strong></p>');
+    const md = withFrontmatter(body);
+    const plan = planBilingual(md, 'web');
+    expect(plan.segments).toEqual([]);
+    expect(plan.units).toEqual([]);
+    expect(applyTranslations(md, [], 'web').md).toBe(md);
+  });
+});
