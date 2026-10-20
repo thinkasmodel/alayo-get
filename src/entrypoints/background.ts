@@ -52,6 +52,7 @@ import { probeMediaKind } from '@/sw/saveMedia';
 import { blobStreamCapture, captureStreamPage, netdiskStreamCapture, partialStreamCapture } from '@/sw/saveStream';
 import { chromeTranslateClientDeps, createTranslateClient } from '@/sw/translateClient';
 import { startClipTranslation } from '@/sw/translateClip';
+import { createToastAfterSave } from '@/sw/toastAfterSave';
 import { createTranslationJobs } from '@/sw/translationJobs';
 
 const CAPTURE_SCRIPT = '/content-scripts/capture.js';
@@ -249,6 +250,16 @@ export default defineBackground(() => {
     });
   };
 
+  /** 保存提示 + 翻译反馈（ALAG-27 续修 2）：saved 且有翻译任务时把进度接到这条提示下面。 */
+  const toastAfterSave = createToastAfterSave({
+    sendToast,
+    hasTranslation: (clipId) => jobs.view(clipId) !== undefined,
+    // 面板在保存完成前关掉时这里可能还没有翻译任务：没有 view 就不建立跟随订阅。
+    showTranslationInTab: (clipId, tabId) => {
+      if (jobs.view(clipId) !== undefined) jobs.showInTab(clipId, tabId);
+    },
+  });
+
   /** 保存一份采集结果：剪藏库固定在开始这一刻，结果更新角标并记住所在库。 */
   const saveCapture = async (
     capture: Capture,
@@ -289,11 +300,7 @@ export default defineBackground(() => {
     const { capture, outcome } = await savePage(target, undefined, options);
     // 流媒体、媒体剪藏可能没经过页面采集（SW 自己抓的），先注入采集脚本，提示才有接收端
     if ((capture.kind === 'stream' || capture.kind === 'media') && target.id !== undefined) await injectCapture(target.id);
-    await sendToast(target.id, outcome, capture);
-    // 翻译进度与结果接在保存提示下面（ALAG-27）；有这次保存的翻译任务才有 view。
-    if (outcome.state === 'saved' && target.id !== undefined && jobs.view(outcome.clip.id) !== undefined) {
-      jobs.showInTab(outcome.clip.id, target.id);
-    }
+    await toastAfterSave(target.id, outcome, capture);
   };
 
   /** 右键链接：平台链接存流媒体剪藏（ALAG-4 §5），EPUB 链接存媒体剪藏（ALAG-38），其余照旧存书签剪藏。 */
@@ -318,14 +325,14 @@ export default defineBackground(() => {
     const capture = await linkCapture(linkUrl, linkText, stream, page);
     const outcome = await saveCapture(capture, false);
     // 右键保存链接时页面里可能还没有采集脚本，先注入，提示才有接收端；不能注入的页面只靠角标。
-    if (tab?.id !== undefined && (await injectCapture(tab.id))) await sendToast(tab.id, outcome, capture);
+    if (tab?.id !== undefined && (await injectCapture(tab.id))) await toastAfterSave(tab.id, outcome, capture);
   };
 
   /** 不写文件、直接失败的保存（右键媒体的路由判定）：更新角标并发页面提示。 */
   const failWithoutSaving = async (tab: Tab | undefined, preview: Preview, error: { name: string; message: string }) => {
     const outcome: SaveOutcome = { state: 'failed', preview, error };
     badge.show(outcome).catch((err) => console.error('[Alayo Get] 角标更新失败', err));
-    if (tab?.id !== undefined && (await injectCapture(tab.id))) await sendToast(tab.id, outcome);
+    if (tab?.id !== undefined && (await injectCapture(tab.id))) await toastAfterSave(tab.id, outcome);
   };
 
   /** 右键图片、视频、音频（ALAG-4 §3 第 1 条）。 */
@@ -360,7 +367,7 @@ export default defineBackground(() => {
         return;
     }
     const outcome = await saveCapture(capture, false);
-    if (tab?.id !== undefined && (await injectCapture(tab.id))) await sendToast(tab.id, outcome, capture);
+    if (tab?.id !== undefined && (await injectCapture(tab.id))) await toastAfterSave(tab.id, outcome, capture);
   };
 
   /**
@@ -385,7 +392,7 @@ export default defineBackground(() => {
     // 暂存补写与页面提示重放都沿用 Capture 里的它，saveQuote 据此幂等
     const capture: Capture = resolved.quote ? { ...resolved, quote: { ...resolved.quote, opId: ulid() } } : resolved;
     const outcome = await saveCapture(capture, false);
-    if (tabId !== undefined && (injected || (await injectCapture(tabId)))) await sendToast(tabId, outcome, capture);
+    if (tabId !== undefined && (injected || (await injectCapture(tabId)))) await toastAfterSave(tabId, outcome, capture);
   };
 
   /**
@@ -397,7 +404,7 @@ export default defineBackground(() => {
     const capture = requestId !== undefined ? await toastRequests.get(requestId) : undefined;
     if (!capture) {
       const source = canonicalizeUrl(tab.url ?? '');
-      await sendToast(tab.id, {
+      await toastAfterSave(tab.id, {
         state: 'failed',
         preview: { title: tab.title || source, site: siteFromUrl(source), source, medium: 'web' },
         error: { name: 'ExpiredRequest', message: t('error_expiredRequest') },
@@ -405,7 +412,7 @@ export default defineBackground(() => {
       return;
     }
     const outcome = await saveCapture(capture, action === 'snapshot');
-    await sendToast(tab.id, outcome, capture);
+    await toastAfterSave(tab.id, outcome, capture);
   };
 
   // ---- 页面提示「加批注…」→ 面板编辑态（ALAG-16）
@@ -553,7 +560,10 @@ export default defineBackground(() => {
         onLostEditsChanged: setLostSticky,
         translate: (clip, target) => jobs.run(clip, target),
         subscribeTranslation: (clipId, cb) => jobs.subscribe(clipId, cb),
-        showTranslationInTab: (clipId, tabId) => jobs.showInTab(clipId, tabId),
+        // 面板在保存完成前关掉时这里可能还没有翻译任务：没有 view 就不建立跟随订阅。
+    showTranslationInTab: (clipId, tabId) => {
+      if (jobs.view(clipId) !== undefined) jobs.showInTab(clipId, tabId);
+    },
         newId: () => ulid(),
       });
     }

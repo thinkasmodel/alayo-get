@@ -1014,6 +1014,54 @@ describe("Port 'panel'：翻译（ALAG-27）", () => {
     expect(complete.showTranslationInTab).not.toHaveBeenCalled();
   });
 
+  it('保存完成前断开：不建立订阅，保存完成后 showTranslationInTab 一次', async () => {
+    const t = translationDeps();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    t.deps.savePage = vi.fn(async () => {
+      await gate;
+      return { capture, outcome: saved };
+    });
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.disconnect();
+    expect(t.showTranslationInTab).not.toHaveBeenCalled();
+
+    release();
+    await flush();
+    await flush();
+    expect(t.subscribeTranslation).not.toHaveBeenCalled();
+    expect(t.showTranslationInTab).toHaveBeenCalledTimes(1);
+    expect(t.showTranslationInTab).toHaveBeenCalledWith(clip.id, 7);
+  });
+
+  it('pendingClip 读取完成前断开：不建立订阅，显示订阅交给页面提示', async () => {
+    const t = translationDeps();
+    let release!: (id: string) => void;
+    t.deps.takePendingEdit = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          release = resolve;
+        }),
+    );
+    t.deps.findClip = vi.fn(async () => clip);
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.disconnect();
+    release(clip.id);
+    await flush();
+    await flush();
+    expect(t.subscribeTranslation).not.toHaveBeenCalled();
+    expect(t.showTranslationInTab).toHaveBeenCalledTimes(1);
+    expect(t.showTranslationInTab).toHaveBeenCalledWith(clip.id, 7);
+  });
+
   it('断开后取消订阅，之后的 view 不再 post', async () => {
     const t = translationDeps();
     const port = await savedPanel(t.deps);

@@ -103,6 +103,18 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   };
   /** 有了 clip 之后订阅它的翻译视图；先 post state、再订阅，保证面板先收到 state（ALAG-27）。 */
   const watchTranslation = (c: ClipSummary): void => {
+    if (!connected) {
+      // 保存完成前面板已经关掉：不建立订阅（否则这个订阅永远没人取消）。
+      // 有标签页时交给 jobs 决定有没有任务；没有任务时 showInTab 什么都不发。
+      if (panelTabId !== null && deps.showTranslationInTab) {
+        try {
+          deps.showTranslationInTab(c.id, panelTabId);
+        } catch (err) {
+          console.warn('[Alayo Get] 把翻译进度转到页面提示失败', err);
+        }
+      }
+      return;
+    }
     if (!deps.subscribeTranslation || translationClipId === c.id) return;
     translationSub?.();
     translationSub = null;

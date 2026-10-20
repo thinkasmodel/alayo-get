@@ -99,9 +99,29 @@ interface ActiveToast {
   update(view: TranslationView): void;
 }
 
-let active: ActiveToast | null = null;
-/** 用户点 × 关掉的剪藏：之后的 running 更新不再显示；常驻结果会再弹一条单独提示。 */
-const userClosed = new Set<string>();
+/** 跨消息、跨采集脚本重新注入都要保留的提示状态（同页面的隔离世界共享）。页面导航后自然重置。 */
+interface ToastSharedState {
+  /** 当前提示对应的剪藏；重新注入后仍可接着更新旧提示。 */
+  active: ActiveToast | null;
+  /** 用户点 × 关掉的剪藏：之后的 running 更新不再显示；常驻结果会再弹一条单独提示。 */
+  userClosed: Set<string>;
+}
+
+const TOAST_STATE_KEY = '__alayoGetToastState';
+
+function sharedToastState(): ToastSharedState {
+  const scope = globalThis as unknown as Record<string, unknown>;
+  const existing = scope[TOAST_STATE_KEY];
+  if (typeof existing === 'object' && existing !== null && (existing as ToastSharedState).userClosed instanceof Set) {
+    return existing as ToastSharedState;
+  }
+  const next: ToastSharedState = { active: null, userClosed: new Set() };
+  scope[TOAST_STATE_KEY] = next;
+  return next;
+}
+
+/** 采集脚本每次保存都会重新注入；模块级变量会丢，所以要放在 globalThis 上。 */
+const shared = sharedToastState();
 
 const pair = (from: string, to: string): string => t('tr_pair', [languageName(from), languageName(to)]);
 
@@ -372,7 +392,7 @@ export function mountToast(outcome: SaveOutcome, deps: ToastDeps, doc: Document 
   const content = contentFor(outcome);
   const savedClipId = outcome.state === 'saved' ? outcome.clip.id : null;
   const savedClipFile = outcome.state === 'saved' ? outcome.clip.file : '';
-  if (savedClipId !== null) userClosed.delete(savedClipId);
+  if (savedClipId !== null) shared.userClosed.delete(savedClipId);
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let hovering = false;
@@ -397,12 +417,12 @@ export function mountToast(outcome: SaveOutcome, deps: ToastDeps, doc: Document 
   const teardown = () => {
     gone = true;
     clearTimer();
-    if (active === self) active = null;
+    if (shared.active === self) shared.active = null;
   };
 
   function dismiss(byUser = false) {
     if (gone) return;
-    if (byUser && savedClipId !== null) userClosed.add(savedClipId);
+    if (byUser && savedClipId !== null) shared.userClosed.add(savedClipId);
     teardown();
     box.classList.add('out');
     const remove = () => host.remove();
@@ -535,7 +555,7 @@ export function mountToast(outcome: SaveOutcome, deps: ToastDeps, doc: Document 
   startTimer();
   const handle: ToastHandle = { host, root, dismiss: () => dismiss() };
   self = { host, clipId: savedClipId, kind: 'save', update: updateTranslation };
-  active = self;
+  shared.active = self;
   return handle;
 }
 
@@ -544,7 +564,7 @@ function mountTranslationToast(message: ToastTranslationMessage, deps: ToastDeps
   clearOtherToasts(doc);
   const { host, root } = makeHost(doc);
   const { clipId } = message;
-  userClosed.delete(clipId);
+  shared.userClosed.delete(clipId);
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let hovering = false;
@@ -564,11 +584,11 @@ function mountTranslationToast(message: ToastTranslationMessage, deps: ToastDeps
   const teardown = () => {
     gone = true;
     clearTimer();
-    if (active === handle) active = null;
+    if (shared.active === handle) shared.active = null;
   };
   function dismiss(byUser: boolean) {
     if (gone) return;
-    if (byUser) userClosed.add(clipId);
+    if (byUser) shared.userClosed.add(clipId);
     teardown();
     box.classList.add('out');
     const remove = () => host.remove();
@@ -650,7 +670,7 @@ function mountTranslationToast(message: ToastTranslationMessage, deps: ToastDeps
       render();
     },
   };
-  active = handle;
+  shared.active = handle;
 }
 
 /**
@@ -660,14 +680,15 @@ function mountTranslationToast(message: ToastTranslationMessage, deps: ToastDeps
 export function showTranslation(message: ToastTranslationMessage, deps: ToastDeps, doc: Document = document): void {
   const { clipId, view } = message;
   // 页面重新加载、或提示已被移除：旧句柄失效，按“没有提示”处理。
-  if (active && !active.host.isConnected) active = null;
-  if (userClosed.has(clipId)) {
+  if (shared.active && !shared.active.host.isConnected) shared.active = null;
+  if (shared.userClosed.has(clipId)) {
     if (view.phase === 'running') return;
     if (transient(view)) return;
-    userClosed.delete(clipId);
+    shared.userClosed.delete(clipId);
   }
-  if (active && active.clipId === clipId) {
-    active.update(view);
+  const current = shared.active;
+  if (current && current.clipId === clipId) {
+    current.update(view);
     return;
   }
   mountTranslationToast(message, deps, doc);

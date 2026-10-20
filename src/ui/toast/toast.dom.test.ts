@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClipSummary, SaveOutcome, TranslationOutcome, TranslationView } from '@/shared/types';
 import type { ToastTranslationMessage } from '@/shared/messages';
-import { CJK, loadMessages, useLocale } from '../../../tests/setup/i18n';
+import { chromeGetMessage, CJK, loadMessages, useLocale } from '../../../tests/setup/i18n';
 import { mountToast, showTranslation, TOAST_AUTO_MS, TOAST_FADE_MS, type ToastDeps } from './toast';
 
 const clip: ClipSummary = {
@@ -543,6 +543,34 @@ describe('页面提示：翻译进度与结果（ALAG-27）', () => {
     expect(already.textContent).toContain('这篇已经加过译文');
     vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS);
     expect(hosts()).toHaveLength(0);
+  });
+
+  it('采集脚本重新注入后仍记得 × 关闭：同一 clip 的 running 不显示，失败结果再弹', async () => {
+    const { deps } = makeDeps();
+    const first = showStandalone(running(), deps, 'reload-clip');
+    first.querySelector<HTMLButtonElement>('button[aria-label="关闭"]')?.click();
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+
+    // 模拟 capture.js 重新注入：模块状态清空，但页面隔离世界里的共享对象还在。
+    vi.resetModules();
+    const freshI18n = await import('@/shared/i18n');
+    const messages = loadMessages('zh_CN');
+    freshI18n.setMessageSourceForTest((key, subs) => chromeGetMessage(messages, key, subs));
+    const fresh = await import('./toast');
+
+    fresh.showTranslation(translationMessage(running(20, 40), 'reload-clip'), deps);
+    expect(hosts()).toHaveLength(0);
+
+    const attach = vi.spyOn(HTMLElement.prototype, 'attachShadow');
+    fresh.showTranslation(
+      translationMessage(finished({ status: 'failed', applied: 0, total: 40, error: { code: 'engine-failed', message: 'Error: x' } }), 'reload-clip'),
+      deps,
+    );
+    const root = attach.mock.results.at(-1)?.value as ShadowRoot;
+    attach.mockRestore();
+    expect(hosts()).toHaveLength(1);
+    expect(root.textContent).toContain('没能翻译');
   });
 
   it('aborted 文件不见了：单独提示写文件名', () => {
