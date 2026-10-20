@@ -498,3 +498,32 @@ describe('planBilingual：Turndown 标题与地址末尾的原有反斜杠（ALA
     expect(plan.segments).toEqual(['Open ("Windows directory")', 'See the ("quoted") part.', 'Get files now.']);
   });
 });
+
+describe('planBilingual：Turndown <…> 地址末尾的原有反斜杠（ALAG-42 codex R3）', () => {
+  // 地址含空格时 Turndown 用 <…> 包起、把 > 转义成 \>，但不转义原有反斜杠：`C:\` 结尾写成 `C:\>`。
+  const body = turndown.turndown(
+    [
+      '<p><a href="data:text/plain,Directory C:&#92;">Directory</a> (threshold &gt;)</p>',
+      '<p><a href="data:text/plain,Directory C:&#92;" title="T">Folder</a> (limit &gt;) here</p>',
+      '<p>Pic <img src="data:text/plain,Directory C:&#92;" alt="x"> (size &gt;) end</p>',
+      '<p><a href="https://x/a&gt;b c">Mid</a> keeps</p>',
+    ].join(''),
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实是 <…> 地址以 \\> 结尾、地址中间有 \\>', () => {
+    expect(body).toContain('[Directory](<data:text/plain,Directory C:\\>) (threshold >)');
+    expect(body).toContain('[Folder](<data:text/plain,Directory C:\\> "T") (limit >) here');
+    expect(body).toContain('![x](<data:text/plain,Directory C:\\>) (size >) end');
+    expect(body).toContain('[Mid](<https://x/a\\>b c>) keeps');
+  });
+
+  it('地址在第一个可能的结束处结束，正文不被吞、段落不被跳过', () => {
+    expect(plan.segments).toEqual([
+      'Directory (threshold >)',
+      'Folder (limit >) here',
+      'Pic (size >) end',
+      'Mid keeps',
+    ]);
+  });
+});
