@@ -4,7 +4,7 @@ import bannersHtml from '../../tests/fixtures/tables/banners.html?raw';
 import mergedHtml from '../../tests/fixtures/tables/merged.html?raw';
 import simpleHtml from '../../tests/fixtures/tables/simple.html?raw';
 import { addTableRules } from '@/page/tables';
-import { applyTranslations, planBilingual, renderTranslation, type Unit } from './bilingual';
+import { applyTranslations, plainTextOf, planBilingual, renderTranslation, type Unit } from './bilingual';
 
 // 与 src/page/extract.ts 相同的 Turndown 配置；这里用它的实际输出验证列表/引用里的代码块。
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
@@ -542,5 +542,75 @@ describe('planBilingual：Turndown 裸地址末尾的原有反斜杠（ALAG-42 �
 
   it('括号正文保留', () => {
     expect(plan.segments).toEqual(['Open drive (see notes) first.', 'Root dir (y)) end.']);
+  });
+});
+
+describe('planBilingual：Turndown 标题与 <…> 地址内部的「原有反斜杠＋转义」（ALAG-42 codex R4）', () => {
+  // Turndown 原有反斜杠原样保留，只在 " 前（标题）与 <>() 前（地址）各加一个 \：原文 \" 写成 \\"，\> 写成 \\>。
+  const body = turndown.turndown(
+    [
+      '<p>Read <a href="https://x/regex" title="Use &#92;&quot;(.*)&#92;&quot; to match a quoted value">the pattern</a> now.</p>',
+      '<p><a href="https://x/regex" title="Use &#92;&quot;(.*)&#92;&quot; here">Only link</a></p>',
+      '<p>See <img src="https://x/p.png" alt="P" title="a &#92;&quot;(b)&#92;&quot; c"> text.</p>',
+      '<p>Go <a href="https://x/a b&#92;&gt;c">mid</a> on (x).</p>',
+    ].join(''),
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实含 \\\\" 与 \\\\>', () => {
+    expect(body).toContain('[the pattern](https://x/regex "Use \\\\"(.*)\\\\" to match a quoted value") now.');
+    expect(body).toContain('[Only link](https://x/regex "Use \\\\"(.*)\\\\" here")');
+    expect(body).toContain('![P](https://x/p.png "a \\\\"(b)\\\\" c") text.');
+    expect(body).toContain('[mid](<https://x/a b\\\\>c>) on (x).');
+  });
+
+  it('标题与地址整个去掉，纯链接段不送翻', () => {
+    expect(plan.segments).toEqual(['Read the pattern now.', 'See text.', 'Go mid on (x).']);
+  });
+});
+
+describe('plainTextOf / planBilingual：随机链接经真实 Turndown（ALAG-42）', () => {
+  // 地址与标题由 \ " ( ) < > 空格 字母随机拼成，过真实 Turndown：前后正文逐字保留，只有链接的段落不送翻。
+  // 唯一的例外是语法上分不开的「地址以原有 \ 结尾、无标题、后接 "…")」——与维基 _\(norm\) "标题" 同形，按转义括号读。
+  let seed = 7;
+  const rnd = (n: number): number => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed % n;
+  };
+  const ALPHABET = ['\\', '"', '(', ')', '<', '>', ' ', 'a', 'b', ':', '/'];
+  const randomText = (length: number): string =>
+    Array.from({ length }, () => ALPHABET[rnd(ALPHABET.length)]).join('');
+  const attr = (value: string): string =>
+    value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const TAILS = [' (see y) end.', ' "q") end.', ' (y)) end.', ' >) end.', ' z.'];
+
+  it.each(['new URL 规范化后的地址', '未规范化的原始地址'])('%s', (mode) => {
+    const unexpected: string[] = [];
+    for (let i = 0; i < 3000; i += 1) {
+      const raw = `x${randomText(1 + rnd(6))}`;
+      const data = rnd(10) < 3;
+      let href = raw;
+      if (mode.startsWith('new URL')) {
+        try {
+          href = new URL(data ? `data:text/plain,${raw}` : raw, 'https://example.com/d/').href;
+        } catch {
+          continue;
+        }
+      }
+      const title = rnd(2) ? randomText(rnd(7)) : '';
+      const tail = TAILS[rnd(TAILS.length)] ?? '';
+      const image = rnd(4) === 0;
+      const titleAttr = title ? ` title="${attr(title)}"` : '';
+      const element = image
+        ? `<img src="${attr(href)}" alt="P"${titleAttr}>`
+        : `<a href="${attr(href)}"${titleAttr}>Link</a>`;
+      const md = turndown.turndown(`<p>Pre ${element}${attr(tail)}</p>`);
+      const expected = `Pre ${image ? '' : 'Link'}${tail}`.replace(/\s+/g, ' ').trim();
+      const accepted = href.endsWith('\\') && !title && tail.startsWith(' "');
+      if (!accepted && plainTextOf(md).text !== expected) unexpected.push(md);
+      const alone = turndown.turndown(`<p>${element}</p>`);
+      if (alone && planBilingual(withFrontmatter(alone), 'web').segments.length > 0) unexpected.push(alone);
+    }
+    expect(unexpected).toEqual([]);
   });
 });
