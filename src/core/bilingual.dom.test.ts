@@ -476,3 +476,25 @@ describe('planBilingual：Turndown 地址里原有的反斜杠（ALAG-42 codex R
     expect(plan.segments).toEqual(['(Manual (PDF))', 'Manual (PDF) notes']);
   });
 });
+
+describe('planBilingual：Turndown 标题与地址末尾的原有反斜杠（ALAG-42 codex R2）', () => {
+  // Turndown 只转义标题里的双引号、地址里的括号，不转义原有反斜杠：title="C:\" 写成 "C:\"，href 末尾的 \ 写成 \)。
+  const body = turndown.turndown(
+    [
+      '<p><a href="https://example.com/manual" title="C:&#92;">Open (&quot;Windows</a> directory&quot;)</p>',
+      '<p>See <img src="https://example.com/p.png" alt="Fig" title="C:&#92;"> the (&quot;quoted&quot;) part.</p>',
+      '<p>Get <a href="https://example.com/dir&#92;">files</a> now.</p>',
+    ].join(''),
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实是标题以 \\" 结尾、地址以 \\) 结尾', () => {
+    expect(body).toContain('[Open ("Windows](https://example.com/manual "C:\\") directory")');
+    expect(body).toContain('![Fig](https://example.com/p.png "C:\\")');
+    expect(body).toContain('[files](https://example.com/dir\\) now.');
+  });
+
+  it('标题在第一个可能的结束处结束，正文不被吞；地址末尾的反斜杠也认得出', () => {
+    expect(plan.segments).toEqual(['Open ("Windows directory")', 'See the ("quoted") part.', 'Get files now.']);
+  });
+});
