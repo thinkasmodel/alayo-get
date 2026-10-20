@@ -69,19 +69,48 @@ const X_HEADING = /^# @[A-Za-z0-9_]{1,15} - /;
 const X_QUOTE_AUTHOR = /^\*\*.+\*\*( · .*)?$/;
 
 /**
+ * 链接/图片的 `(地址 "标题")`（ALAG-42）：地址是 `<…>` 或不含空白、括号都转义了的串（Turndown 与
+ * linkDestination 的写法），标题可选，用 `"…"` 或 `'…'` 括起（`(…)` 标题没有生成方，又会把地址末尾
+ * `\)` 之后的括号正文当标题吞掉，不认）。地址里有未转义的括号（如 Turndown 把原有反斜杠写成 `\\(`）
+ * 就认不出，退回：先试不跨空白、到第一个 `)` 为止（裸地址末尾的 `\)` 停在这里），再试旧写法（可跨空白，
+ * 允许一层成对括号，如手写的 `Unix_(OS)`）。两层退回都不越过落单的 `(`，未闭合时不必扫到行尾，不是平方级。
+ * Turndown 不转义标题与地址里原有的反斜杠，只在 `"`（标题）、`<>()`（地址）前加一个 `\`：原文 `\"` 写成
+ * `\\"`，`title="C:\"` 写成 `"C:\"`，`<…>` 地址末尾的 `\` 写成 `\>`，裸地址末尾的 `\` 写成 `\)`。所以连续的
+ * 反斜杠整串看，按它后面的字符定：双引号标题里后接 `"` 再接（空白＋）`)` 的是结束符（在标题自己的一对括号之内
+ * 时除外），否则是内容；`<…>` 里后接
+ * `<` 的是内容，后接 `>` 再接 `)` 或「空白＋标题」的是结束符；裸地址里后接括号的是内容（`_\(norm\)`、原文 `\)`
+ * 写成的 `\\)`）。退回写法允许 `)` 前有一个反斜杠（与 main 相同）。
+ * 每段空白前后都是非空白，反斜杠只能作转义开头，选项互不重叠，未闭合时回溯是线性的。
+ */
+const LINK_DEST = String.raw`(?:<(?:[^<>\n\\]|\\+(?![<>\\\n])|\\+<|\\+>(?![ \t\n]*\)|[ \t\n]+["']))*\\*>|(?:[^\s()\\]|\\+(?![()\\])|\\+[()])+)`;
+/** 双引号标题里一对括号之内：`\"` 一律是内容（`f(\"x\")` 的 `)` 关闭的是标题里的 `(`）。 */
+const TITLE_GROUP = String.raw`(?:[^"\\()]|\\+(?!["\\])|\\+")*`;
+const LINK_TITLE = String.raw`(?:"(?:[^"\\(]|\\+(?!["\\])|\\+"(?![ \t\n]*\))|\(${TITLE_GROUP}\)|\((?!${TITLE_GROUP}\)))*\\*"|'(?:\\.|[^'\\])*')`;
+const LINK_TARGET = String.raw`(?:\([ \t\n]*(?:${LINK_DEST}(?:[ \t\n]+(?:${LINK_TITLE}[ \t\n]*)?)?)?\)|\((?:\\\S|[^()\\\s])*\\?\)|\((?:\\[\s\S]|[^()\\]|\((?:\\[\s\S]|[^()\\])*\))*\\?\))`;
+const LINK_TEXT = String.raw`\[((?:\\.|[^\]\\])*)\]`;
+const IMAGE = new RegExp(String.raw`!\[(?:\\.|[^\]\\])*\]${LINK_TARGET}`, 'g');
+const LINK = new RegExp(`${LINK_TEXT}${LINK_TARGET}`, 'g');
+/**
+ * 从左往右先遇到哪个算哪个：链接目标 `](…)`（前面不是转义的 `]`）原样保留，行内代码换占位符。
+ * Turndown 不转义地址与标题里的反引号，不能让它们和正文里的反引号配对（ALAG-42 codex R5）。
+ */
+const TARGET_OR_CODE = new RegExp(String.raw`(?<=(?:^|[^\\])(?:\\\\)*)(\]${LINK_TARGET})|(\`+)[\s\S]*?\2`, 'g');
+
+/**
  * Markdown 的纯文本（送翻用）：行内代码换成占位符；去掉图片、链接只留文字、自动链接去掉尖括号；
  * 去掉强调标记与行内 HTML；反斜杠转义还原；空白合并。
  */
 export function plainTextOf(raw: string): PlainText {
   const codes: string[] = [];
-  let text = raw.replace(/(`+)([\s\S]*?)\1/g, (match: string) => {
+  let text = raw.replace(TARGET_OR_CODE, (match: string, target: string | undefined) => {
+    if (target !== undefined) return match;
     codes.push(match);
     return `⟦c${codes.length}⟧`;
   });
   // 图片整个去掉（alt 也不翻）。
-  text = text.replace(/!\[(?:\\.|[^\]\\])*\]\((?:\\.|[^)])*\)/g, '');
+  text = text.replace(IMAGE, '');
   // 链接只留文字。
-  text = text.replace(/\[((?:\\.|[^\]\\])*)\]\((?:\\.|[^)])*\)/g, '$1');
+  text = text.replace(LINK, '$1');
   // 自动链接（URL 与邮件地址）去掉尖括号，保留地址。
   text = text.replace(/<([A-Za-z][A-Za-z0-9+.-]*:[^<>\s]+)>/g, '$1');
   text = text.replace(/<([^<>\s]+@[^<>\s]+)>/g, '$1');
@@ -237,8 +266,8 @@ function isLinkOnly(raw: string): boolean {
   // 跨行链接的文字也是正文：不能按「纯链接」跳过（续修 9）。
   if (raw.includes('\n') && /\[[^\]]*\]\(/.test(raw)) return false;
   const rest = trimSpaceTab(raw)
-    .replace(/!\[(?:\\.|[^\]\\])*\]\((?:\\.|[^)])*\)/g, '')
-    .replace(/\[((?:\\.|[^\]\\])*)\]\((?:\\.|[^)])*\)/g, '')
+    .replace(IMAGE, '')
+    .replace(LINK, '')
     .replace(/<[A-Za-z][A-Za-z0-9+.-]*:[^<>\s]+>/g, '')
     .replace(/<[^<>\s]+@[^<>\s]+>/g, '');
   return BLANK.test(rest);

@@ -4,7 +4,7 @@ import bannersHtml from '../../tests/fixtures/tables/banners.html?raw';
 import mergedHtml from '../../tests/fixtures/tables/merged.html?raw';
 import simpleHtml from '../../tests/fixtures/tables/simple.html?raw';
 import { addTableRules } from '@/page/tables';
-import { applyTranslations, planBilingual, renderTranslation, type Unit } from './bilingual';
+import { applyTranslations, plainTextOf, planBilingual, renderTranslation, type Unit } from './bilingual';
 
 // 与 src/page/extract.ts 相同的 Turndown 配置；这里用它的实际输出验证列表/引用里的代码块。
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-' });
@@ -420,5 +420,258 @@ describe('planBilingual：列表项里的表格不打断列表上下文（ALAG-4
     }
     expect(result.missing).toEqual([]);
     expect(result.md.split('\n').filter(isTableLine)).toEqual(md.split('\n').filter(isTableLine));
+  });
+});
+
+describe('planBilingual：Turndown 输出的带标题链接与图片（ALAG-42）', () => {
+  const body = turndown.turndown(
+    [
+      '<p>Inspired by pre-existing <a href="https://en.wikipedia.org/wiki/Convention_(norm)" title="Convention (norm)">conventions</a> for marking up plain text.</p>',
+      '<p>Call <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch" title="fetch()"><code>fetch()</code></a> to start a request.</p>',
+      '<p>See <a href="https://example.com/a b" title="Notes (draft)">the notes</a> and <img src="https://example.com/p.png" alt="Figure" title="Figure (1)"> here.</p>',
+      '<p><a href="https://en.wikipedia.org/wiki/Unix_(OS)" title="Unix (OS)">Unix</a></p>',
+    ].join(''),
+  );
+  const md = withFrontmatter(body);
+  const plan = planBilingual(md, 'web');
+
+  it('样例确实是带标题的 Turndown 输出', () => {
+    expect(body).toContain('[conventions](https://en.wikipedia.org/wiki/Convention_\\(norm\\) "Convention (norm)")');
+    expect(body).toContain('[`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch "fetch()")');
+    expect(body).toContain('[the notes](<https://example.com/a b> "Notes (draft)")');
+    expect(body).toContain('![Figure](https://example.com/p.png "Figure (1)")');
+  });
+
+  it('送翻文字里没有标题残片，只有链接的段落不送翻', () => {
+    expect(plan.segments).toEqual([
+      'Inspired by pre-existing conventions for marking up plain text.',
+      'Call ⟦c1⟧ to start a request.',
+      'See the notes and here.',
+    ]);
+  });
+
+  it('写回译文后原文各行逐字节不变', () => {
+    const translations: Record<string, string> = {};
+    for (const segment of plan.segments) translations[segment] = '译文';
+    const result = applyTranslations(md, itemsFor(plan, translations), 'web');
+    expect(result.missing).toEqual([]);
+    const originalLines = bodyOf(md).split('\n').filter((line) => line.trim() !== '');
+    const resultLines = bodyOf(result.md).split('\n');
+    for (const line of originalLines) expect(resultLines).toContain(line);
+  });
+});
+
+describe('planBilingual：Turndown 地址里原有的反斜杠（ALAG-42 codex R1）', () => {
+  // Turndown 只转义括号、不转义原有反斜杠：`docs\(v1).pdf` 写成 `docs\\(v1\).pdf`，`(` 变成未转义。
+  const body = turndown.turndown(
+    '<p>(<a href="https://example.com/docs&#92;(v1).pdf">Manual</a> (PDF))</p><p><a href="https://example.com/docs&#92;(v1).pdf">Manual</a> (PDF) notes</p>',
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实含 \\\\( ', () => {
+    expect(body).toContain('[Manual](https://example.com/docs\\\\(v1\\).pdf) (PDF))');
+  });
+
+  it('链接后的正文不被吞，段落不被当成纯链接跳过', () => {
+    expect(plan.segments).toEqual(['(Manual (PDF))', 'Manual (PDF) notes']);
+  });
+});
+
+describe('planBilingual：Turndown 标题与地址末尾的原有反斜杠（ALAG-42 codex R2）', () => {
+  // Turndown 只转义标题里的双引号、地址里的括号，不转义原有反斜杠：title="C:\" 写成 "C:\"，href 末尾的 \ 写成 \)。
+  const body = turndown.turndown(
+    [
+      '<p><a href="https://example.com/manual" title="C:&#92;">Open (&quot;Windows</a> directory&quot;)</p>',
+      '<p>See <img src="https://example.com/p.png" alt="Fig" title="C:&#92;"> the (&quot;quoted&quot;) part.</p>',
+      '<p>Get <a href="https://example.com/dir&#92;">files</a> now.</p>',
+    ].join(''),
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实是标题以 \\" 结尾、地址以 \\) 结尾', () => {
+    expect(body).toContain('[Open ("Windows](https://example.com/manual "C:\\") directory")');
+    expect(body).toContain('![Fig](https://example.com/p.png "C:\\")');
+    expect(body).toContain('[files](https://example.com/dir\\) now.');
+  });
+
+  it('标题在第一个可能的结束处结束，正文不被吞；地址末尾的反斜杠也认得出', () => {
+    expect(plan.segments).toEqual(['Open ("Windows directory")', 'See the ("quoted") part.', 'Get files now.']);
+  });
+});
+
+describe('planBilingual：Turndown <…> 地址末尾的原有反斜杠（ALAG-42 codex R3）', () => {
+  // 地址含空格时 Turndown 用 <…> 包起、把 > 转义成 \>，但不转义原有反斜杠：`C:\` 结尾写成 `C:\>`。
+  const body = turndown.turndown(
+    [
+      '<p><a href="data:text/plain,Directory C:&#92;">Directory</a> (threshold &gt;)</p>',
+      '<p><a href="data:text/plain,Directory C:&#92;" title="T">Folder</a> (limit &gt;) here</p>',
+      '<p>Pic <img src="data:text/plain,Directory C:&#92;" alt="x"> (size &gt;) end</p>',
+      '<p><a href="https://x/a&gt;b c">Mid</a> keeps</p>',
+    ].join(''),
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实是 <…> 地址以 \\> 结尾、地址中间有 \\>', () => {
+    expect(body).toContain('[Directory](<data:text/plain,Directory C:\\>) (threshold >)');
+    expect(body).toContain('[Folder](<data:text/plain,Directory C:\\> "T") (limit >) here');
+    expect(body).toContain('![x](<data:text/plain,Directory C:\\>) (size >) end');
+    expect(body).toContain('[Mid](<https://x/a\\>b c>) keeps');
+  });
+
+  it('地址在第一个可能的结束处结束，正文不被吞、段落不被跳过', () => {
+    expect(plan.segments).toEqual([
+      'Directory (threshold >)',
+      'Folder (limit >) here',
+      'Pic (size >) end',
+      'Mid keeps',
+    ]);
+  });
+});
+
+describe('planBilingual：Turndown 裸地址末尾的原有反斜杠（ALAG-42 自查）', () => {
+  // href 末尾的 \ 写成 \)，后面的括号正文不能被当成标题或地址吞掉。
+  const body = turndown.turndown(
+    '<p>Open <a href="C:&#92;">drive</a> (see notes) first.</p><p>Root <a href="C:&#92;">dir</a> (y)) end.</p>',
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实是裸地址以 \\) 结尾', () => {
+    expect(body).toContain('[drive](C:\\) (see notes) first.');
+    expect(body).toContain('[dir](C:\\) (y)) end.');
+  });
+
+  it('括号正文保留', () => {
+    expect(plan.segments).toEqual(['Open drive (see notes) first.', 'Root dir (y)) end.']);
+  });
+});
+
+describe('planBilingual：Turndown 标题与 <…> 地址内部的「原有反斜杠＋转义」（ALAG-42 codex R4）', () => {
+  // Turndown 原有反斜杠原样保留，只在 " 前（标题）与 <>() 前（地址）各加一个 \：原文 \" 写成 \\"，\> 写成 \\>。
+  const body = turndown.turndown(
+    [
+      '<p>Read <a href="https://x/regex" title="Use &#92;&quot;(.*)&#92;&quot; to match a quoted value">the pattern</a> now.</p>',
+      '<p><a href="https://x/regex" title="Use &#92;&quot;(.*)&#92;&quot; here">Only link</a></p>',
+      '<p>See <img src="https://x/p.png" alt="P" title="a &#92;&quot;(b)&#92;&quot; c"> text.</p>',
+      '<p>Go <a href="https://x/a b&#92;&gt;c">mid</a> on (x).</p>',
+    ].join(''),
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实含 \\\\" 与 \\\\>', () => {
+    expect(body).toContain('[the pattern](https://x/regex "Use \\\\"(.*)\\\\" to match a quoted value") now.');
+    expect(body).toContain('[Only link](https://x/regex "Use \\\\"(.*)\\\\" here")');
+    expect(body).toContain('![P](https://x/p.png "a \\\\"(b)\\\\" c") text.');
+    expect(body).toContain('[mid](<https://x/a b\\\\>c>) on (x).');
+  });
+
+  it('标题与地址整个去掉，纯链接段不送翻', () => {
+    expect(plan.segments).toEqual(['Read the pattern now.', 'See text.', 'Go mid on (x).']);
+  });
+});
+
+describe('plainTextOf / planBilingual：随机链接经真实 Turndown（ALAG-42）', () => {
+  // 地址与标题由 \ " ( ) < > ` 空格 字母随机拼成，过真实 Turndown：前后正文逐字保留，只有链接的段落不送翻。
+  // 唯一的例外是语法上分不开的「地址以原有 \ 结尾、无标题、后接 "…")」——与维基 _\(norm\) "标题" 同形，按转义括号读。
+  let seed = 7;
+  const rnd = (n: number): number => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed % n;
+  };
+  const ALPHABET = ['\\', '"', '(', ')', '<', '>', '`', ' ', 'a', 'b', ':', '/'];
+  const randomText = (length: number): string =>
+    Array.from({ length }, () => ALPHABET[rnd(ALPHABET.length)]).join('');
+  const attr = (value: string): string =>
+    value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const TAILS: Array<[html: string, text: string]> = [
+    [' (see y) end.', ' (see y) end.'],
+    [' &quot;q&quot;) end.', ' "q") end.'],
+    [' (y)) end.', ' (y)) end.'],
+    [' &gt;) end.', ' >) end.'],
+    [' z.', ' z.'],
+    [' <code>c</code> end.', ' ⟦c1⟧ end.'],
+  ];
+
+  it.each(['new URL 规范化后的地址', '未规范化的原始地址'])('%s', (mode) => {
+    const unexpected: string[] = [];
+    for (let i = 0; i < 3000; i += 1) {
+      const raw = `x${randomText(1 + rnd(6))}`;
+      const data = rnd(10) < 3;
+      let href = raw;
+      if (mode.startsWith('new URL')) {
+        try {
+          href = new URL(data ? `data:text/plain,${raw}` : raw, 'https://example.com/d/').href;
+        } catch {
+          continue;
+        }
+      }
+      const title = rnd(2) ? randomText(rnd(7)) : '';
+      const [tailHtml, tail] = TAILS[rnd(TAILS.length)] ?? ['', ''];
+      const image = rnd(4) === 0;
+      const titleAttr = title ? ` title="${attr(title)}"` : '';
+      const element = image
+        ? `<img src="${attr(href)}" alt="P"${titleAttr}>`
+        : `<a href="${attr(href)}"${titleAttr}>Link</a>`;
+      const md = turndown.turndown(`<p>Pre ${element}${tailHtml}</p>`);
+      const expected = `Pre ${image ? '' : 'Link'}${tail}`.replace(/\s+/g, ' ').trim();
+      const accepted = href.endsWith('\\') && !title && tail.startsWith(' "');
+      if (!accepted && plainTextOf(md).text !== expected) unexpected.push(md);
+      const alone = turndown.turndown(`<p>${element}</p>`);
+      if (alone && planBilingual(withFrontmatter(alone), 'web').segments.length > 0) unexpected.push(alone);
+    }
+    expect(unexpected).toEqual([]);
+  });
+});
+
+describe('plainTextOf：链接目标里的反引号不参与行内代码配对（ALAG-42 codex R5）', () => {
+  // Turndown 不转义地址与标题里的反引号；它们和正文里的反引号配成一对时会把标题的起始引号藏进占位符。
+  const body = turndown.turndown(
+    [
+      '<p>Read <a href="data:text/plain,x)&#96;" title="&#96; label">Link</a> now.</p>',
+      '<p>Call <a href="https://x/f" title="the &#96;f&#96; fn"><code>f()</code></a> or <code>g</code> and <a href="https://x/h" title="odd &#96; tick">h</a> then <code>k</code>.</p>',
+    ].join(''),
+  );
+  const [first = '', second = ''] = body.split('\n\n');
+
+  it('样例确实在地址与标题里有反引号', () => {
+    expect(first).toBe('Read [Link](data:text/plain,x\\)` "` label") now.');
+    expect(second).toBe('Call [`f()`](https://x/f "the `f` fn") or `g` and [h](https://x/h "odd ` tick") then `k`.');
+  });
+
+  it('地址与标题整个去掉；链接文字与正文里的行内代码照常换成占位符', () => {
+    expect(plainTextOf(first)).toEqual({ text: 'Read Link now.', codes: [] });
+    expect(plainTextOf(second)).toEqual({ text: 'Call ⟦c1⟧ or ⟦c2⟧ and h then ⟦c3⟧.', codes: ['`f()`', '`g`', '`k`'] });
+    // 第二段标题里反引号是奇数个，成对检查（inlineStructuresBalanced）保守地整段不翻，与 main 相同。
+    expect(planBilingual(withFrontmatter(body), 'web').segments).toEqual(['Read Link now.']);
+  });
+});
+
+describe('planBilingual：标题里括号内的 \\"（ALAG-42 codex R6）', () => {
+  // 标题 Call `f("x")` 写成 "Call `f(\"x\")`"：`\")` 里的 ) 关闭的是标题里的 (，不是链接。
+  const body = turndown.turndown(
+    [
+      '<p>See <a href="https://x/f" title="Call &#96;f(&quot;x&quot;)&#96;">function</a> and <code>g()</code>.</p>',
+      '<p>Odd <a href="https://x/o" title="a (b &quot;c&quot;">one</a> and <code>k</code>.</p>',
+    ].join(''),
+  );
+  const md = withFrontmatter(body);
+  const plan = planBilingual(md, 'web');
+
+  it('样例确实是括号里的 \\"', () => {
+    expect(body).toContain('[function](https://x/f "Call `f(\\"x\\")`") and `g()`.');
+    expect(body).toContain('[one](https://x/o "a (b \\"c\\"") and `k`.');
+  });
+
+  it('标题整个去掉，正文代码照常保护，写回后代码还原、原文不变', () => {
+    expect(plan.segments).toEqual(['See function and ⟦c1⟧.', 'Odd one and ⟦c1⟧.']);
+    expect(plan.units.map((unit) => unit.segmentCodes)).toEqual([[['`g()`']], [['`k`']]]);
+    const result = applyTranslations(
+      md,
+      itemsFor(plan, { 'See function and ⟦c1⟧.': '参见函数与 ⟦c1⟧。', 'Odd one and ⟦c1⟧.': '奇怪的一个与 ⟦c1⟧。' }),
+      'web',
+    );
+    expect(result.missing).toEqual([]);
+    for (const line of bodyOf(md).split('\n').filter((l) => l.trim() !== '')) expect(result.md).toContain(line);
+    expect(result.md).toContain('参见函数与 `g()`。');
+    expect(result.md).toContain('奇怪的一个与 `k`。');
   });
 });

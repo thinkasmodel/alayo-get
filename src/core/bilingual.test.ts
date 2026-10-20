@@ -85,6 +85,62 @@ describe('plainTextOf：送翻纯文本', () => {
     expect(plainTextOf('[Wiki](https://x/Foo_\\(bar\\))').text).toBe('Wiki');
   });
 
+  it('链接与图片带标题：标题里的括号与引号不留在送翻文字里（ALAG-42）', () => {
+    expect(plainTextOf('on [conventions](https://x/Convention_\\(norm\\) "Convention (norm)") for').text).toBe(
+      'on conventions for',
+    );
+    expect(plainTextOf('call [`fetch()`](https://x/fetch "fetch()") now').text).toBe('call ⟦c1⟧ now');
+    expect(plainTextOf('[A](https://x/a \'single (q)\') end').text).toBe('A end');
+    expect(plainTextOf('[A](https://x/a "say \\"hi\\" (x)") end').text).toBe('A end');
+    expect(plainTextOf('[A](<https://x/a b\\(c\\)> "t (1)") end').text).toBe('A end');
+    expect(plainTextOf('x ![pic](https://x/p.png "Figure (1)") y').text).toBe('x y');
+  });
+
+  it('裸地址末尾的原有反斜杠（\\)）后面的括号正文不被吞（ALAG-42 自查）', () => {
+    expect(plainTextOf('[a](x\\) (see y) end.').text).toBe('a (see y) end.');
+    expect(plainTextOf('[a](x\\) (y)) end.').text).toBe('a (y)) end.');
+    expect(plainTextOf('[a](x\\)) tail').text).toBe('a tail');
+  });
+
+  it('手写的非常规链接目标仍按旧写法去掉（ALAG-42 自查）', () => {
+    expect(plainTextOf('[a](x y) b').text).toBe('a b');
+    expect(plainTextOf("[a](x 'T') b").text).toBe('a b');
+  });
+
+  it('手写的地址里有一层未转义的成对括号：整个去掉（ALAG-42）', () => {
+    expect(plainTextOf('see [Unix](https://x/Unix_(OS)) here').text).toBe('see Unix here');
+  });
+
+  it('大量 ]( 或 [](（未闭合的括号）不是平方级（ALAG-42 codex R5）', () => {
+    for (const raw of ['](' .repeat(16000), '[](' .repeat(16000), '[a](x '.repeat(16000)]) {
+      const started = performance.now();
+      plainTextOf(raw);
+      expect(performance.now() - started).toBeLessThan(100);
+    }
+  });
+
+  it('长空白加未闭合标题不触发多项式回溯（ALAG-42 codex R1）', () => {
+    const cases = [
+      `Read [A](${' '.repeat(3000)}"a ${'b'.repeat(100000)})`,
+      `Read [A](x${' '.repeat(3000)}"a ${'b'.repeat(100000)})`,
+    ];
+    for (const raw of cases) {
+      let started = performance.now();
+      plainTextOf(raw);
+      expect(performance.now() - started).toBeLessThan(150);
+      started = performance.now();
+      planFor(raw);
+      expect(performance.now() - started).toBeLessThan(300);
+    }
+  });
+
+  it('未闭合的链接目标里一长串反斜杠不触发指数级回溯（ALAG-42）', () => {
+    const raw = `[a](${'\\'.repeat(42)} tail`;
+    const started = performance.now();
+    plainTextOf(raw);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
   it('行内代码先换占位符，代码里的 Markdown 不再被处理', () => {
     const { text, codes } = plainTextOf('run `**a** [b]` now');
     expect(text).toBe('run ⟦c1⟧ now');
@@ -124,6 +180,17 @@ describe('planBilingual：跳过规则（保守：认不出就不翻）', () => 
     const plan = planFor(body);
     expect(plan.segments).toEqual(['Heading', 'The best catalog is the one people are willing to update.']);
     expect(plan.units.map((u) => u.kind)).toEqual(['heading', 'quote-paragraph']);
+  });
+
+  it('只有带标题的链接或图片的段落也算纯链接，不翻（ALAG-42）', () => {
+    const body = [
+      '[Unix](https://x/Unix_\\(OS\\) "Unix (OS)")',
+      '',
+      '![Figure](https://x/p.png "Figure (1)")',
+      '',
+      'Body text.',
+    ].join('\n');
+    expect(planFor(body).segments).toEqual(['Body text.']);
   });
 
   it('medium 为 x 时跳过 @handle 标题与引用帖作者行', () => {
