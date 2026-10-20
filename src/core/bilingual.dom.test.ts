@@ -527,3 +527,20 @@ describe('planBilingual：Turndown <…> 地址末尾的原有反斜杠（ALAG-4
     ]);
   });
 });
+
+describe('planBilingual：Turndown 裸地址末尾的原有反斜杠（ALAG-42 自查）', () => {
+  // href 末尾的 \ 写成 \)，后面的括号正文不能被当成标题或地址吞掉。
+  const body = turndown.turndown(
+    '<p>Open <a href="C:&#92;">drive</a> (see notes) first.</p><p>Root <a href="C:&#92;">dir</a> (y)) end.</p>',
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实是裸地址以 \\) 结尾', () => {
+    expect(body).toContain('[drive](C:\\) (see notes) first.');
+    expect(body).toContain('[dir](C:\\) (y)) end.');
+  });
+
+  it('括号正文保留', () => {
+    expect(plan.segments).toEqual(['Open drive (see notes) first.', 'Root dir (y)) end.']);
+  });
+});

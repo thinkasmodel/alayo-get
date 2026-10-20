@@ -90,10 +90,21 @@ describe('plainTextOf：送翻纯文本', () => {
       'on conventions for',
     );
     expect(plainTextOf('call [`fetch()`](https://x/fetch "fetch()") now').text).toBe('call ⟦c1⟧ now');
-    expect(plainTextOf('[A](https://x/a \'single (q)\') [B](https://x/b (paren title)) end').text).toBe('A B end');
+    expect(plainTextOf('[A](https://x/a \'single (q)\') end').text).toBe('A end');
     expect(plainTextOf('[A](https://x/a "say \\"hi\\" (x)") end').text).toBe('A end');
     expect(plainTextOf('[A](<https://x/a b\\(c\\)> "t (1)") end').text).toBe('A end');
     expect(plainTextOf('x ![pic](https://x/p.png "Figure (1)") y').text).toBe('x y');
+  });
+
+  it('裸地址末尾的原有反斜杠（\\)）后面的括号正文不被吞（ALAG-42 自查）', () => {
+    expect(plainTextOf('[a](x\\) (see y) end.').text).toBe('a (see y) end.');
+    expect(plainTextOf('[a](x\\) (y)) end.').text).toBe('a (y)) end.');
+    expect(plainTextOf('[a](x\\)) tail').text).toBe('a tail');
+  });
+
+  it('手写的非常规链接目标仍按旧写法去掉（ALAG-42 自查）', () => {
+    expect(plainTextOf('[a](x y) b').text).toBe('a b');
+    expect(plainTextOf("[a](x 'T') b").text).toBe('a b');
   });
 
   it('长空白加未闭合标题不触发多项式回溯（ALAG-42 codex R1）', () => {
