@@ -570,19 +570,26 @@ describe('planBilingual：Turndown 标题与 <…> 地址内部的「原有反�
 });
 
 describe('plainTextOf / planBilingual：随机链接经真实 Turndown（ALAG-42）', () => {
-  // 地址与标题由 \ " ( ) < > 空格 字母随机拼成，过真实 Turndown：前后正文逐字保留，只有链接的段落不送翻。
+  // 地址与标题由 \ " ( ) < > ` 空格 字母随机拼成，过真实 Turndown：前后正文逐字保留，只有链接的段落不送翻。
   // 唯一的例外是语法上分不开的「地址以原有 \ 结尾、无标题、后接 "…")」——与维基 _\(norm\) "标题" 同形，按转义括号读。
   let seed = 7;
   const rnd = (n: number): number => {
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed % n;
   };
-  const ALPHABET = ['\\', '"', '(', ')', '<', '>', ' ', 'a', 'b', ':', '/'];
+  const ALPHABET = ['\\', '"', '(', ')', '<', '>', '`', ' ', 'a', 'b', ':', '/'];
   const randomText = (length: number): string =>
     Array.from({ length }, () => ALPHABET[rnd(ALPHABET.length)]).join('');
   const attr = (value: string): string =>
     value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const TAILS = [' (see y) end.', ' "q") end.', ' (y)) end.', ' >) end.', ' z.'];
+  const TAILS: Array<[html: string, text: string]> = [
+    [' (see y) end.', ' (see y) end.'],
+    [' &quot;q&quot;) end.', ' "q") end.'],
+    [' (y)) end.', ' (y)) end.'],
+    [' &gt;) end.', ' >) end.'],
+    [' z.', ' z.'],
+    [' <code>c</code> end.', ' ⟦c1⟧ end.'],
+  ];
 
   it.each(['new URL 规范化后的地址', '未规范化的原始地址'])('%s', (mode) => {
     const unexpected: string[] = [];
@@ -598,13 +605,13 @@ describe('plainTextOf / planBilingual：随机链接经真实 Turndown（ALAG-42
         }
       }
       const title = rnd(2) ? randomText(rnd(7)) : '';
-      const tail = TAILS[rnd(TAILS.length)] ?? '';
+      const [tailHtml, tail] = TAILS[rnd(TAILS.length)] ?? ['', ''];
       const image = rnd(4) === 0;
       const titleAttr = title ? ` title="${attr(title)}"` : '';
       const element = image
         ? `<img src="${attr(href)}" alt="P"${titleAttr}>`
         : `<a href="${attr(href)}"${titleAttr}>Link</a>`;
-      const md = turndown.turndown(`<p>Pre ${element}${attr(tail)}</p>`);
+      const md = turndown.turndown(`<p>Pre ${element}${tailHtml}</p>`);
       const expected = `Pre ${image ? '' : 'Link'}${tail}`.replace(/\s+/g, ' ').trim();
       const accepted = href.endsWith('\\') && !title && tail.startsWith(' "');
       if (!accepted && plainTextOf(md).text !== expected) unexpected.push(md);
@@ -612,5 +619,28 @@ describe('plainTextOf / planBilingual：随机链接经真实 Turndown（ALAG-42
       if (alone && planBilingual(withFrontmatter(alone), 'web').segments.length > 0) unexpected.push(alone);
     }
     expect(unexpected).toEqual([]);
+  });
+});
+
+describe('plainTextOf：链接目标里的反引号不参与行内代码配对（ALAG-42 codex R5）', () => {
+  // Turndown 不转义地址与标题里的反引号；它们和正文里的反引号配成一对时会把标题的起始引号藏进占位符。
+  const body = turndown.turndown(
+    [
+      '<p>Read <a href="data:text/plain,x)&#96;" title="&#96; label">Link</a> now.</p>',
+      '<p>Call <a href="https://x/f" title="the &#96;f&#96; fn"><code>f()</code></a> or <code>g</code> and <a href="https://x/h" title="odd &#96; tick">h</a> then <code>k</code>.</p>',
+    ].join(''),
+  );
+  const [first = '', second = ''] = body.split('\n\n');
+
+  it('样例确实在地址与标题里有反引号', () => {
+    expect(first).toBe('Read [Link](data:text/plain,x\\)` "` label") now.');
+    expect(second).toBe('Call [`f()`](https://x/f "the `f` fn") or `g` and [h](https://x/h "odd ` tick") then `k`.');
+  });
+
+  it('地址与标题整个去掉；链接文字与正文里的行内代码照常换成占位符', () => {
+    expect(plainTextOf(first)).toEqual({ text: 'Read Link now.', codes: [] });
+    expect(plainTextOf(second)).toEqual({ text: 'Call ⟦c1⟧ or ⟦c2⟧ and h then ⟦c3⟧.', codes: ['`f()`', '`g`', '`k`'] });
+    // 第二段标题里反引号是奇数个，成对检查（inlineStructuresBalanced）保守地整段不翻，与 main 相同。
+    expect(planBilingual(withFrontmatter(body), 'web').segments).toEqual(['Read Link now.']);
   });
 });

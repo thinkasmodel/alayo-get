@@ -72,7 +72,8 @@ const X_QUOTE_AUTHOR = /^\*\*.+\*\*( · .*)?$/;
  * 链接/图片的 `(地址 "标题")`（ALAG-42）：地址是 `<…>` 或不含空白、括号都转义了的串（Turndown 与
  * linkDestination 的写法），标题可选，用 `"…"` 或 `'…'` 括起（`(…)` 标题没有生成方，又会把地址末尾
  * `\)` 之后的括号正文当标题吞掉，不认）。地址里有未转义的括号（如 Turndown 把原有反斜杠写成 `\\(`）
- * 就认不出，退回：先试不跨空白、到第一个 `)` 为止（裸地址末尾的 `\)` 停在这里），再退回旧写法。
+ * 就认不出，退回：先试不跨空白、到第一个 `)` 为止（裸地址末尾的 `\)` 停在这里），再试旧写法（可跨空白，
+ * 允许一层成对括号，如手写的 `Unix_(OS)`）。两层退回都不越过落单的 `(`，未闭合时不必扫到行尾，不是平方级。
  * Turndown 不转义标题与地址里原有的反斜杠，只在 `"`（标题）、`<>()`（地址）前加一个 `\`：原文 `\"` 写成
  * `\\"`，`title="C:\"` 写成 `"C:\"`，`<…>` 地址末尾的 `\` 写成 `\>`，裸地址末尾的 `\` 写成 `\)`。所以连续的
  * 反斜杠整串看，按它后面的字符定：双引号标题里后接 `"` 再接（空白＋）`)` 的是结束符，否则是内容；`<…>` 里后接
@@ -82,10 +83,15 @@ const X_QUOTE_AUTHOR = /^\*\*.+\*\*( · .*)?$/;
  */
 const LINK_DEST = String.raw`(?:<(?:[^<>\n\\]|\\+(?![<>\\\n])|\\+<|\\+>(?![ \t\n]*\)|[ \t\n]+["']))*\\*>|(?:[^\s()\\]|\\+(?![()\\])|\\+[()])+)`;
 const LINK_TITLE = String.raw`(?:"(?:[^"\\]|\\+(?!["\\])|\\+"(?![ \t\n]*\)))*\\*"|'(?:\\.|[^'\\])*')`;
-const LINK_TARGET = String.raw`(?:\([ \t\n]*(?:${LINK_DEST}(?:[ \t\n]+(?:${LINK_TITLE}[ \t\n]*)?)?)?\)|\((?:\\\S|[^)\\\s])*\\?\)|\((?:\\[\s\S]|[^)\\])*\\?\))`;
+const LINK_TARGET = String.raw`(?:\([ \t\n]*(?:${LINK_DEST}(?:[ \t\n]+(?:${LINK_TITLE}[ \t\n]*)?)?)?\)|\((?:\\\S|[^()\\\s])*\\?\)|\((?:\\[\s\S]|[^()\\]|\((?:\\[\s\S]|[^()\\])*\))*\\?\))`;
 const LINK_TEXT = String.raw`\[((?:\\.|[^\]\\])*)\]`;
 const IMAGE = new RegExp(String.raw`!\[(?:\\.|[^\]\\])*\]${LINK_TARGET}`, 'g');
 const LINK = new RegExp(`${LINK_TEXT}${LINK_TARGET}`, 'g');
+/**
+ * 从左往右先遇到哪个算哪个：链接目标 `](…)`（前面不是转义的 `]`）原样保留，行内代码换占位符。
+ * Turndown 不转义地址与标题里的反引号，不能让它们和正文里的反引号配对（ALAG-42 codex R5）。
+ */
+const TARGET_OR_CODE = new RegExp(String.raw`(?<=(?:^|[^\\])(?:\\\\)*)(\]${LINK_TARGET})|(\`+)[\s\S]*?\2`, 'g');
 
 /**
  * Markdown 的纯文本（送翻用）：行内代码换成占位符；去掉图片、链接只留文字、自动链接去掉尖括号；
@@ -93,7 +99,8 @@ const LINK = new RegExp(`${LINK_TEXT}${LINK_TARGET}`, 'g');
  */
 export function plainTextOf(raw: string): PlainText {
   const codes: string[] = [];
-  let text = raw.replace(/(`+)([\s\S]*?)\1/g, (match: string) => {
+  let text = raw.replace(TARGET_OR_CODE, (match: string, target: string | undefined) => {
+    if (target !== undefined) return match;
     codes.push(match);
     return `⟦c${codes.length}⟧`;
   });

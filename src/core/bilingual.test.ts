@@ -107,6 +107,18 @@ describe('plainTextOf：送翻纯文本', () => {
     expect(plainTextOf("[a](x 'T') b").text).toBe('a b');
   });
 
+  it('手写的地址里有一层未转义的成对括号：整个去掉（ALAG-42）', () => {
+    expect(plainTextOf('see [Unix](https://x/Unix_(OS)) here').text).toBe('see Unix here');
+  });
+
+  it('大量 ]( 或 [](（未闭合的括号）不是平方级（ALAG-42 codex R5）', () => {
+    for (const raw of ['](' .repeat(16000), '[](' .repeat(16000), '[a](x '.repeat(16000)]) {
+      const started = performance.now();
+      plainTextOf(raw);
+      expect(performance.now() - started).toBeLessThan(100);
+    }
+  });
+
   it('长空白加未闭合标题不触发多项式回溯（ALAG-42 codex R1）', () => {
     const cases = [
       `Read [A](${' '.repeat(3000)}"a ${'b'.repeat(100000)})`,
