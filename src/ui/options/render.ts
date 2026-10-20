@@ -35,6 +35,8 @@ export interface OptionsDeps {
   translationSettings?: TranslationSettings;
   translationSupported?: boolean;
   setTranslationSettings?(patch: Partial<TranslationSettings>): void | Promise<void>;
+  /** set 失败时重新读一次存储里的实际值；读不到时恢复到改动前的值。 */
+  getTranslationSettings?(): Promise<TranslationSettings>;
 }
 
 export interface OptionsPage {
@@ -87,17 +89,35 @@ function allowEveryVisit(): HTMLElement {
   return h('b', {}, `“${t('dlg_allowEvery')}”`);
 }
 
+/** 「保存方式」里随「保存时总是翻译」切换的两行说明。 */
+function saveWaysDescriptions(always: boolean, supported: boolean): { toolbar: string; shortcut: string } {
+  const translating = always && supported;
+  return {
+    toolbar: t(translating ? 'opt_wayToolbarDescTranslate' : 'opt_wayToolbarDesc'),
+    shortcut: t(translating ? 'opt_wayShortcutDescTranslate' : 'opt_wayShortcutDesc'),
+  };
+}
+
+/** 不重建页面，只改「保存方式」的两行说明（ALAG-27 续修 3）。 */
+function updateSaveWaysDescriptions(root: HTMLElement, always: boolean, supported: boolean): void {
+  const texts = saveWaysDescriptions(always, supported);
+  const toolbar = root.querySelector<HTMLElement>('#opt-way-toolbar-desc');
+  if (toolbar) toolbar.textContent = texts.toolbar;
+  const shortcut = root.querySelector<HTMLElement>('#opt-way-shortcut-desc');
+  if (shortcut) shortcut.textContent = texts.shortcut;
+}
+
 /** 保存方式。快捷键原样显示用户实际设置的组合键；用户清空了快捷键时显示“未设置”。 */
 function saveWays(shortcut: string | null, always: boolean, supported: boolean): Child[] {
   const keys = shortcut ? key(shortcut) : h('span', { class: 'none' }, t('opt_shortcutNotSet'));
-  const translating = always && supported;
+  const desc = saveWaysDescriptions(always, supported);
   return [
     h('div', { class: 'fl section' }, t('opt_waysTitle')),
     h('div', { class: 'keys' }, [
-      h('div', { class: 'kr' }, [t('opt_wayToolbar'), h('span', {}, t(translating ? 'opt_wayToolbarDescTranslate' : 'opt_wayToolbarDesc'))]),
+      h('div', { class: 'kr' }, [t('opt_wayToolbar'), h('span', { id: 'opt-way-toolbar-desc' }, desc.toolbar)]),
       h('div', { class: 'kr' }, [
         h('div', {}, richT('opt_wayShortcut', [keys])),
-        h('span', {}, t(translating ? 'opt_wayShortcutDescTranslate' : 'opt_wayShortcutDesc')),
+        h('span', { id: 'opt-way-shortcut-desc' }, desc.shortcut),
       ]),
       h('div', { class: 'kr' }, [t('opt_wayMenu'), h('span', {}, t('opt_wayMenuDesc'))]),
       h('div', { class: 'kr' }, [t('opt_wayChangeShortcut'), h('span', {}, 'chrome://extensions/shortcuts')]),
@@ -156,13 +176,49 @@ export async function renderOptions(root: HTMLElement, deps: OptionsDeps): Promi
   let reauth: ReauthStatus = { kind: 'idle' };
   /** Workbench 小节是否展开；首次设置页与设置页共用，重绘时沿用。 */
   let workbenchOpen = false;
-  /** 翻译设置（ALAG-27）：改动后本地先更新再重绘，保存方式两行说明随之切换。 */
+  /** 翻译设置（ALAG-27）：改动时原地更新控件与两行说明，不整页重建（续修 3）。 */
   let translation: TranslationSettings = deps.translationSettings ?? { target: 'auto', always: false };
   const translationSupported = deps.translationSupported === true;
+  /** 连续修改的序号：晚到的旧写失败不能覆盖最后一次修改的显示。 */
+  let translationChangeSeq = 0;
+
+  /** 只更新翻译小节的控件与保存方式说明，保留节点与焦点。 */
+  const updateTranslationDisplay = (next: TranslationSettings): void => {
+    if (translationSupported) {
+      const select = root.querySelector<HTMLSelectElement>('#opt-lang');
+      if (select) select.value = next.target;
+      const toggle = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+      if (toggle) toggle.setAttribute('aria-checked', String(next.always));
+    }
+    updateSaveWaysDescriptions(root, next.always, translationSupported);
+  };
+
   const changeTranslation = (patch: Partial<TranslationSettings>) => {
-    translation = { ...translation, ...patch };
-    void Promise.resolve(deps.setTranslationSettings?.(patch)).catch((err: unknown) => console.warn('[Alayo Get] 保存翻译设置失败', err));
-    render();
+    const previous = translation;
+    translation = { ...previous, ...patch };
+    const seq = ++translationChangeSeq;
+    updateTranslationDisplay(translation);
+
+    let write: Promise<void>;
+    try {
+      write = Promise.resolve(deps.setTranslationSettings?.(patch));
+    } catch (err) {
+      write = Promise.reject(err);
+    }
+    void write.catch(async (err: unknown) => {
+      console.warn('[Alayo Get] 保存翻译设置失败', err);
+      if (seq !== translationChangeSeq) return;
+      let actual = previous;
+      try {
+        const stored = await deps.getTranslationSettings?.();
+        if (stored !== undefined) actual = stored;
+      } catch (readErr) {
+        console.warn('[Alayo Get] 读取翻译设置失败，恢复到改动前的值', readErr);
+      }
+      if (seq !== translationChangeSeq) return;
+      translation = actual;
+      updateTranslationDisplay(actual);
+    });
   };
   const onWorkbenchToggle = (open: boolean) => {
     workbenchOpen = open;
@@ -320,9 +376,13 @@ export async function renderOptions(root: HTMLElement, deps: OptionsDeps): Promi
     // toggle 事件异步派发，重绘可能抢在它前面：以页面上小节的当前状态为准（codex review 第 1 轮）
     const shown = root.querySelector<HTMLDetailsElement>('details.wb');
     if (shown) workbenchOpen = shown.open;
+    // 整页重建后，原焦点在翻译小节的控件上时按 id 恢复（续修 3）。
+    const focused = document.activeElement;
+    const focusId = focused instanceof HTMLElement && (focused.id === 'opt-lang' || focused.id === 'opt-tr-always') ? focused.id : null;
     root.replaceChildren(
       h('div', { class: 'wrap', 'data-view': view === 'onboarding' ? 'onboarding' : showReauth ? 'reauth' : 'settings' }, view === 'onboarding' ? onboardingView() : settingsView()),
     );
+    if (focusId !== null) root.querySelector<HTMLElement>(`#${focusId}`)?.focus();
   }
 
   const applyAnchor = (hash: string) => {

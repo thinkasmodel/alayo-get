@@ -72,6 +72,7 @@ async function main() {
     translationSettings,
     translationSupported,
     setTranslationSettings: (patch) => translationStore.set(patch),
+    getTranslationSettings: () => translationStore.get(),
   };
 
   const page = await renderOptions(root, deps);

@@ -6,6 +6,7 @@ import { currentLang, t } from '@/shared/i18n';
 import { h, iconEl, type Child } from '../dom';
 
 const AUTO_LABEL_ID = 'opt-auto-translate';
+const ALWAYS_ID = 'opt-tr-always';
 
 function targetRow(settings: TranslationSettings, disabled: boolean, onChange: (patch: Partial<TranslationSettings>) => void): HTMLElement {
   const follow = t('opt_trFollow', [languageName(resolveTarget('auto', currentLang()))]);
@@ -35,9 +36,11 @@ function alwaysRow(settings: TranslationSettings, disabled: boolean, onChange: (
     role: 'switch',
     'aria-checked': disabled ? 'false' : String(settings.always),
     'aria-labelledby': AUTO_LABEL_ID,
+    id: ALWAYS_ID,
     ...(disabled ? { disabled: true } : {}),
     onclick: () => {
-      if (!disabled) onChange({ always: !settings.always });
+      // 不整页重绘时闭包里的 settings 会过期，以控件当前状态为准。
+      if (!disabled) onChange({ always: button.getAttribute('aria-checked') !== 'true' });
     },
   }, h('i', {}));
   return h('div', { class: disabled ? 'kr tr dim' : 'kr tr' }, [
