@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>页面提示与右键菜单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.root{
+  --accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);
+  --canvas:#F1F2F4;--panel:#FFFFFF;--island:rgba(255,255,255,.86);--page:#FAFAFB;--menu:#FFFFFF;--menuHi:rgba(66,87,181,.10);
+  --hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);
+  --t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;
+  --shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);
+  --font:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+  width:1240px;box-sizing:border-box;padding:32px 40px 48px;background:var(--canvas);color:var(--t1);font-family:var(--font);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;gap:28px
+}
+.root[data-theme="dark"]{
+  --accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);
+  --canvas:#212228;--panel:#2B2D34;--island:rgba(43,45,52,.88);--page:#1B1C21;--menu:#35363A;--menuHi:rgba(123,140,222,.22);
+  --hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);
+  --t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;
+  --shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);color-scheme:dark
+}
+.root[data-lang="zh"] .en{display:none}
+.root[data-lang="en"] .zh{display:none}
+*{box-sizing:border-box}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:18px;font-weight:600;margin:0}
+h2{font-size:13px;font-weight:600;margin:0}
+.sub{font-size:12.5px;color:var(--t2);margin:4px 0 0;max-width:80ch;line-height:18px}
+.note{font-size:12px;color:var(--t2);line-height:17px;margin:0;max-width:90ch}
+.ctl{display:flex;gap:8px;flex-wrap:wrap}
+.ctl button{font:inherit;font-size:12px;font-weight:600;height:28px;padding:0 10px;border-radius:9px;border:.5px solid var(--hair);background:var(--panel);color:var(--t1);cursor:pointer}
+.ctl button[aria-pressed="true"]{background:var(--accent);color:var(--onAccent);border-color:transparent}
+section{display:flex;flex-direction:column;gap:12px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 16px;align-items:start}
+.frame{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cap{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.stage{background:var(--page);border-radius:12px;border:.5px solid var(--hairSoft);padding:28px 16px 16px;display:flex;justify-content:flex-end;min-height:150px;align-items:flex-end}
+/* 页面提示：照搬 src/ui/toast/toast.css */
+.toast{width:340px;max-width:100%;border-radius:14px;background:var(--island);box-shadow:var(--shadow);padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px}
+.icon{flex:none;display:flex}
+.icon.success{color:var(--success)}.icon.muted{color:var(--t2)}.icon.err{color:var(--danger)}
+.tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tt{font-size:13px;font-weight:600;line-height:18px}
+.tt.err{color:var(--danger)}
+.ts{font-size:11px;line-height:15px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{flex:none;height:28px;border:0;border-radius:9px;padding:0 10px;background:transparent;color:var(--accent);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.xbtn{flex:none;width:28px;height:28px;border:0;border-radius:9px;background:transparent;color:var(--t3);display:flex;align-items:center;justify-content:center;padding:0}
+/* 本票新增：提示里的翻译行，细分隔线下 */
+.trs{border-top:.5px solid var(--hairSoft);padding-top:10px;display:flex;flex-direction:column;gap:7px}
+.trl{display:flex;align-items:center;gap:8px;font-size:12px;line-height:16px}
+.trl .ticon{flex:none;display:flex;color:var(--t2)}
+.trl .ticon.success{color:var(--success)}
+.trl .ticon.err{color:var(--danger)}
+.trl b{font-weight:600}
+.trl .num{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.trl .err{color:var(--danger)}
+.bar{height:3px;border-radius:2px;background:var(--hair);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.life{font-size:11px;color:var(--t3);line-height:15px}
+/* 右键菜单示意 */
+.mstage{background:var(--page);border-radius:12px;border:.5px solid var(--hairSoft);padding:20px;display:flex;gap:4px;align-items:flex-start;min-height:270px}
+.menu{width:240px;background:var(--menu);border-radius:8px;box-shadow:var(--shadow);padding:5px 0;font-size:13px;line-height:18px}
+.mi{display:flex;align-items:center;gap:8px;padding:4px 14px;color:var(--t1);white-space:nowrap}
+.mi .ex{flex:none;display:flex;color:var(--accent)}
+.mi .sp{flex:1}
+.mi.hi{background:var(--menuHi)}
+.mi.new b{font-weight:600}
+.mi.dim{color:var(--t3)}
+.sep{height:.5px;background:var(--hair);margin:5px 0}
+.badge{font-size:10px;font-weight:600;letter-spacing:.4px;padding:1px 6px;border-radius:5px;background:var(--accentSoft);color:var(--accent);margin-left:6px}
+</style>
+</helmet>
+<div class="root" data-theme="{{theme}}" data-lang="{{lang}}">
+<header>
+<div>
+<h1><span class="zh">页面提示与右键菜单：翻译进度和结果（ALAG-27）</span><span class="en">Page notice and right-click menu: translation progress and result (ALAG-27)</span></h1>
+<p class="sub"><span class="zh">翻译在后台跑，面板关了也继续。进度和结果都显示在页面右下角的提示里：用快捷键或右键保存时，接在「已存入剪藏库」那条提示下面；从面板发起、面板又被关掉时，单独弹一条。译完 3 秒后消失；出错的提示常驻，等用户关。</span><span class="en">Translation runs in the background and continues after the panel closes. Progress and result appear in the page notice at the bottom right: below “Saved to library” when saved by shortcut or right-click, or as its own notice when the panel that started it was closed. It disappears 3 s after finishing; error notices stay until closed.</span></p>
+</div>
+<div class="ctl">
+<button type="button" aria-pressed="{{isLight}}" onClick="{{setLight}}">浅色 Light</button>
+<button type="button" aria-pressed="{{isDark}}" onClick="{{setDark}}">深色 Dark</button>
+<button type="button" aria-pressed="{{isZh}}" onClick="{{setZh}}">中文</button>
+<button type="button" aria-pressed="{{isEn}}" onClick="{{setEn}}">English</button>
+</div>
+</header>
+
+<section>
+<h2><span class="zh">① 快捷键 / 右键「并翻译」：翻译行接在保存提示下面</span><span class="en">① Shortcut / right-click “and translate”: translation line under the save notice</span></h2>
+<div class="grid">
+
+<div class="frame">
+<div class="cap"><span class="zh">1a · 翻译中</span><span class="en">1a · TRANSLATING</span></div>
+<div class="stage">
+<div class="toast">
+<div class="row">
+<span class="icon success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span>
+<div class="tx"><span class="tt"><span class="zh">已存入剪藏库</span><span class="en">Saved to library</span></span><span class="ts">How the Translator API works</span></div>
+<button type="button" class="tbtn"><span class="zh">加批注…</span><span class="en">Add note…</span></button>
+<button type="button" class="xbtn" aria-label="关闭 Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div class="trs">
+<div class="trl"><span class="ticon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h9M8.5 3v2M11 5c-.8 4-3.4 7-7 8.5M6.5 8.5c1 2 2.8 3.6 5 4.5"></path><path d="m12.5 21 4-9 4 9M14 17.8h5"></path></svg></span><span><span class="zh">正在翻译成简体中文</span><span class="en">Translating to Chinese (Simplified)</span></span><span class="num"><span class="zh">12 / 40 段</span><span class="en">12 / 40</span></span></div>
+<div class="bar" role="progressbar" aria-label="翻译进度 Translation progress" aria-valuemin="0" aria-valuemax="40" aria-valuenow="12"><i style="width: 30%"></i></div>
+</div>
+</div>
+</div>
+<span class="life"><span class="zh">提示在翻译期间不自动消失。</span><span class="en">The notice stays while translating.</span></span>
+</div>
+
+<div class="frame">
+<div class="cap"><span class="zh">1b · 译完</span><span class="en">1b · DONE</span></div>
+<div class="stage">
+<div class="toast">
+<div class="row">
+<span class="icon success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span>
+<div class="tx"><span class="tt"><span class="zh">已存入剪藏库</span><span class="en">Saved to library</span></span><span class="ts">How the Translator API works</span></div>
+<button type="button" class="tbtn"><span class="zh">加批注…</span><span class="en">Add note…</span></button>
+<button type="button" class="xbtn" aria-label="关闭 Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div class="trs">
+<div class="trl"><span class="ticon success"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span><span><span class="zh">已加上简体中文译文</span><span class="en">Chinese (Simplified) translation added</span></span><span class="num"><span class="zh">40 段</span><span class="en">40</span></span></div>
+</div>
+</div>
+</div>
+<span class="life"><span class="zh">3 秒后消失；鼠标停在提示上时不消失。</span><span class="en">Disappears after 3 s; stays while hovered.</span></span>
+</div>
+
+<div class="frame">
+<div class="cap"><span class="zh">1c · 没做完</span><span class="en">1c · DIDN’T FINISH</span></div>
+<div class="stage">
+<div class="toast">
+<div class="row">
+<span class="icon success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12.5 2.8 2.8L16.5 9.5"></path></svg></span>
+<div class="tx"><span class="tt"><span class="zh">已存入剪藏库</span><span class="en">Saved to library</span></span><span class="ts">How the Translator API works</span></div>
+<button type="button" class="tbtn"><span class="zh">加批注…</span><span class="en">Add note…</span></button>
+<button type="button" class="xbtn" aria-label="关闭 Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div class="trs">
+<div class="trl"><span class="ticon err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5h.01"></path></svg></span><span><b class="err"><span class="zh">翻译没做完</span><span class="en">Translation didn’t finish</span></b><span class="zh">，已译 12 / 40 段</span><span class="en">, 12 / 40 done</span></span></div>
+</div>
+</div>
+</div>
+<span class="life"><span class="zh">常驻，点 × 关。已译的段留在文件里。一段都没写进去的失败才有［重试］。</span><span class="en">Stays until closed. Translated paragraphs stay in the file. [Retry] appears only when nothing was written.</span></span>
+</div>
+
+</div>
+</section>
+
+<section>
+<h2><span class="zh">② 从面板发起、面板被关掉后：单独一条提示</span><span class="en">② Started from the panel, panel then closed: a notice of its own</span></h2>
+<div class="grid">
+
+<div class="frame">
+<div class="cap"><span class="zh">2a · 翻译中</span><span class="en">2a · TRANSLATING</span></div>
+<div class="stage">
+<div class="toast">
+<div class="row">
+<span class="icon muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h9M8.5 3v2M11 5c-.8 4-3.4 7-7 8.5M6.5 8.5c1 2 2.8 3.6 5 4.5"></path><path d="m12.5 21 4-9 4 9M14 17.8h5"></path></svg></span>
+<div class="tx"><span class="tt"><span class="zh">正在翻译成简体中文</span><span class="en">Translating to Chinese (Simplified)</span></span><span class="ts">How the Translator API works</span></div>
+<span class="trl"><span class="num"><span class="zh">12 / 40 段</span><span class="en">12 / 40</span></span></span>
+<button type="button" class="xbtn" aria-label="关闭 Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+<div class="bar" role="progressbar" aria-label="翻译进度 Translation progress" aria-valuemin="0" aria-valuemax="40" aria-valuenow="12"><i style="width: 30%"></i></div>
+</div>
+</div>
+<span class="life"><span class="zh">点 × 只关提示，翻译照常继续。</span><span class="en">× only hides the notice; translation continues.</span></span>
+</div>
+
+<div class="frame">
+<div class="cap"><span class="zh">2b · 要先下载模型（关面板前没点下载）</span><span class="en">2b · MODEL NEEDED (PANEL CLOSED FIRST)</span></div>
+<div class="stage">
+<div class="toast">
+<div class="row">
+<span class="icon muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"></path><path d="M8 10.5 12 14.5l4-4"></path><path d="M5 19h14"></path></svg></span>
+<div class="tx"><span class="tt"><span class="zh">要先下载翻译模型</span><span class="en">Translation model needed</span></span><span class="ts"><span class="zh">英语 → 简体中文，约 80 MB</span><span class="en">English → Chinese (Simplified), about 80 MB</span></span></div>
+<button type="button" class="tbtn"><span class="zh">下载并翻译…</span><span class="en">Download and translate…</span></button>
+<button type="button" class="xbtn" aria-label="关闭 Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+</div>
+</div>
+<span class="life"><span class="zh">常驻。按钮打开面板并停在 C 状态（下载只能由扩展页面里的点击触发）。快捷键、右键遇到没下载的模型也是这条。</span><span class="en">Stays. The button opens the panel in state C (downloads must start from a click in an extension page). Shortcut and right-click show this too when the model is missing.</span></span>
+</div>
+
+<div class="frame">
+<div class="cap"><span class="zh">2c · 原文就是目标语言</span><span class="en">2c · ALREADY IN TARGET LANGUAGE</span></div>
+<div class="stage">
+<div class="toast">
+<div class="row">
+<span class="icon muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></span>
+<div class="tx"><span class="tt"><span class="zh">原文已经是简体中文，没有翻译</span><span class="en">Already in Chinese (Simplified). Not translated</span></span><span class="ts">浏览器内置翻译接口实测</span></div>
+<button type="button" class="xbtn" aria-label="关闭 Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+</div>
+</div>
+<span class="life"><span class="zh">3 秒后消失。译完、出错的样式同 ①，只是没有保存那一行。</span><span class="en">Disappears after 3 s. Done and error look as in ①, without the save line.</span></span>
+</div>
+
+</div>
+</section>
+
+<section>
+<h2><span class="zh">③ 右键菜单（页面空白处）</span><span class="en">③ Right-click menu (page background)</span></h2>
+<p class="note"><span class="zh">Chrome 的规则：同一扩展在当前位置有两项以上时，自动收进一个以扩展名命名的子菜单。所以加了「并翻译」后，页面空白处右键多一层。开了「保存时总是翻译」时隐藏这一项，「存入 Alayo Get」本身就会翻译，菜单回到一项、不分层。浏览器不支持本机翻译时不创建这一项。菜单文字带上当前默认语言，改设置时跟着更新。（子菜单行为实现时在真实 Chrome 里核对。）</span><span class="en">Chrome rule: when one extension has two or more items in the current context, they are grouped under a submenu named after the extension. So adding “and translate” puts the page items one level deeper. With “Always translate when saving” on, the item is hidden (“Save to Alayo Get” already translates), so the menu goes back to one top-level item. Not created when the browser can’t translate. The item names the current default language and updates when it changes. (Submenu behavior to be checked in real Chrome during implementation.)</span></p>
+<div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+
+<div class="frame">
+<div class="cap"><span class="zh">3a · 未开「总是翻译」：两项，收进子菜单</span><span class="en">3a · AUTO-TRANSLATE OFF: TWO ITEMS IN A SUBMENU</span></div>
+<div class="mstage">
+<div class="menu">
+<div class="mi"><span class="zh">返回</span><span class="en">Back</span></div>
+<div class="mi"><span class="zh">前进</span><span class="en">Forward</span></div>
+<div class="mi"><span class="zh">重新加载</span><span class="en">Reload</span></div>
+<div class="sep"></div>
+<div class="mi"><span class="zh">另存为…</span><span class="en">Save as…</span></div>
+<div class="mi"><span class="zh">打印…</span><span class="en">Print…</span></div>
+<div class="mi"><span class="zh">翻成中文（简体）</span><span class="en">Translate to English</span></div>
+<div class="sep"></div>
+<div class="mi hi"><span class="ex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="sp">Alayo Get</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></div>
+<div class="sep"></div>
+<div class="mi"><span class="zh">检查</span><span class="en">Inspect</span></div>
+</div>
+<div class="menu" style="margin-top: 176px; width: 300px">
+<div class="mi"><span class="zh">存入 Alayo Get</span><span class="en">Save to Alayo Get</span></div>
+<div class="mi new hi"><b><span class="zh">存入 Alayo Get 并翻译成简体中文</span><span class="en">Save to Alayo Get and translate to Chinese (Simplified)</span></b><span class="badge"><span class="zh">新</span><span class="en">NEW</span></span></div>
+</div>
+</div>
+</div>
+
+<div class="frame">
+<div class="cap"><span class="zh">3b · 已开「总是翻译」：一项，同现在</span><span class="en">3b · AUTO-TRANSLATE ON: ONE ITEM, AS TODAY</span></div>
+<div class="mstage">
+<div class="menu">
+<div class="mi"><span class="zh">返回</span><span class="en">Back</span></div>
+<div class="mi"><span class="zh">前进</span><span class="en">Forward</span></div>
+<div class="mi"><span class="zh">重新加载</span><span class="en">Reload</span></div>
+<div class="sep"></div>
+<div class="mi"><span class="zh">另存为…</span><span class="en">Save as…</span></div>
+<div class="mi"><span class="zh">打印…</span><span class="en">Print…</span></div>
+<div class="mi"><span class="zh">翻成中文（简体）</span><span class="en">Translate to English</span></div>
+<div class="sep"></div>
+<div class="mi hi"><span class="ex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"></path><path d="M7.5 9.5 12 14l4.5-4.5"></path><path d="M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span><span class="sp"><span class="zh">存入 Alayo Get</span><span class="en">Save to Alayo Get</span></span></div>
+<div class="sep"></div>
+<div class="mi"><span class="zh">检查</span><span class="en">Inspect</span></div>
+</div>
+</div>
+</div>
+
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { theme: 'light', lang: 'zh' };
+  }
+  renderVals() {
+    const s = this.state;
+    return {
+      theme: s.theme,
+      lang: s.lang,
+      isLight: s.theme === 'light' ? 'true' : 'false',
+      isDark: s.theme === 'dark' ? 'true' : 'false',
+      isZh: s.lang === 'zh' ? 'true' : 'false',
+      isEn: s.lang === 'en' ? 'true' : 'false',
+      setLight: () => this.setState({ theme: 'light' }),
+      setDark: () => this.setState({ theme: 'dark' }),
+      setZh: () => this.setState({ lang: 'zh' }),
+      setEn: () => this.setState({ lang: 'en' }),
+    };
+  }
+}
+</script>
+</body>
+</html>
