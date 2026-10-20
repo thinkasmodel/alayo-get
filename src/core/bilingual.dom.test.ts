@@ -644,3 +644,34 @@ describe('plainTextOf：链接目标里的反引号不参与行内代码配对�
     expect(planBilingual(withFrontmatter(body), 'web').segments).toEqual(['Read Link now.']);
   });
 });
+
+describe('planBilingual：标题里括号内的 \\"（ALAG-42 codex R6）', () => {
+  // 标题 Call `f("x")` 写成 "Call `f(\"x\")`"：`\")` 里的 ) 关闭的是标题里的 (，不是链接。
+  const body = turndown.turndown(
+    [
+      '<p>See <a href="https://x/f" title="Call &#96;f(&quot;x&quot;)&#96;">function</a> and <code>g()</code>.</p>',
+      '<p>Odd <a href="https://x/o" title="a (b &quot;c&quot;">one</a> and <code>k</code>.</p>',
+    ].join(''),
+  );
+  const md = withFrontmatter(body);
+  const plan = planBilingual(md, 'web');
+
+  it('样例确实是括号里的 \\"', () => {
+    expect(body).toContain('[function](https://x/f "Call `f(\\"x\\")`") and `g()`.');
+    expect(body).toContain('[one](https://x/o "a (b \\"c\\"") and `k`.');
+  });
+
+  it('标题整个去掉，正文代码照常保护，写回后代码还原、原文不变', () => {
+    expect(plan.segments).toEqual(['See function and ⟦c1⟧.', 'Odd one and ⟦c1⟧.']);
+    expect(plan.units.map((unit) => unit.segmentCodes)).toEqual([[['`g()`']], [['`k`']]]);
+    const result = applyTranslations(
+      md,
+      itemsFor(plan, { 'See function and ⟦c1⟧.': '参见函数与 ⟦c1⟧。', 'Odd one and ⟦c1⟧.': '奇怪的一个与 ⟦c1⟧。' }),
+      'web',
+    );
+    expect(result.missing).toEqual([]);
+    for (const line of bodyOf(md).split('\n').filter((l) => l.trim() !== '')) expect(result.md).toContain(line);
+    expect(result.md).toContain('参见函数与 `g()`。');
+    expect(result.md).toContain('奇怪的一个与 `k`。');
+  });
+});
