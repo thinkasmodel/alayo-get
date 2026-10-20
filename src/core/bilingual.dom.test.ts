@@ -422,3 +422,41 @@ describe('planBilingual：列表项里的表格不打断列表上下文（ALAG-4
     expect(result.md.split('\n').filter(isTableLine)).toEqual(md.split('\n').filter(isTableLine));
   });
 });
+
+describe('planBilingual：Turndown 输出的带标题链接与图片（ALAG-42）', () => {
+  const body = turndown.turndown(
+    [
+      '<p>Inspired by pre-existing <a href="https://en.wikipedia.org/wiki/Convention_(norm)" title="Convention (norm)">conventions</a> for marking up plain text.</p>',
+      '<p>Call <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch" title="fetch()"><code>fetch()</code></a> to start a request.</p>',
+      '<p>See <a href="https://example.com/a b" title="Notes (draft)">the notes</a> and <img src="https://example.com/p.png" alt="Figure" title="Figure (1)"> here.</p>',
+      '<p><a href="https://en.wikipedia.org/wiki/Unix_(OS)" title="Unix (OS)">Unix</a></p>',
+    ].join(''),
+  );
+  const md = withFrontmatter(body);
+  const plan = planBilingual(md, 'web');
+
+  it('样例确实是带标题的 Turndown 输出', () => {
+    expect(body).toContain('[conventions](https://en.wikipedia.org/wiki/Convention_\\(norm\\) "Convention (norm)")');
+    expect(body).toContain('[`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch "fetch()")');
+    expect(body).toContain('[the notes](<https://example.com/a b> "Notes (draft)")');
+    expect(body).toContain('![Figure](https://example.com/p.png "Figure (1)")');
+  });
+
+  it('送翻文字里没有标题残片，只有链接的段落不送翻', () => {
+    expect(plan.segments).toEqual([
+      'Inspired by pre-existing conventions for marking up plain text.',
+      'Call ⟦c1⟧ to start a request.',
+      'See the notes and here.',
+    ]);
+  });
+
+  it('写回译文后原文各行逐字节不变', () => {
+    const translations: Record<string, string> = {};
+    for (const segment of plan.segments) translations[segment] = '译文';
+    const result = applyTranslations(md, itemsFor(plan, translations), 'web');
+    expect(result.missing).toEqual([]);
+    const originalLines = bodyOf(md).split('\n').filter((line) => line.trim() !== '');
+    const resultLines = bodyOf(result.md).split('\n');
+    for (const line of originalLines) expect(resultLines).toContain(line);
+  });
+});

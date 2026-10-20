@@ -69,6 +69,17 @@ const X_HEADING = /^# @[A-Za-z0-9_]{1,15} - /;
 const X_QUOTE_AUTHOR = /^\*\*.+\*\*( · .*)?$/;
 
 /**
+ * 链接/图片的 `(地址 "标题")`，按 CommonMark：地址是 `<…>` 或不含空白的串（允许转义与一层成对括号），
+ * 标题可选，用 `"…"`、`'…'` 或 `(…)` 括起（ALAG-42）。认不出时退回旧写法：到第一个未转义的 `)` 为止。
+ */
+const LINK_DEST = String.raw`(?:<(?:\\.|[^<>\n\\])*>|(?:\\.|[^\s()\\]|\((?:\\.|[^\s()\\])*\))*)`;
+const LINK_TITLE = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\])*\))`;
+const LINK_TARGET = String.raw`(?:\([ \t\n]*${LINK_DEST}(?:[ \t\n]+${LINK_TITLE})?[ \t\n]*\)|\((?:\\.|[^)])*\))`;
+const LINK_TEXT = String.raw`\[((?:\\.|[^\]\\])*)\]`;
+const IMAGE = new RegExp(String.raw`!\[(?:\\.|[^\]\\])*\]${LINK_TARGET}`, 'g');
+const LINK = new RegExp(`${LINK_TEXT}${LINK_TARGET}`, 'g');
+
+/**
  * Markdown 的纯文本（送翻用）：行内代码换成占位符；去掉图片、链接只留文字、自动链接去掉尖括号；
  * 去掉强调标记与行内 HTML；反斜杠转义还原；空白合并。
  */
@@ -79,9 +90,9 @@ export function plainTextOf(raw: string): PlainText {
     return `⟦c${codes.length}⟧`;
   });
   // 图片整个去掉（alt 也不翻）。
-  text = text.replace(/!\[(?:\\.|[^\]\\])*\]\((?:\\.|[^)])*\)/g, '');
+  text = text.replace(IMAGE, '');
   // 链接只留文字。
-  text = text.replace(/\[((?:\\.|[^\]\\])*)\]\((?:\\.|[^)])*\)/g, '$1');
+  text = text.replace(LINK, '$1');
   // 自动链接（URL 与邮件地址）去掉尖括号，保留地址。
   text = text.replace(/<([A-Za-z][A-Za-z0-9+.-]*:[^<>\s]+)>/g, '$1');
   text = text.replace(/<([^<>\s]+@[^<>\s]+)>/g, '$1');
@@ -237,8 +248,8 @@ function isLinkOnly(raw: string): boolean {
   // 跨行链接的文字也是正文：不能按「纯链接」跳过（续修 9）。
   if (raw.includes('\n') && /\[[^\]]*\]\(/.test(raw)) return false;
   const rest = trimSpaceTab(raw)
-    .replace(/!\[(?:\\.|[^\]\\])*\]\((?:\\.|[^)])*\)/g, '')
-    .replace(/\[((?:\\.|[^\]\\])*)\]\((?:\\.|[^)])*\)/g, '')
+    .replace(IMAGE, '')
+    .replace(LINK, '')
     .replace(/<[A-Za-z][A-Za-z0-9+.-]*:[^<>\s]+>/g, '')
     .replace(/<[^<>\s]+@[^<>\s]+>/g, '');
   return BLANK.test(rest);

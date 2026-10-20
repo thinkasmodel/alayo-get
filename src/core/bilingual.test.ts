@@ -85,6 +85,21 @@ describe('plainTextOf：送翻纯文本', () => {
     expect(plainTextOf('[Wiki](https://x/Foo_\\(bar\\))').text).toBe('Wiki');
   });
 
+  it('链接与图片带标题：标题里的括号与引号不留在送翻文字里（ALAG-42）', () => {
+    expect(plainTextOf('on [conventions](https://x/Convention_\\(norm\\) "Convention (norm)") for').text).toBe(
+      'on conventions for',
+    );
+    expect(plainTextOf('call [`fetch()`](https://x/fetch "fetch()") now').text).toBe('call ⟦c1⟧ now');
+    expect(plainTextOf('[A](https://x/a \'single (q)\') [B](https://x/b (paren title)) end').text).toBe('A B end');
+    expect(plainTextOf('[A](https://x/a "say \\"hi\\" (x)") end').text).toBe('A end');
+    expect(plainTextOf('[A](<https://x/a b\\(c\\)> "t (1)") end').text).toBe('A end');
+    expect(plainTextOf('x ![pic](https://x/p.png "Figure (1)") y').text).toBe('x y');
+  });
+
+  it('链接地址里成对的未转义括号整个去掉（ALAG-42）', () => {
+    expect(plainTextOf('see [Unix](https://x/Unix_(OS)) here').text).toBe('see Unix here');
+  });
+
   it('行内代码先换占位符，代码里的 Markdown 不再被处理', () => {
     const { text, codes } = plainTextOf('run `**a** [b]` now');
     expect(text).toBe('run ⟦c1⟧ now');
@@ -124,6 +139,19 @@ describe('planBilingual：跳过规则（保守：认不出就不翻）', () => 
     const plan = planFor(body);
     expect(plan.segments).toEqual(['Heading', 'The best catalog is the one people are willing to update.']);
     expect(plan.units.map((u) => u.kind)).toEqual(['heading', 'quote-paragraph']);
+  });
+
+  it('只有带标题的链接或图片的段落也算纯链接，不翻（ALAG-42）', () => {
+    const body = [
+      '[Unix](https://x/Unix_\\(OS\\) "Unix (OS)")',
+      '',
+      '![Figure](https://x/p.png "Figure (1)")',
+      '',
+      '[Unix](https://x/Unix_(OS))',
+      '',
+      'Body text.',
+    ].join('\n');
+    expect(planFor(body).segments).toEqual(['Body text.']);
   });
 
   it('medium 为 x 时跳过 @handle 标题与引用帖作者行', () => {
