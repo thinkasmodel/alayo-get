@@ -100,6 +100,13 @@ describe('plainTextOf：送翻纯文本', () => {
     expect(plainTextOf('see [Unix](https://x/Unix_(OS)) here').text).toBe('see Unix here');
   });
 
+  it('未闭合的链接目标里一长串反斜杠不触发指数级回溯（ALAG-42）', () => {
+    const raw = `[a](${'\\'.repeat(42)} tail`;
+    const started = performance.now();
+    plainTextOf(raw);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
   it('行内代码先换占位符，代码里的 Markdown 不再被处理', () => {
     const { text, codes } = plainTextOf('run `**a** [b]` now');
     expect(text).toBe('run ⟦c1⟧ now');
