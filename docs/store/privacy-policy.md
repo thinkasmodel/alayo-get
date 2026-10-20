@@ -1,6 +1,6 @@
 # Alayo Get — Privacy Policy / 隐私政策
 
-Canonical copy of the policy text. The public page lives at `https://alayo.ai/en/get/privacy` and `https://alayo.ai/zh/get/privacy` (NKS-663); the Chrome Web Store listing links to the English page. Facts below were checked against the source on 2026-10-08 (ALAG-12): network hosts in `src/`, storage use in `src/io/`, tag suggestions in `src/sw/saveClip.ts`.
+Canonical copy of the policy text. The public page lives at `https://alayo.ai/en/get/privacy` and `https://alayo.ai/zh/get/privacy` (NKS-663); the Chrome Web Store listing links to the English page. Facts below were checked against the source on 2026-10-08 (ALAG-12): network hosts in `src/`, storage use in `src/io/`, tag suggestions in `src/sw/saveClip.ts`. Translation paragraphs added 2026-10-20 (ALAG-27), checked against `src/core/translate/`, `src/io/translationSettings.ts` and `docs/research/ALAG-24-results.md`. The public pages must be updated to this text before a release that includes translation.
 
 ---
 
@@ -8,7 +8,7 @@ Canonical copy of the policy text. The public page lives at `https://alayo.ai/en
 
 **Alayo Get Privacy Policy**
 
-Effective date: 2026-10-08
+Effective date: 2026-10-20
 Publisher: ThinkAsModel Limited · hello@alayo.ai
 
 Alayo Get is a Chrome extension that saves web pages, posts, links, images, videos and selected text as plain Markdown and media files in a folder on your computer. It is built so that your data stays with you.
@@ -18,6 +18,7 @@ Alayo Get is a Chrome extension that saves web pages, posts, links, images, vide
 - Everything you save is written to one local folder that you choose when you first set up the extension. Nothing is uploaded anywhere.
 - The extension has no account, no sign-in, no cloud sync, no analytics, no telemetry and no crash reporting. We never receive, see or store what you save.
 - The extension never sends any data to ThinkAsModel Limited, to Alayo servers, or to any third-party service.
+- Translation, when you use it, runs on your device with your browser's built-in translator. The text being translated is not sent to any service. The first time you translate a language, Chrome downloads that language's translation model (about 80 MB) from Google; the download contains the model only, none of your text. After that, translation works offline.
 
 **What is stored on your device**
 
@@ -25,6 +26,7 @@ Inside the extension's own storage (not in your library folder) it keeps:
 
 - a handle to the library folder you chose, so it can write there without asking every time;
 - a record of what has been saved: the source URL, the file name, the title, tags and notes you added, and the time of saving. This is used to show recent saves and to tell you when a page was already saved;
+- your translation settings (target language, and whether to translate every save);
 - short-lived session data used while a save is in progress.
 
 You can clear all of this by removing the extension. The files in your library folder are ordinary files and are not affected.
@@ -39,7 +41,7 @@ The extension only talks to the sites whose content you are saving. Specifically
 - download images, cover images, PDFs or media files referenced by the page into your library folder;
 - send a lightweight request to check the size of a media file before downloading it.
 
-These requests go to the original websites and their content servers, exactly as if you had opened those addresses in your browser. The extension does not add tracking parameters or identifiers.
+These requests go to the original websites and their content servers, exactly as if you had opened those addresses in your browser. The extension does not add tracking parameters or identifiers. Translation models are downloaded by Chrome itself from Google's servers, only after you click a button in the extension.
 
 **Permissions**
 
@@ -47,6 +49,7 @@ These requests go to the original websites and their content servers, exactly as
 - *Scripting and tabs*: used to read the content of the current tab and to run the content-extraction code on the page you are saving.
 - *Storage*: used for the local records described above.
 - *Context menus*: used to add the "Save to Alayo Get" items to the right-click menu.
+- *Offscreen document*: used to run the browser's built-in translator in a hidden extension page, because the translator is not available to the extension's background script.
 
 **Children**
 
@@ -66,7 +69,7 @@ ThinkAsModel Limited · hello@alayo.ai
 
 **Alayo Get 隐私政策**
 
-生效日期：2026-10-08
+生效日期：2026-10-20
 发布者：ThinkAsModel Limited（思模科技有限公司）· hello@alayo.ai
 
 Alayo Get 是一个 Chrome 扩展，把网页、帖子、链接、图片、视频和选中的文字保存成普通的 Markdown 文件和媒体文件，放进你电脑上的一个文件夹。它的设计前提是：你的数据只属于你。
@@ -76,6 +79,7 @@ Alayo Get 是一个 Chrome 扩展，把网页、帖子、链接、图片、视�
 - 你保存的一切都写进你首次设置时选定的那个本地文件夹，不上传到任何地方。
 - 扩展没有账号、没有登录、没有云同步、没有统计分析、没有遥测、没有崩溃上报。我们收不到、看不到、也不保存你存了什么。
 - 扩展不会向 ThinkAsModel Limited、Alayo 服务器或任何第三方服务发送任何数据。
+- 使用翻译时，翻译由浏览器内置的翻译功能在你的设备上完成，要翻的文字不会发给任何服务。第一次翻译某种语言时，Chrome 会从 Google 下载这个语言的翻译模型（约 80 MB），下载的只是模型，不含你的任何文字；之后不用联网。
 
 **保存在你设备上的内容**
 
@@ -83,6 +87,7 @@ Alayo Get 是一个 Chrome 扩展，把网页、帖子、链接、图片、视�
 
 - 你选定的剪藏库文件夹的访问句柄，用来免去每次写入都要重新选择；
 - 已保存记录：出处网址、文件名、标题、你加的标签和批注、保存时间。用于显示最近保存，以及提示某个页面已经存过；
+- 你的翻译设置（目标语言、是否每次保存都翻译）；
 - 保存过程中用到的短期会话数据。
 
 卸载扩展即可清除上述全部内容。剪藏库里的文件是普通文件，不受影响。
@@ -97,7 +102,7 @@ Alayo Get 是一个 Chrome 扩展，把网页、帖子、链接、图片、视�
 - 把页面引用的图片、封面、PDF 或媒体文件下载到你的剪藏库；
 - 在下载前发一个轻量请求查询媒体文件的大小。
 
-这些请求都发往原网站及其内容服务器，和你在浏览器里直接打开这些地址没有区别。扩展不会附加任何跟踪参数或标识。
+这些请求都发往原网站及其内容服务器，和你在浏览器里直接打开这些地址没有区别。扩展不会附加任何跟踪参数或标识。翻译模型由 Chrome 自己从 Google 的服务器下载，且只在你点了扩展里的按钮之后。
 
 **权限说明**
 
@@ -105,6 +110,7 @@ Alayo Get 是一个 Chrome 扩展，把网页、帖子、链接、图片、视�
 - *脚本注入与标签页*：用于读取当前标签页的内容，并在你要保存的页面上运行正文抽取代码。
 - *存储*：用于上文所述的本地记录。
 - *右键菜单*：用于在右键菜单里加入「保存到 Alayo Get」等项目。
+- *后台文档（offscreen）*：用于在一个隐藏的扩展页面里运行浏览器内置的翻译功能，因为扩展的后台脚本用不了它。
 
 **未成年人**
 

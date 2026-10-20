@@ -1,9 +1,11 @@
 // 选项页（DESIGN.md §3.5，设计稿 Onboarding.dc.html、Reauth.dc.html）：首次使用引导、设置、重新授权。
 // 选目录（showDirectoryPicker）与恢复授权（requestPermission）只在这里做（ADR-0004）。
+import type { TranslationSettings } from '@/io/translationSettings';
 import { currentLang, t, tn } from '@/shared/i18n';
 import type { PendingSave } from '@/shared/types';
 import { h, iconEl, richT, type Child } from '../dom';
 import { PENDING_SHOWN } from '../format';
+import { translationSection } from './translation';
 
 type PermissionResult = 'granted' | 'prompt' | 'denied';
 
@@ -29,6 +31,10 @@ export interface OptionsDeps {
   platform(): Promise<'mac' | 'other'>;
   /** 生产实现：browser.commands.getAll() 里 name 为 'save-page' 的 shortcut；找不到或为空串 → null。 */
   shortcut(): Promise<string | null>;
+  /** 翻译设置（ALAG-27）；测试与旧调用方可以不传。 */
+  translationSettings?: TranslationSettings;
+  translationSupported?: boolean;
+  setTranslationSettings?(patch: Partial<TranslationSettings>): void | Promise<void>;
 }
 
 export interface OptionsPage {
@@ -82,13 +88,17 @@ function allowEveryVisit(): HTMLElement {
 }
 
 /** 保存方式。快捷键原样显示用户实际设置的组合键；用户清空了快捷键时显示“未设置”。 */
-function saveWays(shortcut: string | null): Child[] {
+function saveWays(shortcut: string | null, always: boolean, supported: boolean): Child[] {
   const keys = shortcut ? key(shortcut) : h('span', { class: 'none' }, t('opt_shortcutNotSet'));
+  const translating = always && supported;
   return [
     h('div', { class: 'fl section' }, t('opt_waysTitle')),
     h('div', { class: 'keys' }, [
-      h('div', { class: 'kr' }, [t('opt_wayToolbar'), h('span', {}, t('opt_wayToolbarDesc'))]),
-      h('div', { class: 'kr' }, [h('div', {}, richT('opt_wayShortcut', [keys])), h('span', {}, t('opt_wayShortcutDesc'))]),
+      h('div', { class: 'kr' }, [t('opt_wayToolbar'), h('span', {}, t(translating ? 'opt_wayToolbarDescTranslate' : 'opt_wayToolbarDesc'))]),
+      h('div', { class: 'kr' }, [
+        h('div', {}, richT('opt_wayShortcut', [keys])),
+        h('span', {}, t(translating ? 'opt_wayShortcutDescTranslate' : 'opt_wayShortcutDesc')),
+      ]),
       h('div', { class: 'kr' }, [t('opt_wayMenu'), h('span', {}, t('opt_wayMenuDesc'))]),
       h('div', { class: 'kr' }, [t('opt_wayChangeShortcut'), h('span', {}, 'chrome://extensions/shortcuts')]),
     ]),
@@ -146,6 +156,14 @@ export async function renderOptions(root: HTMLElement, deps: OptionsDeps): Promi
   let reauth: ReauthStatus = { kind: 'idle' };
   /** Workbench 小节是否展开；首次设置页与设置页共用，重绘时沿用。 */
   let workbenchOpen = false;
+  /** 翻译设置（ALAG-27）：改动后本地先更新再重绘，保存方式两行说明随之切换。 */
+  let translation: TranslationSettings = deps.translationSettings ?? { target: 'auto', always: false };
+  const translationSupported = deps.translationSupported === true;
+  const changeTranslation = (patch: Partial<TranslationSettings>) => {
+    translation = { ...translation, ...patch };
+    void Promise.resolve(deps.setTranslationSettings?.(patch)).catch((err: unknown) => console.warn('[Alayo Get] 保存翻译设置失败', err));
+    render();
+  };
   const onWorkbenchToggle = (open: boolean) => {
     workbenchOpen = open;
   };
@@ -250,7 +268,8 @@ export async function renderOptions(root: HTMLElement, deps: OptionsDeps): Promi
     h('div', { class: 'fl section', id: 'library' }, t('opt_library')),
     h('div', { class: 'card compact' }, h('div', { class: 'sc' }, chosenRow(handle?.name ?? '', false))),
     showWorkbench ? workbenchSection(workbenchOpen, onWorkbenchToggle) : null,
-    ...saveWays(shortcut),
+    ...saveWays(shortcut, translation.always, translationSupported),
+    ...translationSection(translation, translationSupported, changeTranslation),
   ];
 
   const onboardingView = (): Child[] => {
@@ -277,7 +296,7 @@ export async function renderOptions(root: HTMLElement, deps: OptionsDeps): Promi
         ]),
       ]),
       showWorkbench ? workbenchSection(workbenchOpen, onWorkbenchToggle) : null,
-      ...saveWays(shortcut),
+      ...saveWays(shortcut, translation.always, translationSupported),
       h(
         'div',
         { class: 'foot' },

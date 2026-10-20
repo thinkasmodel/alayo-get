@@ -1,4 +1,5 @@
 // 剪藏管线共用的类型。字面量与 tasks/briefs/ALAG-2A.md「协议」段冻结一致，Brief B 依赖。
+import type { TranslateError } from '../core/translate/types';
 
 /** 剪藏的 medium（M1 只用到 web 与 link；x 是 X 专门适配，ALAG-3；其余为 ALAG-4 媒体、流媒体与摘录）。 */
 export type Medium = 'web' | 'link' | 'x' | 'image' | 'audio' | 'video' | 'pdf' | 'epub' | 'quote';
@@ -203,6 +204,31 @@ export interface LostEditNotice {
   kind: 'filed' | 'written';
   file: string;
 }
+
+// ---- 翻译（ALAG-26 / ALAG-27）
+
+/** 后台翻译的状态（CONTEXT.md「翻译状态」）。 */
+export type TranslationStatus = 'complete' | 'partial' | 'failed' | 'skipped' | 'aborted';
+
+/** 后台翻译的结果；ALAG-27 用它显示进度与错误。 */
+export interface TranslationOutcome {
+  status: TranslationStatus;
+  /** 已经写进文件（或按「译文等于原文」免插）的单元数。 */
+  applied: number;
+  /** 原文里要翻的单元总数。 */
+  total: number;
+  /** 翻译层给出的错误（failed 时）。 */
+  error?: TranslateError;
+  /** 规范化后的原文语言；不知道时没有。 */
+  source?: string;
+  /** aborted 的原因。 */
+  reason?: string;
+}
+
+/** service worker 内存里的翻译任务视图（ALAG-27）。 */
+export type TranslationView =
+  | { phase: 'running'; target: string; done: number; total: number }
+  | { phase: 'finished'; target: string; outcome: TranslationOutcome };
 
 /** 面板与页面提示可改的字段。 */
 export interface EditFields {

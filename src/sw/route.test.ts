@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { classifyTab, CONTEXT_MENUS, mediaCapture, predictPreviewMedium, quoteCapture, resolveQuoteCapture, routeContextClick } from './route';
+import { classifyTab, CONTEXT_MENUS, mediaCapture, MENU_SAVE_PAGE_TRANSLATE, predictPreviewMedium, quoteCapture, resolveQuoteCapture, routeContextClick } from './route';
 
 const page = 'https://sspai.com/post/90002';
 
 describe('routeContextClick', () => {
+  it('「并翻译」→ page-translate（ALAG-27）', () => {
+    expect(routeContextClick({ menuItemId: MENU_SAVE_PAGE_TRANSLATE })).toEqual({ action: 'page-translate' });
+  });
+
   it('页面空白处 → 保存当前页；不认识的菜单项忽略', () => {
     expect(routeContextClick({ menuItemId: 'save-page', pageUrl: page })).toEqual({ action: 'page' });
     expect(routeContextClick({ menuItemId: 'other' })).toEqual({ action: 'ignore' });

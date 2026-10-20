@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { planBilingual } from '@/core/bilingual';
+import { setTranslationFields } from '@/core/frontmatter';
 import { createLock, type Lock } from './lock';
 import { MemoryLibrary } from '@/io/memoryLibrary';
 import { createPendingQueue } from '@/io/pending';
@@ -638,5 +639,112 @@ describe('startClipTranslation：段落截断在行内结构中间（续修 10�
     expect(outcome).toEqual({ status: 'skipped', applied: 0, total: 0 });
     expect(translator.requests).toHaveLength(0);
     expect(library.text(SIMPLE_FILE)).toBe(md);
+  });
+});
+
+describe('startClipTranslation：onProgress（ALAG-27）', () => {
+  function startWithProgress() {
+    const progress: Array<[number, number]> = [];
+    const job = startClipTranslation({ id: ID, source: SOURCE, medium: 'web', target: 'zh' }, { ...deps(), onProgress: (done, total) => progress.push([done, total]) });
+    return { job, progress };
+  }
+
+  it('规划完成先 (0,total)，每个单元到齐调一次，最后一次 (total,total)', async () => {
+    const { job, progress } = startWithProgress();
+    await settle();
+    const plan = planBilingual(original, 'web');
+    const total = plan.units.length;
+    expect(progress).toEqual([[0, total]]);
+
+    const segments = translator.requests[0]?.segments ?? [];
+    const first = plan.units[0];
+    for (const index of first?.segmentIndexes ?? []) translator.emitSegment(index, table[segments[index] ?? ''] ?? '');
+    expect(progress.at(-1)).toEqual([1, total]);
+
+    emitAll(segments);
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('complete');
+    expect(outcome.total).toBe(total);
+    expect(progress.at(-1)).toEqual([total, total]);
+    expect(progress).toEqual([[0, total], ...Array.from({ length: total }, (_, i) => [i + 1, total])]);
+  });
+
+  it('译文等于原文（免插）的单元也计入', async () => {
+    const md = simple('Hello world.');
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const progress: Array<[number, number]> = [];
+    const job = startClipTranslation(
+      { id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'en' },
+      { ...deps(), onProgress: (done, total) => progress.push([done, total]) },
+    );
+    await settle();
+    expect(progress).toEqual([[0, 1]]);
+    const segments = translator.requests[0]?.segments ?? [];
+    translator.emitSegment(0, segments[0] ?? '');
+    expect(progress).toEqual([[0, 1], [1, 1]]);
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome).toMatchObject({ status: 'complete', applied: 1, total: 1 });
+  });
+
+  it('一个单元有多段时，最后一段到齐才调', async () => {
+    const md = simple('First line\\\nSecond line');
+    library.files.set(SIMPLE_FILE, md);
+    await index.put(SIMPLE_SOURCE, simpleRecord);
+    const progress: Array<[number, number]> = [];
+    const job = startClipTranslation(
+      { id: SIMPLE_ID, source: SIMPLE_SOURCE, medium: 'web', target: 'zh' },
+      { ...deps(), onProgress: (done, total) => progress.push([done, total]) },
+    );
+    await settle();
+    const plan = planBilingual(md, 'web');
+    expect(plan.units).toHaveLength(1);
+    expect(plan.units[0]?.segmentIndexes).toHaveLength(2);
+    expect(progress).toEqual([[0, 1]]);
+    translator.emitSegment(0, '第一行');
+    expect(progress).toEqual([[0, 1]]);
+    translator.emitSegment(1, '第二行');
+    expect(progress).toEqual([[0, 1], [1, 1]]);
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('complete');
+  });
+});
+
+describe('startClipTranslation：已有译文（ALAG-27 §4.2）', () => {
+  it('translation: complete → aborted already-translated，文件逐字节不变，不调翻译', async () => {
+    const md = setTranslationFields(original, { lang: 'en', translated_to: 'zh', translation: 'complete' });
+    library.files.set(FILE, md);
+    const before = library.text(FILE);
+    const outcome = await start().done;
+    expect(outcome).toEqual({ status: 'aborted', reason: 'already-translated', applied: 0, total: 0 });
+    expect(translator.requests).toHaveLength(0);
+    expect(library.text(FILE)).toBe(before);
+    expect(library.ops).toEqual([]);
+  });
+
+  it('translation: partial → 同样不翻、不写', async () => {
+    library.files.set(FILE, setTranslationFields(original, { lang: 'en', translated_to: 'zh', translation: 'partial' }));
+    const before = library.text(FILE);
+    const outcome = await start().done;
+    expect(outcome).toEqual({ status: 'aborted', reason: 'already-translated', applied: 0, total: 0 });
+    expect(translator.requests).toHaveLength(0);
+    expect(library.text(FILE)).toBe(before);
+    expect(library.ops).toEqual([]);
+  });
+
+  it('translation: failed → 照常翻译（正文没被改过）', async () => {
+    library.files.set(FILE, setTranslationFields(original, { lang: '', translated_to: 'zh', translation: 'failed' }));
+    const job = start();
+    await settle();
+    expect(translator.requests).toHaveLength(1);
+    translator.emitSource('en');
+    emitAll(translator.requests[0]?.segments ?? []);
+    translator.finish({ status: 'complete', source: 'en' });
+    const outcome = await job.done;
+    expect(outcome.status).toBe('complete');
+    expect(outcome.total).toBeGreaterThan(0);
   });
 });

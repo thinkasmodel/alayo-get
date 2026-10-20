@@ -1105,5 +1105,290 @@
   "file_noteDraftReasonEntryMissing": {
     "message": "the quote entry is no longer in the file",
     "description": "Reason inside the note draft file intro"
+  },
+  "lang_zh": {
+    "message": "Chinese (Simplified)"
+  },
+  "lang_zhHant": {
+    "message": "Chinese (Traditional)"
+  },
+  "lang_en": {
+    "message": "English"
+  },
+  "lang_ja": {
+    "message": "Japanese"
+  },
+  "lang_ko": {
+    "message": "Korean"
+  },
+  "lang_fr": {
+    "message": "French"
+  },
+  "lang_de": {
+    "message": "German"
+  },
+  "lang_es": {
+    "message": "Spanish"
+  },
+  "tr_pair": {
+    "message": "$from$ → $to$",
+    "placeholders": {
+      "from": {
+        "content": "$1"
+      },
+      "to": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_translateTo": {
+    "message": "Translate to"
+  },
+  "tr_translate": {
+    "message": "Translate"
+  },
+  "tr_onlyThis": {
+    "message": "Applies to this clip only. Change the default in Settings."
+  },
+  "tr_translating": {
+    "message": "Translating to $lang$",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_progress": {
+    "message": "$done$ / $total$",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_closeHint": {
+    "message": "You can close the panel. Translation continues in the background, with progress at the bottom right of the page."
+  },
+  "tr_needsModel": {
+    "message": "Translation model needed"
+  },
+  "tr_needsModelDesc": {
+    "message": "$pair$, about 80 MB, downloaded by Chrome from Google. After that, translation works offline.",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_downloadAndTranslate": {
+    "message": "Download and translate"
+  },
+  "tr_needsDetector": {
+    "message": "Language detection model needed"
+  },
+  "tr_needsDetectorDesc": {
+    "message": "Used to tell which language the page is in, downloaded by Chrome from Google."
+  },
+  "tr_downloading": {
+    "message": "Downloading translation model"
+  },
+  "tr_downloadingDesc": {
+    "message": "$pair$, about 80 MB. Translation starts when it finishes. Keep the panel open until then.",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_downloadingDetector": {
+    "message": "Downloading language detection model"
+  },
+  "tr_downloadingDetectorDesc": {
+    "message": "Translation starts when it finishes. Keep the panel open until then."
+  },
+  "tr_downloadFailed": {
+    "message": "Couldn’t download the model"
+  },
+  "tr_done": {
+    "message": "$lang$ translation added",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_doneDesc_one": {
+    "message": "$pair$, $n$ paragraph, each below its original.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "pair": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_doneDesc_other": {
+    "message": "$pair$, $n$ paragraphs, each below its original.",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "pair": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_skipped": {
+    "message": "Already in $lang$. Not translated",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_tryOther": {
+    "message": "Try"
+  },
+  "tr_partial": {
+    "message": "Translation didn’t finish"
+  },
+  "tr_partialDesc": {
+    "message": "$done$ of $total$ paragraphs translated and saved to the file.",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_failed": {
+    "message": "Couldn’t translate"
+  },
+  "tr_unsupportedPair": {
+    "message": "On-device translation doesn’t support $pair$.",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_sourceUnknown": {
+    "message": "Couldn’t tell which language the page is in."
+  },
+  "tr_nothingTranslated": {
+    "message": "Nothing was translated."
+  },
+  "tr_stopped": {
+    "message": "Translation stopped"
+  },
+  "tr_fileGone": {
+    "message": "“$file$” isn’t in the library. It may have been moved or renamed. Translated paragraphs stay in the file.",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_writeFailed": {
+    "message": "Couldn’t write to the file. Translated paragraphs stay in it."
+  },
+  "tr_alreadyTranslated": {
+    "message": "This clip already has a translation"
+  },
+  "tr_unsupportedBrowser": {
+    "message": "This browser can’t translate on device. Requires Chrome 138 or later. Saving still works."
+  },
+  "toast_trPartial": {
+    "message": ", $done$ / $total$ done",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "toast_trDownload": {
+    "message": "Download and translate…"
+  },
+  "toast_trModelSize": {
+    "message": "$pair$, about 80 MB",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "menu_savePageTranslate": {
+    "message": "Save to Alayo Get and translate to $lang$",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_trTitle": {
+    "message": "Translation"
+  },
+  "opt_trTarget": {
+    "message": "Target language"
+  },
+  "opt_trTargetDesc": {
+    "message": "You can change it per clip in the panel."
+  },
+  "opt_trFollow": {
+    "message": "Same as interface ($lang$)",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_trAlways": {
+    "message": "Always translate when saving"
+  },
+  "opt_trAlwaysDesc": {
+    "message": "Articles and X long posts get a translation right after saving, from the toolbar icon or the shortcut. When off, click Translate in the panel, or right-click the page and choose “Save to Alayo Get and translate to…”."
+  },
+  "opt_trPrivacyLead": {
+    "message": "Translation runs on this device. Your text isn’t sent to any service."
+  },
+  "opt_trPrivacy": {
+    "message": "The first time you translate a language, Chrome downloads its translation model from Google (about 80 MB). After that, no connection is needed."
+  },
+  "opt_trUnsupported": {
+    "message": "This browser can’t translate on device. Requires Chrome 138 or later. Saving and everything else still work."
+  },
+  "opt_wayToolbarDescTranslate": {
+    "message": "Save and translate this page, and open the panel to edit title, tags and note"
+  },
+  "opt_wayShortcutDescTranslate": {
+    "message": "Save and translate this page directly; a notice appears at the bottom right"
+  },
+  "tr_count_one": {
+    "message": "$n$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_count_other": {
+    "message": "$n$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_nothingToTranslate": {
+    "message": "Nothing to translate in this clip"
   }
 }

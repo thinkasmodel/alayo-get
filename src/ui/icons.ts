@@ -23,7 +23,12 @@ export type IconName =
   | 'video'
   | 'play'
   | 'quote'
-  | 'chevronRight';
+  | 'chevronRight'
+  | 'chevronDown'
+  | 'translate'
+  | 'download'
+  | 'info'
+  | 'error';
 
 const bodies: Record<IconName, (size: number) => string> = {
   brand: (s) =>
@@ -66,6 +71,16 @@ const bodies: Record<IconName, (size: number) => string> = {
     svg(s, '<path d="M5 18v-5.5C5 9 6.8 6.8 10 6"></path><path d="M5 13h4v5H5z"></path><path d="M14 18v-5.5C14 9 15.8 6.8 19 6"></path><path d="M14 13h4v5h-4z"></path>'),
   // ALAG-6 选项页 Workbench 小节的展开箭头
   chevronRight: (s) => svg(s, '<path d="m9 6 6 6-6 6"></path>', 'stroke-linecap="round" stroke-linejoin="round"', '1.8'),
+  // ALAG-27 翻译块与提示：下拉箭头、翻译、下载模型、信息、错误
+  chevronDown: (s) => svg(s, '<path d="m6 9 6 6 6-6"></path>', 'stroke-linecap="round" stroke-linejoin="round"'),
+  translate: (s) =>
+    svg(
+      s,
+      '<path d="M4 5h9M8.5 3v2M11 5c-.8 4-3.4 7-7 8.5M6.5 8.5c1 2 2.8 3.6 5 4.5"></path><path d="m12.5 21 4-9 4 9M14 17.8h5"></path>',
+    ),
+  download: (s) => svg(s, '<path d="M12 4v10"></path><path d="M8 10.5 12 14.5l4-4"></path><path d="M5 19h14"></path>'),
+  info: (s) => svg(s, '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path>'),
+  error: (s) => svg(s, '<circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5h.01"></path>'),
 };
 
 /** 返回图标的 SVG 字符串。 */

@@ -1,12 +1,14 @@
 // 工具栏面板（DESIGN.md §3.2，设计稿 designs/alag-2-m1/Main.dc.html）：按状态整体重渲染。
 // 本地编辑只发 draft，不触发重渲染；重渲染只在收到 service worker 推来的新状态时发生。
 import { lostEditReason } from '@/core/lostEditFile';
+import type { TargetSetting, TargetTag } from '@/core/translate/targets';
 import { t } from '@/shared/i18n';
-import type { ClipSummary, EditFields, LostEdit, LostEditNotice, PanelState, Preview, SavedIndexData } from '@/shared/types';
+import type { ClipSummary, EditFields, LostEdit, LostEditNotice, PanelState, Preview, SavedIndexData, TranslationView } from '@/shared/types';
 import { h, iconEl, richT, type Child } from '../dom';
 import { failureDetail, failureReason, formatDate, oversizeNote, partialNote, quoteToastText, savedDescription, savingPercent, savingText } from '../format';
 import type { IconName } from '../icons';
 import { createTagInput } from './tagInput';
+import { blockModel, renderTranslationBlock, type TranslationBlockActions, type TranslationDownloadState } from './translation';
 
 export interface PanelView {
   state: PanelState;
@@ -16,6 +18,76 @@ export interface PanelView {
   lostEdits?: LostEdit[];
   /** 本次面板会话里已处理完的草稿：每条一行小字。 */
   lostNotices?: LostEditNotice[];
+  /** 翻译块（ALAG-27）：只在 saved 的 web/x 文章剪藏上显示。 */
+  translation?: PanelTranslation;
+}
+
+export interface PanelTranslation {
+  supported: boolean;
+  settings: { target: TargetSetting; always: boolean };
+  view?: TranslationView;
+  download?: TranslationDownloadState;
+  /** 用户在这次面板会话里选过的目标（重渲染之间保留）。 */
+  selectedTarget?: TargetTag;
+}
+
+const translationActions = (actions: PanelActions): TranslationBlockActions => ({
+  select: (target) => actions.selectTranslationTarget?.(target),
+  translate: (target) => actions.translate?.(target),
+  download: (model, target) => actions.startTranslationDownload?.(model, target),
+});
+
+function translationModel(translation: PanelTranslation, file: string) {
+  return blockModel({
+    file,
+    supported: translation.supported,
+    settings: translation.settings,
+    ...(translation.view ? { view: translation.view } : {}),
+    ...(translation.download ? { download: translation.download } : {}),
+    ...(translation.selectedTarget ? { selectedTarget: translation.selectedTarget } : {}),
+  });
+}
+
+function translationBlock(translation: PanelTranslation, file: string, actions: PanelActions): HTMLElement {
+  const block = renderTranslationBlock(translationModel(translation, file), translationActions(actions));
+  // 更新翻译块时从旧节点上取回文件名（updateTranslationBlock 的签名里没有 clip）。
+  block.dataset.file = file;
+  return block;
+}
+
+/**
+ * 只重画当前翻译块（ALAG-27 续修 1）：progress 更新不整块重建面板，不移动块外焦点。
+ * 焦点原本在块里的下拉框或按钮上时，替换后落到新块里同一种控件上；做不到就留在 body。
+ * 当前状态没有翻译块时返回 false，DOM 不变。
+ */
+export function updateTranslationBlock(root: HTMLElement, translation: PanelTranslation, actions: PanelActions): boolean {
+  const current = root.querySelector<HTMLElement>('[data-translation-block]');
+  if (!current) return false;
+  const doc = root.ownerDocument;
+  const active = doc.activeElement;
+  const wasInside = active !== null && current.contains(active);
+  const activeSelect = wasInside && active instanceof HTMLSelectElement ? active : null;
+  const activeButton = wasInside && active instanceof HTMLButtonElement ? active : null;
+  const buttonIndex = activeButton ? [...current.querySelectorAll('button')].indexOf(activeButton) : -1;
+
+  const next = translationBlock(translation, current.dataset.file ?? '', actions);
+  current.replaceWith(next);
+
+  if (!wasInside) return true;
+  if (activeSelect) {
+    const select = next.querySelector<HTMLSelectElement>('select');
+    if (select) select.focus();
+    else doc.body?.focus();
+    return true;
+  }
+  if (activeButton) {
+    const same = [...next.querySelectorAll<HTMLButtonElement>('button')][buttonIndex];
+    if (same) same.focus();
+    else doc.body?.focus();
+    return true;
+  }
+  doc.body?.focus();
+  return true;
 }
 
 export interface PanelActions {
@@ -33,6 +105,12 @@ export interface PanelActions {
   loadIndex(): Promise<SavedIndexData>;
   /** 恢复块上的按钮（ALAG-20）。 */
   lostEdit(action: 'retry' | 'file' | 'discard', id: string): void;
+  /** 翻译块：记住下拉框选中的目标（ALAG-27）。 */
+  selectTranslationTarget?(target: TargetTag): void;
+  /** 翻译块：翻译成这个目标。 */
+  translate?(target: TargetTag): void;
+  /** 翻译块：下载模型；实现必须同步调用 download（保住用户手势）。 */
+  startTranslationDownload?(model: import('@/core/translate/types').ModelSpec, target: string): void;
 }
 
 function statusRow(iconName: IconName | null, iconClass: string, title: string, sub: string, titleClass = 'st'): HTMLElement {
@@ -228,6 +306,10 @@ export function renderPanel(root: HTMLElement, view: PanelView, actions: PanelAc
       // 媒体剪藏只有标签和批注，不显示标题框（改动写进 .meta/<id>.json，不改文件名）
       const { nodes, note } = editFields(clip, state.state === 'saved' && !clip.media, actions);
       body.push(...nodes);
+      // 翻译块：saved 的文章与 X 剪藏、不是摘录、不是媒体；放在正文最后、恢复块之前（ALAG-27）。
+      if (view.translation && state.state === 'saved' && (clip.medium === 'web' || clip.medium === 'x') && !clip.quote) {
+        body.push(translationBlock(view.translation, clip.file, actions));
+      }
       focusTarget = note;
       foot = [folderPath(folderName), h('span', { class: 'auto' }, t('panel_autoWrite'))];
       break;

@@ -7,6 +7,7 @@ import { siteFromUrl } from '@/core/frontmatter';
 import { buildLostEditFile, lostEditFileName } from '@/core/lostEditFile';
 import type { ParsedStream } from '@/core/stream';
 import { tagSuggestions } from '@/core/tags';
+import { pickTarget, resolveTarget } from '@/core/translate/targets';
 import type { TranslationService } from '@/core/translate/types';
 import { pinnedLibrary, type Library } from '@/io/library';
 import { createLostEdits } from '@/io/lostEdits';
@@ -15,9 +16,10 @@ import { createQuoteEntries } from '@/io/quoteEntries';
 import { createQuoteOps } from '@/io/quoteOps';
 import { createSavedIndex } from '@/io/savedIndex';
 import { createToastRequests } from '@/io/toastRequests';
+import { createTranslationSettings, DEFAULT_TRANSLATION_SETTINGS, type TranslationSettings } from '@/io/translationSettings';
 import { installXAnnotator } from '@/page/x/annotate';
 import { parseXStatusUrl } from '@/page/x/url';
-import { t } from '@/shared/i18n';
+import { currentLang, t } from '@/shared/i18n';
 import {
   isCaptureError,
   PANEL_PORT,
@@ -44,12 +46,13 @@ import {
   xVideoNeedsPost,
   type ContextClick,
 } from '@/sw/route';
-import { createMenuInstaller } from '@/sw/menus';
+import { contextMenusFor, createMenuInstaller } from '@/sw/menus';
 import { captureLink, flushPending, saveClip, tooLargeForSession, type SaveDeps } from '@/sw/saveClip';
 import { probeMediaKind } from '@/sw/saveMedia';
 import { blobStreamCapture, captureStreamPage, netdiskStreamCapture, partialStreamCapture } from '@/sw/saveStream';
 import { chromeTranslateClientDeps, createTranslateClient } from '@/sw/translateClient';
 import { startClipTranslation } from '@/sw/translateClip';
+import { createTranslationJobs } from '@/sw/translationJobs';
 
 const CAPTURE_SCRIPT = '/content-scripts/capture.js';
 
@@ -70,6 +73,23 @@ export default defineBackground(() => {
   const clips = createClipBook({ index, quotes: createQuoteEntries(), quoteOps: createQuoteOps(), library: pinnedLibrary });
   /** 页面提示对应的采集结果（存 storage.session，后台重启后仍在）。提示上的“重试”“另存新快照”按它重放。 */
   const toastRequests = createToastRequests();
+  /** 翻译设置与「浏览器支持本机翻译」标记（面板/选项页写入，SW 只读）。 */
+  const translationSettings = createTranslationSettings();
+  /**
+   * 翻译任务登记（ALAG-27）：只在 SW 内存里，SW 被回收即丢（用户已接受，不持久化）。
+   * 翻译写回用这次剪藏当初所在的库；面板、页面提示按 clipId 共享同一份进度。
+   */
+  const jobs = createTranslationJobs({
+    start: (request, onProgress) =>
+      startClipTranslation(request, {
+        library: clips.libraryFor(request.id),
+        index,
+        lock: libraryLock,
+        translator: translationService(),
+        onProgress,
+      }),
+    sendToTab: (tabId, message) => browser.tabs.sendMessage(tabId, message).then(() => undefined),
+  });
 
   /** 每次保存都把剪藏库句柄固定在开始这一刻（pinnedLibrary）。 */
   const deps = (onProgress?: (state: PanelState) => void, library: Library = pinnedLibrary()): SaveDeps => ({
@@ -239,23 +259,23 @@ export default defineBackground(() => {
     const d = deps(onState);
     const outcome = await saveClip({ capture, snapshot }, d);
     await afterOutcome(outcome, d.library);
-    // 保存时翻译（ALAG-26）：原文已经落盘，后台改写同一个文件；不 await，不拖慢保存结果。
-    const translateTo = options.translateTo?.trim();
-    if (outcome.state === 'saved' && (outcome.clip.medium === 'web' || outcome.clip.medium === 'x') && translateTo) {
-      try {
-        const { done } = startClipTranslation(
-          { id: outcome.clip.id, source: outcome.clip.source, medium: outcome.clip.medium, target: translateTo },
-          { library: d.library, index, lock: libraryLock, translator: translationService() },
-        );
-        void done.catch((err) => console.warn('[Alayo Get] 后台翻译失败', err));
-      } catch (err) {
-        console.warn('[Alayo Get] 启动后台翻译失败', err);
-      }
+    // 保存时翻译（ALAG-26/27）：原文已经落盘，后台改写同一个文件；不 await，不拖慢保存结果。
+    // 本次明确指定（右键「并翻译」）优先，否则开了「总是翻译」且浏览器支持时用设置。设置与标记现读。
+    let settings: TranslationSettings = DEFAULT_TRANSLATION_SETTINGS;
+    let supported = false;
+    try {
+      [settings, supported] = await Promise.all([translationSettings.get(), translationSettings.getSupported()]);
+    } catch (err) {
+      console.warn('[Alayo Get] 读取翻译设置失败，本次不翻译', err);
+    }
+    const target = pickTarget(options.translateTo, settings, supported, currentLang());
+    if (outcome.state === 'saved' && (outcome.clip.medium === 'web' || outcome.clip.medium === 'x') && target !== undefined) {
+      jobs.run({ id: outcome.clip.id, source: outcome.clip.source, medium: outcome.clip.medium, title: outcome.clip.title, file: outcome.clip.file }, target);
     }
     return outcome;
   };
 
-  /** 快捷键、右键菜单、面板共用的保存当前页流程；options.translateTo 由面板的 start 消息带入。 */
+  /** 快捷键、右键菜单、面板共用的保存当前页流程；options.translateTo 是本次明确指定的目标语言。 */
   const savePage = async (tab: Tab, onState?: (state: PanelState) => void, options: { translateTo?: string } = {}) => {
     onState?.(extractingState(tab));
     const capture = await captureTab(tab);
@@ -263,13 +283,17 @@ export default defineBackground(() => {
     return { capture, outcome };
   };
 
-  const saveFromShortcutOrMenu = async (tab: Tab | undefined) => {
+  const saveFromShortcutOrMenu = async (tab: Tab | undefined, options: { translateTo?: string } = {}) => {
     const target = tab ?? (await browser.tabs.query({ active: true, currentWindow: true }))[0];
     if (!target) return;
-    const { capture, outcome } = await savePage(target);
+    const { capture, outcome } = await savePage(target, undefined, options);
     // 流媒体、媒体剪藏可能没经过页面采集（SW 自己抓的），先注入采集脚本，提示才有接收端
     if ((capture.kind === 'stream' || capture.kind === 'media') && target.id !== undefined) await injectCapture(target.id);
     await sendToast(target.id, outcome, capture);
+    // 翻译进度与结果接在保存提示下面（ALAG-27）；有这次保存的翻译任务才有 view。
+    if (outcome.state === 'saved' && target.id !== undefined && jobs.view(outcome.clip.id) !== undefined) {
+      jobs.showInTab(outcome.clip.id, target.id);
+    }
   };
 
   /** 右键链接：平台链接存流媒体剪藏（ALAG-4 §5），EPUB 链接存媒体剪藏（ALAG-38），其余照旧存书签剪藏。 */
@@ -455,16 +479,31 @@ export default defineBackground(() => {
    * 右键菜单：页面、链接、图片、视频、音频、选中文字（DESIGN.md §4）。先清空再建；
    * 安装、更新和每次浏览器启动都建一次，换了浏览器语言重启后菜单文字跟着换（ALAG-7）。
    */
-  const installMenus = createMenuInstaller({
-    removeAll: () => browser.contextMenus.removeAll(),
-    create: (props, callback) => browser.contextMenus.create(props, callback),
-    lastError: () => browser.runtime.lastError,
-  });
+  const installMenus = createMenuInstaller(
+    {
+      removeAll: () => browser.contextMenus.removeAll(),
+      create: (props, callback) => browser.contextMenus.create(props, callback),
+      lastError: () => browser.runtime.lastError,
+    },
+    // 每次重建都现读设置与支持标记：「并翻译」项随设置出现/消失（ALAG-27）。
+    // 读设置失败也照常建基础菜单，不能把右键菜单清空。
+    async () => {
+      try {
+        const [settings, supported] = await Promise.all([translationSettings.get(), translationSettings.getSupported()]);
+        return contextMenusFor(settings, supported);
+      } catch (err) {
+        console.warn('[Alayo Get] 读取翻译设置失败，右键菜单按不支持翻译处理', err);
+        return contextMenusFor(DEFAULT_TRANSLATION_SETTINGS, false);
+      }
+    },
+  );
   const createContextMenus = () => {
     installMenus().catch(logError('创建右键菜单失败'));
   };
 
   browser.runtime.onStartup.addListener(createContextMenus);
+  // 设置变化时重建菜单；在模块顶层同步注册，SW 休眠时改设置也能被唤醒（ALAG-27）。
+  translationSettings.onChanged(createContextMenus);
 
   browser.runtime.onInstalled.addListener((details) => {
     createContextMenus();
@@ -482,6 +521,11 @@ export default defineBackground(() => {
     const route = routeContextClick(info);
     if (route.action === 'page') {
       saveFromShortcutOrMenu(tab).catch(logError('右键保存页面失败'));
+    } else if (route.action === 'page-translate') {
+      translationSettings
+        .get()
+        .then((settings) => saveFromShortcutOrMenu(tab, { translateTo: resolveTarget(settings.target, currentLang()) }))
+        .catch(logError('右键保存页面并翻译失败'));
     } else if (route.action === 'quote') {
       saveQuote(info, tab).catch(logError('摘录失败'));
     } else if (route.action === 'link') {
@@ -507,6 +551,9 @@ export default defineBackground(() => {
         lostEdits,
         fileLostEdit,
         onLostEditsChanged: setLostSticky,
+        translate: (clip, target) => jobs.run(clip, target),
+        subscribeTranslation: (clipId, cb) => jobs.subscribe(clipId, cb),
+        showTranslationInTab: (clipId, tabId) => jobs.showInTab(clipId, tabId),
         newId: () => ulid(),
       });
     }
@@ -526,12 +573,18 @@ export default defineBackground(() => {
     } else if (type === 'toast-action') {
       const { action, requestId, clipId } = message as ToastActionMessage;
       const tab = sender.tab;
-      if (action === 'note') {
-        // 「加批注…」：网页里不放输入框（ADR-0008），批注在面板里写；返回 true 表示会异步调用 sendResponse
+      if (action === 'note' || action === 'translate-panel') {
+        // 「加批注…」「下载并翻译…」：网页里不放输入框（ADR-0008），都打开面板并停在对应状态；
+        // 返回 true 表示会异步调用 sendResponse
         const tabId = tab?.id;
         if (!tab || tabId === undefined || typeof clipId !== 'string' || clipId === '') return;
         void openPanelForNote(notePanelDeps, { id: tabId, windowId: tab.windowId }, clipId).then(sendResponse);
         return true;
+      }
+      if (action === 'retranslate') {
+        if (typeof clipId === 'string' && clipId !== '') jobs.retry(clipId);
+        sendResponse({ opened: true });
+        return;
       }
       if (!tab || (action !== 'snapshot' && action !== 'retry')) return;
       rerunFromToast(tab, action, typeof requestId === 'string' ? requestId : undefined).catch(logError('页面提示上的操作失败'));

@@ -10,7 +10,7 @@ import { sharedCapture } from '@/page/sharedCapture';
 import { parseXStatusUrl } from '@/page/x/url';
 import { captureXVideo } from '@/page/x/video';
 import type { CaptureResponse, PageMessage, QuoteCaptureResponse } from '@/shared/messages';
-import { mountToast } from '@/ui/toast/toast';
+import { mountToast, showTranslation, type ToastDeps } from '@/ui/toast/toast';
 
 const DETACH_KEY = '__alayoGetCaptureDetach';
 
@@ -52,6 +52,19 @@ function captureXVideoNow(statusId: string, srcUrl?: string): CaptureResponse {
   }
 }
 
+/** 提示上的按钮：带上所属保存请求（有的话），后台按它找回提示对应的采集结果。 */
+function toastDeps(requestId: string | undefined): ToastDeps {
+  return {
+    sendMessage: (m) => {
+      const out = m.type === 'toast-action' ? { ...m, ...(requestId !== undefined ? { requestId } : {}) } : m;
+      return browser.runtime.sendMessage(out).catch((err: unknown) => {
+        console.warn('[Alayo Get] 发送提示动作失败', err);
+        return undefined;
+      });
+    },
+  };
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   registration: 'runtime',
@@ -91,16 +104,10 @@ export default defineContentScript({
       }
       if (message?.type === 'toast') {
         const requestId = message.requestId;
-        mountToast(message.outcome, {
-          sendMessage: (m) => {
-            // 提示上的按钮带上所属请求，后台按它找回这条提示对应的采集结果；后台的回应（「加批注…」是否打开了面板）交回提示
-            const out = m.type === 'toast-action' ? { ...m, requestId } : m;
-            return browser.runtime.sendMessage(out).catch((err: unknown) => {
-              console.warn('[Alayo Get] 发送提示动作失败', err);
-              return undefined;
-            });
-          },
-        });
+        mountToast(message.outcome, toastDeps(requestId));
+      }
+      if (message?.type === 'toast-translation') {
+        showTranslation(message, toastDeps(undefined));
       }
     };
     browser.runtime.onMessage.addListener(listener);

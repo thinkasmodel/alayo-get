@@ -329,3 +329,89 @@ describe('Workbench 小节的展开状态在重绘后保留（ALAG-6）', () => 
     expect(root.querySelector<HTMLDetailsElement>('details.wb')?.open).toBe(false);
   });
 });
+
+describe('选项页：翻译小节（ALAG-27）', () => {
+  function translationDeps(settings: { target: 'auto' | 'zh' | 'ja'; always: boolean }, supported: boolean) {
+    const deps: OptionsDeps = {
+      ...makeDeps(fakeHandle('Alayo Get', 'granted')),
+      translationSettings: settings,
+      translationSupported: supported,
+      setTranslationSettings: vi.fn(),
+    };
+    return deps;
+  }
+
+  const saveRows = (root: HTMLElement) => [...(root.querySelector('.keys')?.querySelectorAll('.kr') ?? [])];
+
+  it('支持：翻译小节在保存方式之后，目标语言默认跟随界面语言，可改', async () => {
+    const deps = translationDeps({ target: 'auto', always: false }, true);
+    const { root } = await mount(deps);
+    const sections = [...root.querySelectorAll('.fl.section')].map((el) => el.textContent);
+    expect(sections.indexOf('翻译')).toBeGreaterThan(sections.indexOf('保存方式'));
+
+    const select = root.querySelector<HTMLSelectElement>('#opt-lang');
+    expect(select?.value).toBe('auto');
+    expect([...root.querySelectorAll('#opt-lang option')].map((o) => o.textContent)).toEqual([
+      '跟随界面语言（简体中文）',
+      '简体中文',
+      '繁體中文',
+      'English',
+      '日本語',
+      '한국어',
+      'Français',
+      'Deutsch',
+      'Español',
+    ]);
+    if (!select) throw new Error('没有目标语言下拉框');
+    select.value = 'ja';
+    select.dispatchEvent(new Event('change'));
+    expect(deps.setTranslationSettings).toHaveBeenCalledWith({ target: 'ja' });
+    expect(root.querySelector<HTMLSelectElement>('#opt-lang')?.value).toBe('ja');
+  });
+
+  it('支持：开关点击调用 set({always})；开着时「保存方式」两行换文案，右键那行不变', async () => {
+    const deps = translationDeps({ target: 'auto', always: false }, true);
+    const { root } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('button.sw');
+    expect(toggle?.getAttribute('aria-checked')).toBe('false');
+    expect(saveRows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页，并打开面板补标题、标签和批注');
+
+    toggle?.click();
+    expect(deps.setTranslationSettings).toHaveBeenCalledWith({ always: true });
+    const rows = saveRows(root);
+    expect(rows[0]?.querySelector('span')?.textContent).toBe('保存当前页并翻译，打开面板补标题、标签和批注');
+    expect(rows[1]?.lastElementChild?.textContent).toBe('直接保存并翻译当前页，右下角出提示');
+    expect(rows[2]?.querySelector('span')?.textContent).toBe('当前页面、链接、图片、音视频，或选中的文字');
+    expect(root.querySelector<HTMLButtonElement>('button.sw')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('不支持：说明框 + 两项 disabled；开着「总是翻译」也不改保存方式文案', async () => {
+    const deps = translationDeps({ target: 'auto', always: true }, false);
+    const { root, text } = await mount(deps);
+    expect(root.querySelector('.callout')?.textContent).toBe('这个浏览器不能本机翻译，需要 Chrome 138 或更新版本。保存和其他功能照常使用。');
+    expect(root.querySelector<HTMLSelectElement>('#opt-lang')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('button.sw')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('button.sw')?.getAttribute('aria-checked')).toBe('false');
+    expect(text()).toContain('保存当前页，并打开面板补标题、标签和批注');
+    expect(text()).not.toContain('保存当前页并翻译，打开面板补标题、标签和批注');
+  });
+
+  it('设置里已有的目标语言在下拉框里选中；隐私说明在支持时显示', async () => {
+    const deps = translationDeps({ target: 'ja', always: true }, true);
+    const { root, text } = await mount(deps);
+    expect(root.querySelector<HTMLSelectElement>('#opt-lang')?.value).toBe('ja');
+    expect(root.querySelector('.inset')?.textContent).toBe(
+      '翻译在本机完成，文字不会发给任何服务。第一次翻译某种语言时，Chrome 会从 Google 下载这个语言的翻译模型（约 80 MB），之后不用联网。',
+    );
+    expect(text()).not.toContain('这个浏览器不能本机翻译');
+  });
+
+  it('首次设置页（onboarding）不显示翻译小节', async () => {
+    const deps: OptionsDeps = { ...makeDeps(undefined), translationSettings: { target: 'auto', always: false }, translationSupported: true, setTranslationSettings: vi.fn() };
+    const { root, view } = await mount(deps);
+    expect(view()).toBe('onboarding');
+    expect(root.querySelector('#opt-lang')).toBeNull();
+    expect(root.querySelector('button.sw')).toBeNull();
+    expect([...root.querySelectorAll('.fl.section')].map((el) => el.textContent)).not.toContain('翻译');
+  });
+});
