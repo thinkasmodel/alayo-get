@@ -69,13 +69,14 @@ const X_HEADING = /^# @[A-Za-z0-9_]{1,15} - /;
 const X_QUOTE_AUTHOR = /^\*\*.+\*\*( · .*)?$/;
 
 /**
- * 链接/图片的 `(地址 "标题")`，按 CommonMark：地址是 `<…>` 或不含空白的串（允许转义与一层成对括号），
- * 标题可选，用 `"…"`、`'…'` 或 `(…)` 括起（ALAG-42）。认不出时退回旧写法：到第一个未转义的 `)` 为止。
- * 各处反斜杠只能作转义开头，选项互不重叠，未闭合时不会指数级回溯。
+ * 链接/图片的 `(地址 "标题")`（ALAG-42）：地址是 `<…>` 或不含空白、括号都转义了的串（Turndown 与
+ * linkDestination 的写法），标题可选，用 `"…"`、`'…'` 或 `(…)` 括起。地址里有未转义的括号
+ * （如 Turndown 把原有反斜杠写成 `\\(`）就认不出，退回旧写法：到第一个未转义的 `)` 为止。
+ * 每段空白前后都是非空白，反斜杠只能作转义开头，选项互不重叠，未闭合时回溯是线性的。
  */
-const LINK_DEST = String.raw`(?:<(?:\\.|[^<>\n\\])*>|(?:\\.|[^\s()\\]|\((?:\\.|[^\s()\\])*\))*)`;
+const LINK_DEST = String.raw`(?:<(?:\\.|[^<>\n\\])*>|(?:\\.|[^\s()\\])+)`;
 const LINK_TITLE = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\])*\))`;
-const LINK_TARGET = String.raw`(?:\([ \t\n]*${LINK_DEST}(?:[ \t\n]+${LINK_TITLE})?[ \t\n]*\)|\((?:\\[\s\S]|[^)\\])*\))`;
+const LINK_TARGET = String.raw`(?:\([ \t\n]*(?:${LINK_DEST}(?:[ \t\n]+(?:${LINK_TITLE}[ \t\n]*)?)?)?\)|\((?:\\[\s\S]|[^)\\])*\))`;
 const LINK_TEXT = String.raw`\[((?:\\.|[^\]\\])*)\]`;
 const IMAGE = new RegExp(String.raw`!\[(?:\\.|[^\]\\])*\]${LINK_TARGET}`, 'g');
 const LINK = new RegExp(`${LINK_TEXT}${LINK_TARGET}`, 'g');

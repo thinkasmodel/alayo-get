@@ -460,3 +460,19 @@ describe('planBilingual：Turndown 输出的带标题链接与图片（ALAG-42�
     for (const line of originalLines) expect(resultLines).toContain(line);
   });
 });
+
+describe('planBilingual：Turndown 地址里原有的反斜杠（ALAG-42 codex R1）', () => {
+  // Turndown 只转义括号、不转义原有反斜杠：`docs\(v1).pdf` 写成 `docs\\(v1\).pdf`，`(` 变成未转义。
+  const body = turndown.turndown(
+    '<p>(<a href="https://example.com/docs&#92;(v1).pdf">Manual</a> (PDF))</p><p><a href="https://example.com/docs&#92;(v1).pdf">Manual</a> (PDF) notes</p>',
+  );
+  const plan = planBilingual(withFrontmatter(body), 'web');
+
+  it('样例确实含 \\\\( ', () => {
+    expect(body).toContain('[Manual](https://example.com/docs\\\\(v1\\).pdf) (PDF))');
+  });
+
+  it('链接后的正文不被吞，段落不被当成纯链接跳过', () => {
+    expect(plan.segments).toEqual(['(Manual (PDF))', 'Manual (PDF) notes']);
+  });
+});

@@ -96,8 +96,19 @@ describe('plainTextOf：送翻纯文本', () => {
     expect(plainTextOf('x ![pic](https://x/p.png "Figure (1)") y').text).toBe('x y');
   });
 
-  it('链接地址里成对的未转义括号整个去掉（ALAG-42）', () => {
-    expect(plainTextOf('see [Unix](https://x/Unix_(OS)) here').text).toBe('see Unix here');
+  it('长空白加未闭合标题不触发多项式回溯（ALAG-42 codex R1）', () => {
+    const cases = [
+      `Read [A](${' '.repeat(3000)}"a ${'b'.repeat(100000)})`,
+      `Read [A](x${' '.repeat(3000)}"a ${'b'.repeat(100000)})`,
+    ];
+    for (const raw of cases) {
+      let started = performance.now();
+      plainTextOf(raw);
+      expect(performance.now() - started).toBeLessThan(150);
+      started = performance.now();
+      planFor(raw);
+      expect(performance.now() - started).toBeLessThan(300);
+    }
   });
 
   it('未闭合的链接目标里一长串反斜杠不触发指数级回溯（ALAG-42）', () => {
@@ -153,8 +164,6 @@ describe('planBilingual：跳过规则（保守：认不出就不翻）', () => 
       '[Unix](https://x/Unix_\\(OS\\) "Unix (OS)")',
       '',
       '![Figure](https://x/p.png "Figure (1)")',
-      '',
-      '[Unix](https://x/Unix_(OS))',
       '',
       'Body text.',
     ].join('\n');
