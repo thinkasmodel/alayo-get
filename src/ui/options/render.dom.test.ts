@@ -329,3 +329,224 @@ describe('Workbench 小节的展开状态在重绘后保留（ALAG-6）', () => 
     expect(root.querySelector<HTMLDetailsElement>('details.wb')?.open).toBe(false);
   });
 });
+
+describe('选项页：翻译小节（ALAG-27）', () => {
+  function translationDeps(settings: { target: 'auto' | 'zh' | 'ja'; always: boolean }, supported: boolean) {
+    const deps: OptionsDeps = {
+      ...makeDeps(fakeHandle('Alayo Get', 'granted')),
+      translationSettings: settings,
+      translationSupported: supported,
+      setTranslationSettings: vi.fn(),
+    };
+    return deps;
+  }
+
+  const saveRows = (root: HTMLElement) => [...(root.querySelector('.keys')?.querySelectorAll('.kr') ?? [])];
+
+  it('支持：翻译小节在保存方式之后，目标语言默认跟随界面语言，可改', async () => {
+    const deps = translationDeps({ target: 'auto', always: false }, true);
+    const { root } = await mount(deps);
+    const sections = [...root.querySelectorAll('.fl.section')].map((el) => el.textContent);
+    expect(sections.indexOf('翻译')).toBeGreaterThan(sections.indexOf('保存方式'));
+
+    const select = root.querySelector<HTMLSelectElement>('#opt-lang');
+    expect(select?.value).toBe('auto');
+    expect([...root.querySelectorAll('#opt-lang option')].map((o) => o.textContent)).toEqual([
+      '跟随界面语言（简体中文）',
+      '简体中文',
+      '繁體中文',
+      'English',
+      '日本語',
+      '한국어',
+      'Français',
+      'Deutsch',
+      'Español',
+    ]);
+    if (!select) throw new Error('没有目标语言下拉框');
+    select.value = 'ja';
+    select.dispatchEvent(new Event('change'));
+    expect(deps.setTranslationSettings).toHaveBeenCalledWith({ target: 'ja' });
+    expect(root.querySelector<HTMLSelectElement>('#opt-lang')?.value).toBe('ja');
+  });
+
+  it('支持：开关点击调用 set({always})；开着时「保存方式」两行换文案，右键那行不变', async () => {
+    const deps = translationDeps({ target: 'auto', always: false }, true);
+    const { root } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('button.sw');
+    expect(toggle?.getAttribute('aria-checked')).toBe('false');
+    expect(saveRows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页，并打开面板补标题、标签和批注');
+
+    toggle?.click();
+    expect(deps.setTranslationSettings).toHaveBeenCalledWith({ always: true });
+    const rows = saveRows(root);
+    expect(rows[0]?.querySelector('span')?.textContent).toBe('保存当前页并翻译，打开面板补标题、标签和批注');
+    expect(rows[1]?.lastElementChild?.textContent).toBe('直接保存并翻译当前页，右下角出提示');
+    expect(rows[2]?.querySelector('span')?.textContent).toBe('当前页面、链接、图片、音视频，或选中的文字');
+    expect(root.querySelector<HTMLButtonElement>('button.sw')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('不支持：说明框 + 两项 disabled；开着「总是翻译」也不改保存方式文案', async () => {
+    const deps = translationDeps({ target: 'auto', always: true }, false);
+    const { root, text } = await mount(deps);
+    expect(root.querySelector('.callout')?.textContent).toBe('这个浏览器不能本机翻译，需要 Chrome 138 或更新版本。保存和其他功能照常使用。');
+    expect(root.querySelector<HTMLSelectElement>('#opt-lang')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('button.sw')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('button.sw')?.getAttribute('aria-checked')).toBe('false');
+    expect(text()).toContain('保存当前页，并打开面板补标题、标签和批注');
+    expect(text()).not.toContain('保存当前页并翻译，打开面板补标题、标签和批注');
+  });
+
+  it('设置里已有的目标语言在下拉框里选中；隐私说明在支持时显示', async () => {
+    const deps = translationDeps({ target: 'ja', always: true }, true);
+    const { root, text } = await mount(deps);
+    expect(root.querySelector<HTMLSelectElement>('#opt-lang')?.value).toBe('ja');
+    expect(root.querySelector('.inset')?.textContent).toBe(
+      '翻译在本机完成，文字不会发给任何服务。第一次翻译某种语言时，Chrome 会从 Google 下载这个语言的翻译模型（约 80 MB），之后不用联网。',
+    );
+    expect(text()).not.toContain('这个浏览器不能本机翻译');
+  });
+
+  it('首次设置页（onboarding）不显示翻译小节', async () => {
+    const deps: OptionsDeps = { ...makeDeps(undefined), translationSettings: { target: 'auto', always: false }, translationSupported: true, setTranslationSettings: vi.fn() };
+    const { root, view } = await mount(deps);
+    expect(view()).toBe('onboarding');
+    expect(root.querySelector('#opt-lang')).toBeNull();
+    expect(root.querySelector('button.sw')).toBeNull();
+    expect([...root.querySelectorAll('.fl.section')].map((el) => el.textContent)).not.toContain('翻译');
+  });
+});
+
+describe('选项页：翻译设置原地更新与失败恢复（ALAG-27 续修 3）', () => {
+  const initial = { target: 'auto' as const, always: false };
+
+  function mutableDeps(settings: typeof initial = initial) {
+    const setTranslationSettings = vi.fn<NonNullable<OptionsDeps['setTranslationSettings']>>(async () => undefined);
+    const getTranslationSettings = vi.fn<NonNullable<OptionsDeps['getTranslationSettings']>>(async () => settings);
+    const deps: OptionsDeps = {
+      ...makeDeps(fakeHandle('Alayo Get', 'granted')),
+      translationSettings: settings,
+      translationSupported: true,
+      setTranslationSettings,
+      getTranslationSettings,
+    };
+    return { deps, setTranslationSettings, getTranslationSettings };
+  }
+
+  const rows = (root: HTMLElement) => [...(root.querySelector('.keys')?.querySelectorAll('.kr') ?? [])];
+
+  it('连续改目标语言：同一个下拉框节点保持焦点，set 参数按顺序', async () => {
+    const { deps, setTranslationSettings } = mutableDeps();
+    const { root } = await mount(deps);
+    const select = root.querySelector<HTMLSelectElement>('#opt-lang');
+    if (!select) throw new Error('没有目标语言下拉框');
+    select.focus();
+    select.value = 'ja';
+    select.dispatchEvent(new Event('change'));
+    select.value = 'fr';
+    select.dispatchEvent(new Event('change'));
+
+    expect(document.activeElement).toBe(select);
+    expect(root.querySelector('#opt-lang')).toBe(select);
+    expect(setTranslationSettings.mock.calls.map((call) => call[0])).toEqual([{ target: 'ja' }, { target: 'fr' }]);
+    await flush();
+    expect(root.querySelector('#opt-lang')).toBe(select);
+  });
+
+  it('连续切换开关：焦点仍在开关，aria 与保存方式两行文字依次切换', async () => {
+    const { deps, setTranslationSettings } = mutableDeps();
+    const { root } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+    if (!toggle) throw new Error('没有开关');
+    toggle.focus();
+    toggle.click();
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(rows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页并翻译，打开面板补标题、标签和批注');
+    expect(rows(root)[1]?.lastElementChild?.textContent).toBe('直接保存并翻译当前页，右下角出提示');
+
+    toggle.click();
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(rows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页，并打开面板补标题、标签和批注');
+    expect(rows(root)[1]?.lastElementChild?.textContent).toBe('直接保存当前页，右下角出提示');
+    expect(document.activeElement).toBe(toggle);
+    expect(setTranslationSettings.mock.calls.map((call) => call[0])).toEqual([{ always: true }, { always: false }]);
+  });
+
+  it('set 拒绝：控件与两行说明回到存储里的原值', async () => {
+    const { deps, setTranslationSettings, getTranslationSettings } = mutableDeps();
+    setTranslationSettings.mockRejectedValue(new Error('storage denied'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { root } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+    if (!toggle) throw new Error('没有开关');
+    toggle.focus();
+    toggle.click();
+    expect(toggle.getAttribute('aria-checked')).toBe('true'); // 先乐观显示
+    await flush();
+    expect(getTranslationSettings).toHaveBeenCalledTimes(1);
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(rows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页，并打开面板补标题、标签和批注');
+    expect(document.activeElement).toBe(toggle);
+    warn.mockRestore();
+  });
+
+  it('set 与 get 都失败：恢复到改动前的值', async () => {
+    const { deps, setTranslationSettings, getTranslationSettings } = mutableDeps();
+    setTranslationSettings.mockRejectedValue(new Error('storage denied'));
+    getTranslationSettings.mockRejectedValue(new Error('storage unavailable'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { root } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+    toggle?.click();
+    expect(toggle?.getAttribute('aria-checked')).toBe('true');
+    await flush();
+    expect(toggle?.getAttribute('aria-checked')).toBe('false');
+    expect(rows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页，并打开面板补标题、标签和批注');
+    warn.mockRestore();
+  });
+
+  it('两次连续修改：第一次的 set 晚失败，显示以第二次为准', async () => {
+    let rejectFirst!: (err: unknown) => void;
+    const first = new Promise<void>((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    const { deps, setTranslationSettings, getTranslationSettings } = mutableDeps();
+    setTranslationSettings.mockReturnValueOnce(first).mockReturnValueOnce(Promise.resolve());
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { root } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+    if (!toggle) throw new Error('没有开关');
+    toggle.focus();
+    toggle.click(); // 第一次：true，写等待中
+    toggle.click(); // 第二次：false，成功
+    await flush();
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    rejectFirst(new Error('late failure'));
+    await flush();
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(rows(root)[0]?.querySelector('span')?.textContent).toBe('保存当前页，并打开面板补标题、标签和批注');
+    expect(getTranslationSettings).not.toHaveBeenCalled();
+    expect(setTranslationSettings.mock.calls.map((call) => call[0])).toEqual([{ always: true }, { always: false }]);
+    warn.mockRestore();
+  });
+
+  it('整页重渲染后，原本在翻译控件上的焦点按 id 恢复', async () => {
+    const picked = fakeHandle('Alayo Get', 'granted');
+    const deps: OptionsDeps = {
+      ...makeDeps(fakeHandle('Alayo Get', 'granted'), [], picked),
+      translationSettings: initial,
+      translationSupported: true,
+      setTranslationSettings: vi.fn(async () => undefined),
+      getTranslationSettings: vi.fn(async () => initial),
+    };
+    const { root, button } = await mount(deps);
+    const toggle = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+    if (!toggle) throw new Error('没有开关');
+    toggle.focus();
+    button('更换…')?.click();
+    await flush();
+    const next = root.querySelector<HTMLButtonElement>('#opt-tr-always');
+    expect(next).not.toBe(toggle);
+    expect(document.activeElement).toBe(next);
+  });
+});

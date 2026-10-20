@@ -1,11 +1,13 @@
 // 'panel' Port 的 service worker 一侧。协议字面量见 src/shared/messages.ts。
 import { lostEditReason } from '@/core/lostEditFile';
+import { isTargetTag } from '@/core/translate/targets';
 import type { LostEditStore } from '@/io/lostEdits';
 import type { PanelToSw, SwToPanel } from '@/shared/messages';
-import type { Capture, ClipSummary, ClipUnavailableState, EditFields, LostEdit, LostEditNotice, PanelState, SaveOutcome, TagCount } from '@/shared/types';
+import type { Capture, ClipSummary, ClipUnavailableState, EditFields, LostEdit, LostEditNotice, PanelState, SaveOutcome, TagCount, TranslationView } from '@/shared/types';
 import { changedFields } from './applyEdits';
 import { fieldsOf, sameTags, type FormFields } from '@/core/editFields';
 import type { ClipBook } from './clips';
+import type { ClipRef } from './translationJobs';
 
 /** Port 的最小接口（便于用假 Port 测试）。 */
 export interface PortLike<In, Out> {
@@ -39,6 +41,12 @@ export interface PanelDeps {
   fileLostEdit?(edit: LostEdit): Promise<string>;
   /** 草稿条数变化后调用（background 用它开关角标的 !）。 */
   onLostEditsChanged?(count: number): void;
+  /** 面板里点了「翻译」：开始后台翻译（ALAG-27）。 */
+  translate?(clip: ClipRef, target: string): void;
+  /** 订阅这条剪藏的翻译进度/结果；返回取消函数（ALAG-27）。 */
+  subscribeTranslation?(clipId: string, cb: (view: TranslationView) => void): () => void;
+  /** 面板关闭后把进度/结果转到页面提示（ALAG-27）。 */
+  showTranslationInTab?(clipId: string, tabId: number): void;
   newId?(): string;
   now?(): Date;
 }
@@ -61,6 +69,13 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   let draft: EditFields = {};
   let busy: Promise<unknown> = Promise.resolve();
   let finished = false;
+  /** start 记下的标签页：面板关闭时若翻译还在跑（或停在要下载模型），把进度转到页面提示。 */
+  let panelTabId: number | null = null;
+  /** 当前 clip 的翻译订阅与最后一次 view；clip 换了先取消旧订阅。 */
+  let translationSub: (() => void) | null = null;
+  let translationClipId: string | null = null;
+  let translationView: TranslationView | undefined;
+  let translationRunning = false;
   /** 本次面板会话里已处理完的草稿（存成了草稿文件或重试写入成功），只在这个 Port 上显示。 */
   const notices: LostEditNotice[] = [];
   const newId = deps.newId ?? (() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
@@ -85,6 +100,33 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   const registerBaseline = (n: number, fields: FormFields) => {
     // 不淘汰：一个面板会话里最多几十条；淘汰后更早号的 draft 无从判断意图（codex review ALAG-20 第 8 轮）
     baselines.set(n, fields);
+  };
+  /** 有了 clip 之后订阅它的翻译视图；先 post state、再订阅，保证面板先收到 state（ALAG-27）。 */
+  const watchTranslation = (c: ClipSummary): void => {
+    if (!connected) {
+      // 保存完成前面板已经关掉：不建立订阅（否则这个订阅永远没人取消）。
+      // 有标签页时交给 jobs 决定有没有任务；没有任务时 showInTab 什么都不发。
+      if (panelTabId !== null && deps.showTranslationInTab) {
+        try {
+          deps.showTranslationInTab(c.id, panelTabId);
+        } catch (err) {
+          console.warn('[Alayo Get] 把翻译进度转到页面提示失败', err);
+        }
+      }
+      return;
+    }
+    if (!deps.subscribeTranslation || translationClipId === c.id) return;
+    translationSub?.();
+    translationSub = null;
+    translationClipId = c.id;
+    translationView = undefined;
+    translationRunning = false;
+    translationSub = deps.subscribeTranslation(c.id, (view) => {
+      translationView = view;
+      translationRunning = view.phase === 'running';
+      if (!connected) return;
+      send({ type: 'translation', clipId: c.id, view });
+    });
   };
   const post = (state: PanelState) => {
     if (state.state === 'saved' || state.state === 'fallback') {
@@ -131,7 +173,12 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
     return edits;
   };
   const settle = (outcome: SaveOutcome) => {
-    if (outcome.state === 'saved' || outcome.state === 'fallback') clip = outcome.clip;
+    if (outcome.state === 'saved' || outcome.state === 'fallback') {
+      clip = outcome.clip;
+      post(outcome);
+      watchTranslation(outcome.clip);
+      return;
+    }
     post(outcome);
   };
   const track = (task: Promise<void>) => {
@@ -259,6 +306,7 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         if (started) return;
         started = true;
         const { tabId, translateTo } = message;
+        panelTabId = tabId;
         const saveOptions: { translateTo?: string } = {};
         if (translateTo !== undefined) saveOptions.translateTo = translateTo;
         track(
@@ -276,6 +324,7 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
               const found = pending.clip;
               clip = found;
               post({ state: editState(found), clip: found, tagSuggestions: (await deps.tagSuggestions?.()) ?? [] });
+              watchTranslation(found);
               return;
             }
             await deps.savePage(tabId, post, saveOptions).then((result) => {
@@ -301,8 +350,26 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
         track(
           deps.findClip(message.clipId).then((found) => {
             clip = found ?? null;
+            if (found) watchTranslation(found);
           }),
         );
+        return;
+      }
+      case 'translate': {
+        if (!deps.translate || !clip) return;
+        if (clip.medium !== 'web' && clip.medium !== 'x') return;
+        if (clip.quote) return;
+        if (!isTargetTag(message.target)) return;
+        // 同一 clip 已经在翻：忽略（jobs.run 也会忽略，这里不重复发意图）。
+        if (translationRunning) return;
+        const ref: ClipRef = { id: clip.id, source: clip.source, medium: clip.medium, title: clip.title };
+        translationRunning = true;
+        try {
+          deps.translate(ref, message.target);
+        } catch (err) {
+          translationRunning = false;
+          throw err;
+        }
         return;
       }
       case 'snapshot': {
@@ -339,6 +406,18 @@ export function handlePanelPort(port: PortLike<PanelToSw, SwToPanel>, deps: Pane
   port.onDisconnect.addListener(() => {
     if (!connected) return;
     connected = false;
+    // 面板关掉后进度转到页面提示：还在翻，或停在 C 态（needs-download）、用户没点下载就关了面板。
+    const last = translationView;
+    const needsDownload = last?.phase === 'finished' && last.outcome.error?.code === 'needs-download';
+    if (clip && panelTabId !== null && deps.showTranslationInTab && (translationRunning || needsDownload)) {
+      try {
+        deps.showTranslationInTab(clip.id, panelTabId);
+      } catch (err) {
+        console.warn('[Alayo Get] 把翻译进度转到页面提示失败', err);
+      }
+    }
+    translationSub?.();
+    translationSub = null;
     void busy
       .catch(() => undefined)
       .then(async () => {

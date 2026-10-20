@@ -596,3 +596,109 @@ textarea.inp {
 .tbtn:hover {
   background: var(--accentSoft);
 }
+
+/* 翻译块（ALAG-27 设计稿 Main.dc.html）：正文最后一块，--region 内嵌 */
+.tr {
+  background: var(--region);
+  border-radius: var(--rInset);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticon {
+  flex: none;
+  display: flex;
+  color: var(--t2);
+}
+
+.ticon.success {
+  color: var(--success);
+}
+
+.ticon.errc {
+  color: var(--danger);
+}
+
+.tl {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tl.dim {
+  color: var(--t3);
+}
+
+.selw {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.sel {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 30px;
+  border-radius: var(--rControl);
+  background: var(--panel);
+  border: 0.5px solid var(--hair);
+  padding: 0 26px 0 9px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--t1);
+}
+
+.sel:disabled {
+  color: var(--t3);
+  background: transparent;
+}
+
+.chev {
+  position: absolute;
+  right: 8px;
+  top: 9px;
+  display: flex;
+  color: var(--t2);
+  pointer-events: none;
+}
+
+.num {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tr .bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hair);
+  overflow: hidden;
+}
+
+.tr .bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.tr .mono {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 14px;
+  color: var(--t2);
+  overflow-wrap: anywhere;
+}

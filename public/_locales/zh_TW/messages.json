@@ -1087,5 +1087,290 @@
   },
   "file_noteDraftReasonEntryMissing": {
     "message": "摘录文件里找不到这一条"
+  },
+  "lang_zh": {
+    "message": "简体中文"
+  },
+  "lang_zhHant": {
+    "message": "繁体中文"
+  },
+  "lang_en": {
+    "message": "英语"
+  },
+  "lang_ja": {
+    "message": "日语"
+  },
+  "lang_ko": {
+    "message": "韩语"
+  },
+  "lang_fr": {
+    "message": "法语"
+  },
+  "lang_de": {
+    "message": "德语"
+  },
+  "lang_es": {
+    "message": "西班牙语"
+  },
+  "tr_pair": {
+    "message": "$from$ → $to$",
+    "placeholders": {
+      "from": {
+        "content": "$1"
+      },
+      "to": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_translateTo": {
+    "message": "翻译成"
+  },
+  "tr_translate": {
+    "message": "翻译"
+  },
+  "tr_onlyThis": {
+    "message": "只改这一篇；默认语言在设置里改。"
+  },
+  "tr_translating": {
+    "message": "正在翻译成$lang$",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_progress": {
+    "message": "$done$ / $total$ 段",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_closeHint": {
+    "message": "可以关掉面板，翻译在后台继续，进度显示在页面右下角。"
+  },
+  "tr_needsModel": {
+    "message": "要先下载翻译模型"
+  },
+  "tr_needsModelDesc": {
+    "message": "$pair$，约 80 MB，由 Chrome 从 Google 下载。下载一次后可以离线翻译。",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_downloadAndTranslate": {
+    "message": "下载并翻译"
+  },
+  "tr_needsDetector": {
+    "message": "要先下载语言识别模型"
+  },
+  "tr_needsDetectorDesc": {
+    "message": "用来判断原文是什么语言，由 Chrome 从 Google 下载。"
+  },
+  "tr_downloading": {
+    "message": "正在下载翻译模型"
+  },
+  "tr_downloadingDesc": {
+    "message": "$pair$，约 80 MB。下载完自动开始翻译；下载完之前请别关面板。",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_downloadingDetector": {
+    "message": "正在下载语言识别模型"
+  },
+  "tr_downloadingDetectorDesc": {
+    "message": "下载完自动开始翻译；下载完之前请别关面板。"
+  },
+  "tr_downloadFailed": {
+    "message": "没能下载模型"
+  },
+  "tr_done": {
+    "message": "已加上$lang$译文",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_doneDesc_one": {
+    "message": "$pair$，$n$ 段，每段译文写在原文下方。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "pair": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_doneDesc_other": {
+    "message": "$pair$，$n$ 段，每段译文写在原文下方。",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      },
+      "pair": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_skipped": {
+    "message": "原文已经是$lang$，没有翻译",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_tryOther": {
+    "message": "换成"
+  },
+  "tr_partial": {
+    "message": "翻译没做完"
+  },
+  "tr_partialDesc": {
+    "message": "已译 $done$ / $total$ 段，已写进文件。",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "tr_failed": {
+    "message": "没能翻译"
+  },
+  "tr_unsupportedPair": {
+    "message": "本机翻译不支持$pair$。",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_sourceUnknown": {
+    "message": "认不出原文是什么语言。"
+  },
+  "tr_nothingTranslated": {
+    "message": "一段也没译出来。"
+  },
+  "tr_stopped": {
+    "message": "翻译停了"
+  },
+  "tr_fileGone": {
+    "message": "「$file$」不在剪藏库里，可能已被移动或改名。已译的段留在原文件里。",
+    "placeholders": {
+      "file": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_writeFailed": {
+    "message": "写入文件时出错。已译的段留在文件里。"
+  },
+  "tr_alreadyTranslated": {
+    "message": "这篇已经加过译文"
+  },
+  "tr_unsupportedBrowser": {
+    "message": "这个浏览器不能本机翻译，需要 Chrome 138 或更新版本。保存不受影响。"
+  },
+  "toast_trPartial": {
+    "message": "，已译 $done$ / $total$ 段",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      }
+    }
+  },
+  "toast_trDownload": {
+    "message": "下载并翻译…"
+  },
+  "toast_trModelSize": {
+    "message": "$pair$，约 80 MB",
+    "placeholders": {
+      "pair": {
+        "content": "$1"
+      }
+    }
+  },
+  "menu_savePageTranslate": {
+    "message": "存入 Alayo Get 并翻译成$lang$",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_trTitle": {
+    "message": "翻译"
+  },
+  "opt_trTarget": {
+    "message": "目标语言"
+  },
+  "opt_trTargetDesc": {
+    "message": "面板里可以按篇改。"
+  },
+  "opt_trFollow": {
+    "message": "跟随界面语言（$lang$）",
+    "placeholders": {
+      "lang": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_trAlways": {
+    "message": "保存时总是翻译"
+  },
+  "opt_trAlwaysDesc": {
+    "message": "文章和 X 长文存好后自动加上译文，工具栏图标和快捷键都按这个设置。关着时，可以在面板里点「翻译」，或在网页空白处右键选「存入 Alayo Get 并翻译成…」。"
+  },
+  "opt_trPrivacyLead": {
+    "message": "翻译在本机完成，文字不会发给任何服务。"
+  },
+  "opt_trPrivacy": {
+    "message": "第一次翻译某种语言时，Chrome 会从 Google 下载这个语言的翻译模型（约 80 MB），之后不用联网。"
+  },
+  "opt_trUnsupported": {
+    "message": "这个浏览器不能本机翻译，需要 Chrome 138 或更新版本。保存和其他功能照常使用。"
+  },
+  "opt_wayToolbarDescTranslate": {
+    "message": "保存当前页并翻译，打开面板补标题、标签和批注"
+  },
+  "opt_wayShortcutDescTranslate": {
+    "message": "直接保存并翻译当前页，右下角出提示"
+  },
+  "tr_count_one": {
+    "message": "$n$ 段",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_count_other": {
+    "message": "$n$ 段",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "tr_nothingToTranslate": {
+    "message": "这篇没有要翻译的文字"
   }
 }

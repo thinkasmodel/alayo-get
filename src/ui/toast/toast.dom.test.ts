@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ClipSummary, SaveOutcome } from '@/shared/types';
-import { CJK, loadMessages, useLocale } from '../../../tests/setup/i18n';
-import { mountToast, TOAST_AUTO_MS, TOAST_FADE_MS, type ToastDeps } from './toast';
+import type { ClipSummary, SaveOutcome, TranslationOutcome, TranslationView } from '@/shared/types';
+import type { ToastTranslationMessage } from '@/shared/messages';
+import { chromeGetMessage, CJK, loadMessages, useLocale } from '../../../tests/setup/i18n';
+import { mountToast, showTranslation, TOAST_AUTO_MS, TOAST_FADE_MS, type ToastDeps } from './toast';
 
 const clip: ClipSummary = {
   id: '01JTOAST',
@@ -369,5 +370,213 @@ describe('页面提示：网页里没有输入控件，「加批注…」打开�
     expect(text).toBe('Couldn\'t open the panel. Bring this browser window to the front and click "Add note…" again.');
     expect(text).toBe(loadMessages('en').toast_panelFailed?.message);
     expect(text).not.toMatch(CJK);
+  });
+});
+
+
+describe('页面提示：翻译进度与结果（ALAG-27）', () => {
+  const running = (done = 12, total = 40, target = 'zh'): TranslationView => ({ phase: 'running', target, done, total });
+  const finished = (outcome: TranslationOutcome, target = 'zh'): TranslationView => ({ phase: 'finished', target, outcome });
+  const translationMessage = (view: TranslationView, clipId = clip.id, file?: string): ToastTranslationMessage => ({
+    type: 'toast-translation',
+    clipId,
+    title: clip.title,
+    ...(file !== undefined ? { file } : {}),
+    view,
+  });
+  const trButton = (root: ShadowRoot, label: string) => [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === label);
+  const needsDownload = (): TranslationView =>
+    finished({ status: 'failed', applied: 0, total: 10, error: { code: 'needs-download', model: { kind: 'translator', source: 'en', target: 'zh' } } });
+
+  /** showTranslation 不返回句柄；截住 attachShadow 拿 closed shadow root（只有测试能拿到）。 */
+  function showStandalone(view: TranslationView, deps: ToastDeps, clipId = 'other', file?: string): ShadowRoot {
+    const attach = vi.spyOn(HTMLElement.prototype, 'attachShadow');
+    showTranslation(translationMessage(view, clipId, file), deps);
+    const root = attach.mock.results.at(-1)?.value as ShadowRoot;
+    attach.mockRestore();
+    return root;
+  }
+
+  it('同 clip 的保存提示收到 running：下面加翻译行，保留「加批注…」，不自动消失', () => {
+    const { deps } = makeDeps();
+    const toast = mountToast(saved, deps);
+    showTranslation(translationMessage(running()), deps);
+    const trs = toast.root.querySelector('.trs');
+    expect(trs).not.toBeNull();
+    expect(trs?.textContent).toContain('正在翻译成简体中文');
+    expect(trs?.textContent).toContain('12 / 40 段');
+    expect(trs?.querySelector<HTMLElement>('.bar i')?.style.width).toBe('30%');
+    expect(buttonIn(toast.root, '加批注…')).toBeDefined();
+    expect(toast.root.querySelector('button[aria-label="关闭"]')).not.toBeNull();
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+    expect(toast.root.querySelector('.trs')).not.toBeNull();
+  });
+
+  it('同 clip 的保存提示译完：更新翻译行，3 秒后消失', () => {
+    const { deps } = makeDeps();
+    const toast = mountToast(saved, deps);
+    showTranslation(translationMessage(running()), deps);
+    showTranslation(translationMessage(finished({ status: 'complete', applied: 40, total: 40, source: 'en' })), deps);
+    expect(toast.root.querySelector('.trs')?.textContent).toContain('已加上简体中文译文');
+    expect(toast.root.querySelector('.trs')?.textContent).toContain('40 段');
+    vi.advanceTimersByTime(TOAST_AUTO_MS - 1);
+    expect(hosts()).toHaveLength(1);
+    vi.advanceTimersByTime(1 + TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('没有可翻译的文字（skipped、total 0）：灰色信息图标文案，3 秒后消失', () => {
+    const { deps } = makeDeps();
+    const toast = mountToast(saved, deps);
+    showTranslation(translationMessage(finished({ status: 'skipped', applied: 0, total: 0 })), deps);
+    const trs = toast.root.querySelector('.trs');
+    expect(trs?.textContent).toContain(loadMessages('zh_CN').tr_nothingToTranslate?.message);
+    expect(trs?.textContent).not.toContain('原文已经是');
+    expect(buttonIn(toast.root, '重试')).toBeUndefined();
+    vi.advanceTimersByTime(TOAST_AUTO_MS - 1);
+    expect(hosts()).toHaveLength(1);
+    vi.advanceTimersByTime(1 + TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('同 clip 的保存提示 partial：常驻、没有「重试」', () => {
+    const { deps } = makeDeps();
+    const toast = mountToast(saved, deps);
+    showTranslation(translationMessage(finished({ status: 'partial', applied: 12, total: 40, source: 'en', error: { code: 'host-lost' } })), deps);
+    expect(toast.root.querySelector('.trs')?.textContent).toContain('翻译没做完');
+    expect(toast.root.querySelector('.trs')?.textContent).toContain('，已译 12 / 40 段');
+    expect(buttonIn(toast.root, '重试')).toBeUndefined();
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+  });
+
+  it('needs-download：［下载并翻译…］发 translate-panel；打开失败显示 toast_panelFailed，打开成功关闭提示', async () => {
+    const { deps } = makeDeps();
+    deps.sendMessage.mockResolvedValue({ opened: false });
+    const toast = mountToast(saved, deps);
+    showTranslation(translationMessage(needsDownload()), deps);
+    const button = trButton(toast.root, '下载并翻译…');
+    expect(button).toBeDefined();
+    button?.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(deps.sendMessage).toHaveBeenCalledWith({ type: 'toast-action', action: 'translate-panel', clipId: clip.id });
+    expect(toast.root.querySelector('.noteerr')?.textContent).toBe(loadMessages('zh_CN').toast_panelFailed?.message);
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+
+    deps.sendMessage.mockResolvedValue({ opened: true });
+    button?.click();
+    await vi.advanceTimersByTimeAsync(0);
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('可重试的失败：［重试］发 retranslate', () => {
+    const { deps } = makeDeps();
+    const toast = mountToast(saved, deps);
+    showTranslation(translationMessage(finished({ status: 'failed', applied: 0, total: 10, error: { code: 'engine-failed', message: 'Error: boom' } })), deps);
+    expect(toast.root.querySelector('.trs')?.textContent).toContain('一段也没译出来。');
+    trButton(toast.root, '重试')?.click();
+    expect(deps.sendMessage).toHaveBeenCalledWith({ type: 'toast-action', action: 'retranslate', clipId: clip.id });
+  });
+
+  it('没有对应保存提示时单独弹一条：running 常驻、带进度和 ×；× 后 running 更新不再显示', () => {
+    const { deps } = makeDeps();
+    // 一条别的剪藏的保存提示会被翻译提示替换
+    const other = mountToast(saved, deps);
+    const root = showStandalone(running(), deps, 'standalone-1');
+    expect(other.host.isConnected).toBe(false);
+    expect(hosts()).toHaveLength(1);
+    expect(root.textContent).toContain('正在翻译成简体中文');
+    expect(root.textContent).toContain(clip.title);
+    expect(root.textContent).toContain('12 / 40 段');
+    expect(root.querySelector<HTMLElement>('.bar i')?.style.width).toBe('30%');
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+
+    root.querySelector<HTMLButtonElement>('button[aria-label="关闭"]')?.click();
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+    showTranslation(translationMessage(running(20, 40), 'standalone-1'), deps);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('用户点 × 后，只有常驻结果会再弹单独提示', () => {
+    const { deps } = makeDeps();
+    const first = showStandalone(running(), deps, 'standalone-2');
+    first.querySelector<HTMLButtonElement>('button[aria-label="关闭"]')?.click();
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+
+    // 译完属于 3 秒消失的，不弹
+    showTranslation(translationMessage(finished({ status: 'complete', applied: 40, total: 40, source: 'en' }), 'standalone-2'), deps);
+    expect(hosts()).toHaveLength(0);
+    // 失败常驻，再弹
+    const root = showStandalone(finished({ status: 'failed', applied: 0, total: 40, error: { code: 'engine-failed', message: 'Error: x' } }), deps, 'standalone-2');
+    expect(hosts()).toHaveLength(1);
+    expect(root.textContent).toContain('没能翻译');
+    expect(root.textContent).toContain('一段也没译出来。');
+    expect(trButton(root, '重试')).toBeDefined();
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+  });
+
+  it('单独提示：needs-download 有［下载并翻译…］；partial 常驻；complete 3 秒消失；aborted 原文已是目标语言 3 秒消失', () => {
+    const { deps } = makeDeps();
+    const needs = showStandalone(needsDownload(), deps, 'standalone-3');
+    expect(trButton(needs, '下载并翻译…')).toBeDefined();
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+
+    const partial = showStandalone(finished({ status: 'partial', applied: 1, total: 10, error: { code: 'host-lost' } }), deps, 'standalone-4');
+    expect(partial.textContent).toContain('已译 1 / 10 段，已写进文件。');
+    expect(trButton(partial, '重试')).toBeUndefined();
+    vi.advanceTimersByTime(60_000);
+    expect(hosts()).toHaveLength(1);
+
+    showStandalone(finished({ status: 'complete', applied: 10, total: 10, source: 'en' }), deps, 'standalone-5');
+    vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+
+    const already = showStandalone(finished({ status: 'aborted', reason: 'already-translated', applied: 0, total: 0 }), deps, 'standalone-6');
+    expect(already.textContent).toContain('这篇已经加过译文');
+    vi.advanceTimersByTime(TOAST_AUTO_MS + TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+  });
+
+  it('采集脚本重新注入后仍记得 × 关闭：同一 clip 的 running 不显示，失败结果再弹', async () => {
+    const { deps } = makeDeps();
+    const first = showStandalone(running(), deps, 'reload-clip');
+    first.querySelector<HTMLButtonElement>('button[aria-label="关闭"]')?.click();
+    vi.advanceTimersByTime(TOAST_FADE_MS);
+    expect(hosts()).toHaveLength(0);
+
+    // 模拟 capture.js 重新注入：模块状态清空，但页面隔离世界里的共享对象还在。
+    vi.resetModules();
+    const freshI18n = await import('@/shared/i18n');
+    const messages = loadMessages('zh_CN');
+    freshI18n.setMessageSourceForTest((key, subs) => chromeGetMessage(messages, key, subs));
+    const fresh = await import('./toast');
+
+    fresh.showTranslation(translationMessage(running(20, 40), 'reload-clip'), deps);
+    expect(hosts()).toHaveLength(0);
+
+    const attach = vi.spyOn(HTMLElement.prototype, 'attachShadow');
+    fresh.showTranslation(
+      translationMessage(finished({ status: 'failed', applied: 0, total: 40, error: { code: 'engine-failed', message: 'Error: x' } }), 'reload-clip'),
+      deps,
+    );
+    const root = attach.mock.results.at(-1)?.value as ShadowRoot;
+    attach.mockRestore();
+    expect(hosts()).toHaveLength(1);
+    expect(root.textContent).toContain('没能翻译');
+  });
+
+  it('aborted 文件不见了：单独提示写文件名', () => {
+    const { deps } = makeDeps();
+    const root = showStandalone(finished({ status: 'aborted', reason: 'file-missing', applied: 0, total: 0 }), deps, 'standalone-7', '被改名的文章.md');
+    expect(root.textContent).toContain('翻译停了');
+    expect(root.textContent).toContain('「被改名的文章.md」不在剪藏库里，可能已被移动或改名。已译的段留在原文件里。');
   });
 });

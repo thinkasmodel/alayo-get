@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PanelToSw, SwToPanel } from '@/shared/messages';
-import type { Capture, ClipSummary, EditFields, SaveOutcome } from '@/shared/types';
+import type { Capture, ClipSummary, EditFields, SaveOutcome, TranslationOutcome, TranslationView } from '@/shared/types';
 import { handlePanelPort, type PanelDeps, type PortLike } from './ports';
 import type { LostEditStore } from '@/io/lostEdits';
 import type { LostEdit } from '@/shared/types';
@@ -886,5 +886,200 @@ describe("Port 'panel'：start 的 translateTo（ALAG-26）", () => {
     await flush();
     expect(deps.savePage).toHaveBeenCalledTimes(1);
     expect(deps.savePage.mock.calls[0]?.[2]).not.toHaveProperty('translateTo');
+  });
+});
+
+describe("Port 'panel'：翻译（ALAG-27）", () => {
+  const running: TranslationView = { phase: 'running', target: 'ja', done: 1, total: 3 };
+  const finished = (outcome: TranslationOutcome): TranslationView => ({ phase: 'finished', target: 'ja', outcome });
+
+  function translationDeps(outcome: SaveOutcome = saved) {
+    let push: ((view: TranslationView) => void) | null = null;
+    const unsubscribe = vi.fn();
+    const translate = vi.fn();
+    const subscribeTranslation = vi.fn((_clipId: string, cb: (view: TranslationView) => void) => {
+      push = cb;
+      return unsubscribe;
+    });
+    const showTranslationInTab = vi.fn();
+    const deps: PanelDeps = { ...panelDeps(outcome), translate, subscribeTranslation, showTranslationInTab };
+    return { deps, translate, subscribeTranslation, showTranslationInTab, unsubscribe, emit: (view: TranslationView) => push?.(view) };
+  }
+
+  async function savedPanel(deps: PanelDeps) {
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    return port;
+  }
+
+  it('有 web clip 时 translate 调 deps.translate，带剪藏信息与目标语言', async () => {
+    const t = translationDeps();
+    const port = await savedPanel(t.deps);
+    port.send({ type: 'translate', target: 'ja' });
+    expect(t.translate).toHaveBeenCalledWith({ id: clip.id, source: clip.source, medium: 'web', title: clip.title }, 'ja');
+  });
+
+  it('各忽略条件：没有 clip、非 web/x、摘录、目标语言不认识、正在翻译', async () => {
+    const t = translationDeps();
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'translate', target: 'ja' });
+    expect(t.translate).not.toHaveBeenCalled();
+
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.send({ type: 'translate', target: 'auto' });
+    port.send({ type: 'translate', target: 'th' });
+    expect(t.translate).not.toHaveBeenCalled();
+
+    t.emit(running);
+    port.send({ type: 'translate', target: 'ja' });
+    expect(t.translate).not.toHaveBeenCalled();
+
+    const link = translationDeps({ state: 'saved', clip: { ...clip, id: '01LINK', medium: 'link' }, tagSuggestions: [] });
+    const linkPort = await savedPanel(link.deps);
+    linkPort.send({ type: 'translate', target: 'ja' });
+    expect(link.translate).not.toHaveBeenCalled();
+
+    const quote = translationDeps({
+      state: 'saved',
+      clip: { ...clip, id: '01QUOTE', medium: 'quote', quote: { fileId: 'F', entry: 1, anchor: 'a', fragment: true, recreated: false } },
+      tagSuggestions: [],
+    });
+    const quotePort = await savedPanel(quote.deps);
+    quotePort.send({ type: 'translate', target: 'ja' });
+    expect(quote.translate).not.toHaveBeenCalled();
+  });
+
+  it('保存成功后先推 state 再推 translation，且订阅的是这条剪藏', async () => {
+    const t = translationDeps();
+    t.deps.subscribeTranslation = vi.fn((_id: string, cb: (view: TranslationView) => void) => {
+      cb(finished({ status: 'complete', applied: 3, total: 3 }));
+      return vi.fn();
+    });
+    const port = await savedPanel(t.deps);
+    expect(t.deps.subscribeTranslation).toHaveBeenCalledWith(clip.id, expect.any(Function));
+    const kinds = port.sent.map((m) => m.type);
+    expect(kinds.indexOf('state')).toBeGreaterThanOrEqual(0);
+    expect(kinds.indexOf('translation')).toBeGreaterThan(kinds.indexOf('state'));
+    const translation = port.sent.find((m) => m.type === 'translation');
+    expect(translation).toEqual({ type: 'translation', clipId: clip.id, view: finished({ status: 'complete', applied: 3, total: 3 }) });
+  });
+
+  it('pendingClip 进编辑态也订阅', async () => {
+    const t = translationDeps();
+    t.deps.takePendingEdit = vi.fn(async () => clip.id);
+    t.deps.findClip = vi.fn(async () => clip);
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    expect(t.deps.subscribeTranslation).toHaveBeenCalledWith(clip.id, expect.any(Function));
+    expect(port.sent.some((m) => m.type === 'state' && m.state.state === 'saved')).toBe(true);
+  });
+
+  it('resume 找到 clip 也订阅（Port 没有 tabId）', async () => {
+    const t = translationDeps();
+    t.deps.findClip = vi.fn(async () => clip);
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'resume', clipId: clip.id });
+    await flush();
+    expect(t.deps.subscribeTranslation).toHaveBeenCalledWith(clip.id, expect.any(Function));
+    port.disconnect();
+    expect(t.showTranslationInTab).not.toHaveBeenCalled();
+  });
+
+  it('断开时 running → showTranslationInTab(clipId, start 的 tabId)', async () => {
+    const t = translationDeps();
+    const port = await savedPanel(t.deps);
+    t.emit(running);
+    port.disconnect();
+    expect(t.showTranslationInTab).toHaveBeenCalledWith(clip.id, 7);
+  });
+
+  it('断开时 finished + needs-download → 转到页面提示；其他 finished 不转', async () => {
+    const t = translationDeps();
+    const port = await savedPanel(t.deps);
+    t.emit(finished({ status: 'failed', applied: 0, total: 3, error: { code: 'needs-download', model: { kind: 'translator', source: 'en', target: 'ja' } } }));
+    port.disconnect();
+    expect(t.showTranslationInTab).toHaveBeenCalledWith(clip.id, 7);
+
+    const complete = translationDeps();
+    const port2 = await savedPanel(complete.deps);
+    complete.emit(finished({ status: 'complete', applied: 3, total: 3 }));
+    port2.disconnect();
+    expect(complete.showTranslationInTab).not.toHaveBeenCalled();
+  });
+
+  it('保存完成前断开：不建立订阅，保存完成后 showTranslationInTab 一次', async () => {
+    const t = translationDeps();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    t.deps.savePage = vi.fn(async () => {
+      await gate;
+      return { capture, outcome: saved };
+    });
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.disconnect();
+    expect(t.showTranslationInTab).not.toHaveBeenCalled();
+
+    release();
+    await flush();
+    await flush();
+    expect(t.subscribeTranslation).not.toHaveBeenCalled();
+    expect(t.showTranslationInTab).toHaveBeenCalledTimes(1);
+    expect(t.showTranslationInTab).toHaveBeenCalledWith(clip.id, 7);
+  });
+
+  it('pendingClip 读取完成前断开：不建立订阅，显示订阅交给页面提示', async () => {
+    const t = translationDeps();
+    let release!: (id: string) => void;
+    t.deps.takePendingEdit = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          release = resolve;
+        }),
+    );
+    t.deps.findClip = vi.fn(async () => clip);
+    const port: PanelPort = new FakePort('panel');
+    handlePanelPort(port, t.deps);
+    port.send({ type: 'start', tabId: 7 });
+    await flush();
+    port.disconnect();
+    release(clip.id);
+    await flush();
+    await flush();
+    expect(t.subscribeTranslation).not.toHaveBeenCalled();
+    expect(t.showTranslationInTab).toHaveBeenCalledTimes(1);
+    expect(t.showTranslationInTab).toHaveBeenCalledWith(clip.id, 7);
+  });
+
+  it('断开后取消订阅，之后的 view 不再 post', async () => {
+    const t = translationDeps();
+    const port = await savedPanel(t.deps);
+    const before = port.sent.length;
+    port.disconnect();
+    expect(t.unsubscribe).toHaveBeenCalledTimes(1);
+    t.emit(running);
+    expect(port.sent).toHaveLength(before);
+  });
+
+  it('clip 换了先取消旧订阅，再订阅新剪藏', async () => {
+    const t = translationDeps();
+    const port = await savedPanel(t.deps);
+    const first = t.unsubscribe;
+    port.send({ type: 'snapshot' });
+    await flush();
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(t.subscribeTranslation).toHaveBeenCalledTimes(2);
+    expect(t.subscribeTranslation.mock.calls[1]?.[0]).toBe('01JSNAP');
   });
 });

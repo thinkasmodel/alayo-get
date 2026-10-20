@@ -1,13 +1,17 @@
 // 工具栏面板（DESIGN.md §3.2）：打开即保存，按 service worker 推来的状态重渲染，字段改动随时同步，关闭即写入。
 import { get } from 'idb-keyval';
+import { createChromeEngine, isTranslationSupported } from '@/core/translate/chromeEngine';
+import { isTargetTag, resolveTarget, type TargetTag } from '@/core/translate/targets';
 import { LIBRARY_HANDLE_KEY } from '@/io/library';
 import { createSavedIndex } from '@/io/savedIndex';
+import { createTranslationSettings, DEFAULT_TRANSLATION_SETTINGS, type TranslationSettings } from '@/io/translationSettings';
 import { currentLang } from '@/shared/i18n';
 import { PANEL_PORT, type OpenOptionsMessage, type PanelToSw, type SwToPanel } from '@/shared/messages';
-import type { EditFields, LostEdit, LostEditNotice, PanelState } from '@/shared/types';
+import type { EditFields, LostEdit, LostEditNotice, PanelState, TranslationView } from '@/shared/types';
 import { changedFields } from '@/core/editFields';
 import { mergeIncoming, type FormFields } from '@/ui/panel/merge';
-import { renderPanel, type PanelActions } from '@/ui/panel/render';
+import { renderPanel, updateTranslationBlock, type PanelActions, type PanelTranslation } from '@/ui/panel/render';
+import type { TranslationDownloadState } from '@/ui/panel/translation';
 import '@/ui/tokens.css';
 import './style.css';
 
@@ -20,6 +24,21 @@ async function main() {
   const handle = await get<FileSystemDirectoryHandle>(LIBRARY_HANDLE_KEY).catch(() => undefined);
   const folderName = handle?.name ?? null;
   const index = createSavedIndex();
+  // 翻译块（ALAG-27）：支持标记由面板加载时写入；设置现读。用户选过的目标在重渲染之间保留。
+  const translationSettingsStore = createTranslationSettings();
+  const translationSupported = isTranslationSupported();
+  let translationSettings: TranslationSettings = DEFAULT_TRANSLATION_SETTINGS;
+  let translationView: TranslationView | null = null;
+  let translationDownload: TranslationDownloadState | null = null;
+  let translationTarget: TargetTag | null = null;
+  let translationClipId: string | null = null;
+  await translationSettingsStore.setSupported(translationSupported).catch((err: unknown) => {
+    console.warn('[Alayo Get] 记录翻译支持标记失败', err);
+  });
+  translationSettings = await translationSettingsStore.get().catch((err: unknown) => {
+    console.warn('[Alayo Get] 读取翻译设置失败，按默认值显示', err);
+    return DEFAULT_TRANSLATION_SETTINGS;
+  });
 
   let port: Port | null = null;
   /** 已存下的剪藏 id 和最后一次完整草稿：service worker 被终止导致断线时，用它们重连并接着编辑（codex review 第 8 轮）。 */
@@ -37,6 +56,15 @@ async function main() {
   let lastState: PanelState | null = null;
   let lost: { edits: LostEdit[]; notices: LostEditNotice[] } = { edits: [], notices: [] };
 
+  /** 当前翻译块的数据；整块重渲染与只更新翻译块时共用（ALAG-27）。 */
+  const translationData = (): PanelTranslation => ({
+    supported: translationSupported,
+    settings: translationSettings,
+    ...(translationView ? { view: translationView } : {}),
+    ...(translationDownload ? { download: translationDownload } : {}),
+    ...(translationTarget ? { selectedTarget: translationTarget } : {}),
+  });
+
   /**
    * 按最后的状态和草稿重渲染。只因草稿列表变化而重渲染时，编辑态的字段按已经输入的内容显示：
    * 否则输入框会回到已存的值，而 service worker 里的草稿还是输入过的内容。
@@ -47,7 +75,17 @@ async function main() {
     if (keepInput && lastFields && (state.state === 'saved' || state.state === 'fallback') && state.clip.id === lastFieldsClipId) {
       state = { ...state, clip: { ...state.clip, ...lastFields } };
     }
-    renderPanel(root, { state, folderName, lostEdits: lost.edits, lostNotices: lost.notices }, actions);
+    renderPanel(
+      root,
+      {
+        state,
+        folderName,
+        lostEdits: lost.edits,
+        lostNotices: lost.notices,
+        translation: translationData(),
+      },
+      actions,
+    );
   };
 
   const send = (message: PanelToSw) => {
@@ -79,6 +117,52 @@ async function main() {
     closePanel: () => window.close(),
     loadIndex: () => index.all(),
     lostEdit: (action, id) => send({ type: 'lost-edit', action, id }),
+    selectTranslationTarget: (target) => {
+      translationTarget = target;
+    },
+    translate: (target) => {
+      translationTarget = target;
+      send({ type: 'translate', target });
+    },
+    startTranslationDownload: (model, target) => {
+      translationDownload = { kind: 'downloading', model, fraction: 0 };
+      updateTranslationBlock(root, translationData(), actions);
+      const fail = (err: unknown): void => {
+        const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        translationDownload = { kind: 'download-failed', model, message };
+        updateTranslationBlock(root, translationData(), actions);
+      };
+      let engine;
+      try {
+        engine = createChromeEngine();
+      } catch (err) {
+        fail(err);
+        return;
+      }
+      // 必须在这里、任何 await 之前开始下载：下载要求用户手势（ALAG-24）。
+      let started: Promise<void>;
+      try {
+        started = engine.download(model, (fraction) => {
+          if (translationDownload?.kind !== 'downloading') return;
+          translationDownload = { kind: 'downloading', model, fraction };
+          updateTranslationBlock(root, translationData(), actions);
+        });
+      } catch (err) {
+        fail(err);
+        return;
+      }
+      started.then(
+        () => {
+          // 下载完自动用同一目标翻译；检测模型下完后若还缺翻译模型，会再回到 C 态，需要再点一次。
+          const chosen = isTargetTag(target) ? target : resolveTarget(translationSettings.target, currentLang());
+          translationTarget = chosen;
+          translationDownload = null;
+          send({ type: 'translate', target: chosen });
+          updateTranslationBlock(root, translationData(), actions);
+        },
+        (err: unknown) => fail(err),
+      );
+    },
   };
 
   function connect() {
@@ -87,6 +171,13 @@ async function main() {
       if (next !== port) return;
       if (message?.type === 'state') {
         const state = message.state;
+        const nextClipId = state.state === 'saved' || state.state === 'fallback' ? state.clip.id : null;
+        if (nextClipId !== translationClipId) {
+          translationClipId = nextClipId;
+          translationView = null;
+          translationDownload = null;
+          translationTarget = null;
+        }
         lastBaseline = message.baseline;
         // clip-unavailable 不设 clipId：断线后没有可以接着编辑的剪藏
         if (state.state === 'saved' || state.state === 'fallback') {
@@ -109,6 +200,11 @@ async function main() {
         }
         lastState = state;
         rerender(false);
+      } else if (message?.type === 'translation') {
+        if (message.clipId !== translationClipId) return;
+        translationView = message.view;
+        if (message.view.phase === 'running') translationDownload = null;
+        updateTranslationBlock(root, translationData(), actions);
       } else if (message?.type === 'lost-edits') {
         lost = { edits: message.edits, notices: message.notices };
         rerender(true);

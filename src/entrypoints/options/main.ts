@@ -1,7 +1,9 @@
 // 选项页（DESIGN.md §3.5）：首次使用引导、设置、重新授权。选目录和恢复授权只在这里做（ADR-0004）。
 import { get, set } from 'idb-keyval';
+import { isTranslationSupported } from '@/core/translate/chromeEngine';
 import { LIBRARY_HANDLE_KEY } from '@/io/library';
 import { createPendingQueue } from '@/io/pending';
+import { createTranslationSettings, DEFAULT_TRANSLATION_SETTINGS } from '@/io/translationSettings';
 import { currentLang, t } from '@/shared/i18n';
 import type { LibraryGrantedMessage } from '@/shared/messages';
 import { renderOptions, type LibraryHandle, type OptionsDeps } from '@/ui/options/render';
@@ -18,6 +20,16 @@ async function main() {
   document.title = t('opt_pageTitle');
   const root = document.getElementById('app') ?? document.body;
   const pending = createPendingQueue();
+  // 浏览器支持本机翻译的标记在选项页加载时写入（面板也写）；SW 只读它（ALAG-27）。
+  const translationStore = createTranslationSettings();
+  const translationSupported = isTranslationSupported();
+  await translationStore.setSupported(translationSupported).catch((err: unknown) => {
+    console.warn('[Alayo Get] 记录翻译支持标记失败', err);
+  });
+  const translationSettings = await translationStore.get().catch((err: unknown) => {
+    console.warn('[Alayo Get] 读取翻译设置失败，按默认值显示', err);
+    return DEFAULT_TRANSLATION_SETTINGS;
+  });
 
   const deps: OptionsDeps = {
     loadHandle: () => get<LibraryHandle>(LIBRARY_HANDLE_KEY),
@@ -57,6 +69,10 @@ async function main() {
         return null;
       }
     },
+    translationSettings,
+    translationSupported,
+    setTranslationSettings: (patch) => translationStore.set(patch),
+    getTranslationSettings: () => translationStore.get(),
   };
 
   const page = await renderOptions(root, deps);

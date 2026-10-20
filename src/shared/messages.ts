@@ -1,5 +1,5 @@
 // 消息与 Port 协议的字面量和类型。冻结于 tasks/briefs/ALAG-2A.md「协议」段，Brief B 依赖，不改字面量。
-import type { Capture, EditFields, LostEdit, LostEditNotice, PanelState, QuoteCaptureInfo, SaveOutcome } from './types';
+import type { Capture, EditFields, LostEdit, LostEditNotice, PanelState, QuoteCaptureInfo, SaveOutcome, TranslationView } from './types';
 import type { TranslateRequest, TranslateResult } from '../core/translate/types';
 
 // ---- 页面内消息（tabs.sendMessage / runtime.onMessage）
@@ -21,6 +21,17 @@ export interface ToastMessage {
   requestId?: string;
 }
 
+/** SW → 页面：翻译进度与结果（ALAG-27）。同一 clip 的保存提示已有翻译行；否则单独一条提示。 */
+export interface ToastTranslationMessage {
+  type: 'toast-translation';
+  clipId: string;
+  /** 剪藏标题，提示的说明行用。 */
+  title: string;
+  /** 剪藏文件名（aborted 的「文件不见了」用）；面板推来的提示没有这一项。 */
+  file?: string;
+  view: TranslationView;
+}
+
 /** 选项页 → SW：已授权，触发补写。 */
 export interface LibraryGrantedMessage {
   type: 'library-granted';
@@ -38,14 +49,15 @@ export interface OpenOptionsMessage {
  */
 export interface ToastActionMessage {
   type: 'toast-action';
-  action: 'snapshot' | 'retry' | 'note';
+  /** translate-panel：打开面板停在下载态；retranslate：重试这次翻译（ALAG-27）。 */
+  action: 'snapshot' | 'retry' | 'note' | 'translate-panel' | 'retranslate';
   /** 由采集脚本按所属提示附上。 */
   requestId?: string;
-  /** action 为 'note' 时必带：要编辑的剪藏。 */
+  /** action 为 'note'、'translate-panel'、'retranslate' 时必带：对应的剪藏。 */
   clipId?: string;
 }
 
-/** SW → 页面提示：只有 action 'note' 有响应；opened 为面板是否打开了。 */
+/** SW → 页面提示：note 与 translate-panel 有响应；opened 为面板是否打开了。 */
 export interface ToastActionResponse {
   opened: boolean;
 }
@@ -70,7 +82,7 @@ export interface QuoteCaptureResponse {
   quote: QuoteCaptureInfo | null;
 }
 
-export type PageMessage = CaptureRequest | ToastMessage | CaptureXVideoRequest | CaptureQuoteRequest;
+export type PageMessage = CaptureRequest | ToastMessage | ToastTranslationMessage | CaptureXVideoRequest | CaptureQuoteRequest;
 export type RuntimeMessage = LibraryGrantedMessage | OpenOptionsMessage | ToastActionMessage;
 
 // ---- Port 'panel'（工具栏面板）
@@ -80,6 +92,8 @@ export const PANEL_PORT = 'panel';
 export type PanelToSw =
   /** translateTo：保存后翻译成的目标语言（ALAG-26）；不传表示不翻译。 */
   | { type: 'start'; tabId: number; translateTo?: string }
+  /** 面板里点了「翻译」：目标语言是本篇明确指定的（ALAG-27）。 */
+  | { type: 'translate'; target: string }
   | { type: 'snapshot' }
   /** baseline：面板表单所依据的 state 的基线号（ALAG-20）；与 service worker 当前基线不同的旧表单 draft 被丢弃。 */
   | { type: 'draft'; fields: EditFields; baseline?: number }
@@ -96,7 +110,9 @@ export type SwToPanel =
   /** saved / fallback 时带基线号：每推一次编辑态的 state 加一，面板之后的 draft 带回它（ALAG-20）。 */
   | { type: 'state'; state: PanelState; baseline?: number }
   /** 写回失败留下的草稿全量与本次面板会话里已处理完的通知；连接后立刻推一次，之后每次变化都推（ALAG-20）。 */
-  | { type: 'lost-edits'; edits: LostEdit[]; notices: LostEditNotice[] };
+  | { type: 'lost-edits'; edits: LostEdit[]; notices: LostEditNotice[] }
+  /** 这条剪藏的翻译进度/结果；有了 clip 之后才推，先推 state 再推它（ALAG-27）。 */
+  | { type: 'translation'; clipId: string; view: TranslationView };
 
 // ---- 翻译 Port（ALAG-25）：SW 发起 runtime.connect，offscreen 文档接收
 

@@ -8,6 +8,7 @@ import type { QuoteCaptureResponse } from '@/shared/messages';
 import type { Capture, MediaKind, Preview, QuoteCaptureInfo } from '@/shared/types';
 
 export const MENU_SAVE_PAGE = 'save-page';
+export const MENU_SAVE_PAGE_TRANSLATE = 'save-page-translate';
 export const MENU_SAVE_LINK = 'save-link';
 export const MENU_SAVE_IMAGE = 'save-image';
 export const MENU_SAVE_VIDEO = 'save-video';
@@ -62,6 +63,8 @@ export interface ContextClick {
 export type ContextRoute =
   /** 保存当前页（与工具栏、快捷键同一流程）。 */
   | { action: 'page' }
+  /** 保存当前页并翻译成当前默认目标语言（ALAG-27 右键「并翻译」）。 */
+  | { action: 'page-translate' }
   /** 右键链接：平台链接 → 流媒体剪藏（stream 非空），否则书签剪藏。 */
   | { action: 'link'; url: string; stream: ParsedStream | null }
   /** 在平台视频页（页面或 frame）上右键视频、音频：按该平台存流媒体剪藏，和在页面上保存一样。from 指命中的是页面还是 frame。 */
@@ -99,6 +102,7 @@ const KIND_OF_MENU: Record<string, MediaKind> = { [MENU_SAVE_IMAGE]: 'image', [M
 export function routeContextClick(info: ContextClick): ContextRoute {
   const id = String(info.menuItemId);
   if (id === MENU_SAVE_PAGE) return { action: 'page' };
+  if (id === MENU_SAVE_PAGE_TRANSLATE) return { action: 'page-translate' };
   if (id === MENU_SAVE_QUOTE) return { action: 'quote' };
   if (id === MENU_SAVE_LINK) {
     if (!info.linkUrl) return { action: 'ignore' };

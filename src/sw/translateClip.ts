@@ -4,32 +4,17 @@
 import { applyTranslations, planBilingual, renderTranslation, type BilingualPlan, type Unit } from '@/core/bilingual';
 import { removeTranslationFields, setTranslationFields } from '@/core/frontmatter';
 import { sameLanguage, toApiTag } from '@/core/translate/language';
-import type { TranslateError, TranslateResult, TranslationService } from '@/core/translate/types';
+import type { TranslateResult, TranslationService } from '@/core/translate/types';
 import type { Library } from '@/io/library';
 import type { SavedIndex } from '@/io/savedIndex';
-import type { Medium } from '@/shared/types';
+import type { Medium, TranslationOutcome } from '@/shared/types';
 import { frontmatterId } from './applyEdits';
 import type { Lock } from './lock';
 
 /** 两次写回之间的最短间隔：第一个单元完成后开始计时。 */
 export const FLUSH_MS = 15_000;
 
-export type TranslationStatus = 'complete' | 'partial' | 'failed' | 'skipped' | 'aborted';
-
-/** 后台翻译的结果；ALAG-27 用它显示进度与错误。 */
-export interface TranslationOutcome {
-  status: TranslationStatus;
-  /** 已经写进文件（或按「译文等于原文」免插）的单元数。 */
-  applied: number;
-  /** 原文里要翻的单元总数。 */
-  total: number;
-  /** 翻译层给出的错误（failed 时）。 */
-  error?: TranslateError;
-  /** 规范化后的原文语言；不知道时没有。 */
-  source?: string;
-  /** aborted 的原因。 */
-  reason?: string;
-}
+export type { TranslationOutcome, TranslationStatus } from '@/shared/types';
 
 export interface TranslateClipRequest {
   /** 剪藏 id（frontmatter id）。 */
@@ -47,6 +32,8 @@ export interface TranslateClipDeps {
   /** 与保存、写回共用的剪藏库锁。 */
   lock: Lock;
   translator: TranslationService;
+  /** 规划完成后以 (0, total) 调一次，之后每个单元的段全部到齐时调一次 (已完成单元数, total)。 */
+  onProgress?: (done: number, total: number) => void;
   /** 便于测试注入假计时器；缺省 setTimeout/clearTimeout。 */
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
@@ -56,6 +43,20 @@ export interface TranslateClipDeps {
 type Located = { file: string; md: string } | { reason: string; err?: unknown };
 
 const messageOf = (err: unknown): string => (err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+
+/** 读出 frontmatter 里的 translation 值；没有这个键或解析不了时返回 undefined。 */
+function translationStateOf(md: string): string | undefined {
+  const block = /^---\n([\s\S]*?)\n---\n/.exec(md)?.[1];
+  if (block === undefined) return undefined;
+  const raw = /^translation: (.*)$/m.exec(block)?.[1]?.trim();
+  if (raw === undefined) return undefined;
+  try {
+    const value: unknown = JSON.parse(raw);
+    return typeof value === 'string' ? value : undefined;
+  } catch {
+    return raw;
+  }
+}
 
 /**
  * 启动一次后台翻译任务。返回的 done 在任务结束（含 aborted）时解析；调用方不 await 也不影响保存。
@@ -85,6 +86,15 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
   const unitOfSegment = new Map<number, Unit>();
   const remaining = new Map<Unit, number>();
   let writeChain: Promise<void> = Promise.resolve();
+
+  /** 进度回调出错不影响翻译本身。 */
+  const reportProgress = (done: number, totalUnits: number): void => {
+    try {
+      deps.onProgress?.(done, totalUnits);
+    } catch (err) {
+      console.debug('[Alayo Get] 翻译进度回调出错', err);
+    }
+  };
 
   const finish = (outcome: TranslationOutcome): void => {
     if (finished) return;
@@ -217,6 +227,7 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
     completed.add(unit);
     pending.push(unit);
     armTimer();
+    reportProgress(completed.size, total);
   };
 
   /** 最后一次写回：插入剩下已完成的单元，并定 complete / partial / failed。 */
@@ -266,18 +277,26 @@ export function startClipTranslation(request: TranslateClipRequest, deps: Transl
   };
 
   const run = async (): Promise<void> => {
-    const init: { plan: BilingualPlan } | { reason: string; err?: unknown } = await deps.lock(async () => {
+    const init: { plan: BilingualPlan } | { reason: string; err?: unknown } | { alreadyTranslated: true } = await deps.lock(async () => {
       const located = await locate();
       if ('reason' in located) return { reason: located.reason, err: located.err };
+      // 已经有完整或部分译文：不翻、不写（failed 意味着正文没被改过，照常翻）。
+      const state = translationStateOf(located.md);
+      if (state === 'complete' || state === 'partial') return { alreadyTranslated: true };
       return { plan: planBilingual(located.md, request.medium) };
     });
     if ('reason' in init) {
       abort(init.reason, init.err);
       return;
     }
+    if ('alreadyTranslated' in init) {
+      finish({ status: 'aborted', reason: 'already-translated', applied: 0, total: 0 });
+      return;
+    }
 
     units = init.plan.units;
     total = units.length;
+    reportProgress(0, total);
     if (total === 0 || init.plan.segments.length === 0) {
       finish({ status: 'skipped', applied: 0, total });
       return;

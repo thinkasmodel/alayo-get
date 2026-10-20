@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createMenuInstaller, type MenusApi } from './menus';
-import { CONTEXT_MENUS } from './route';
+import { contextMenusFor, createMenuInstaller, type MenusApi } from './menus';
+import { CONTEXT_MENUS, MENU_SAVE_PAGE, MENU_SAVE_PAGE_TRANSLATE } from './route';
 
 /**
  * 模拟 Chrome 的 contextMenus：调用按发出顺序排队、异步处理（像发往浏览器进程的 IPC）；
@@ -83,5 +83,34 @@ describe('右键菜单重建', () => {
     await fake.settle();
     expect(fake.errors).toEqual([]);
     expect([...fake.items].sort()).toEqual(CONTEXT_MENUS.map((m) => m.id).sort());
+  });
+});
+
+describe('右键菜单项随翻译设置变化（ALAG-27）', () => {
+  it('支持且未开「总是翻译」：在 save-page 之后加「并翻译成〈语言〉」，标题带当前默认语言名', () => {
+    const items = contextMenusFor({ target: 'ja', always: false }, true);
+    const ids = items.map((m) => m.id);
+    expect(ids).toContain(MENU_SAVE_PAGE_TRANSLATE);
+    expect(ids.indexOf(MENU_SAVE_PAGE_TRANSLATE)).toBe(ids.indexOf(MENU_SAVE_PAGE) + 1);
+    expect(items.find((m) => m.id === MENU_SAVE_PAGE_TRANSLATE)?.title).toBe('存入 Alayo Get 并翻译成日语');
+    expect(items.filter((m) => m.id !== MENU_SAVE_PAGE_TRANSLATE).map((m) => m.id)).toEqual(CONTEXT_MENUS.map((m) => m.id));
+  });
+
+  it('开了「总是翻译」或浏览器不支持：不含这一项', () => {
+    for (const [always, supported] of [
+      [true, true],
+      [false, false],
+      [true, false],
+    ] as const) {
+      const ids = contextMenusFor({ target: 'auto', always }, supported).map((m) => m.id);
+      expect(ids).toEqual(CONTEXT_MENUS.map((m) => m.id));
+      expect(ids).not.toContain(MENU_SAVE_PAGE_TRANSLATE);
+    }
+  });
+
+  it('auto 跟随界面语言（默认中文界面为简体中文）', () => {
+    const item = contextMenusFor({ target: 'auto', always: false }, true).find((m) => m.id === MENU_SAVE_PAGE_TRANSLATE);
+    expect(item?.context).toBe('page');
+    expect(item?.title).toContain('简体中文');
   });
 });

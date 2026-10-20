@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>选项页翻译设置</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.root{
+  --accent:#4257B5;--onAccent:#FFFFFF;--accentSoft:rgba(66,87,181,.10);
+  --canvas:#F1F2F4;--panel:#FFFFFF;
+  --hair:rgba(35,37,44,.09);--hairSoft:rgba(35,37,44,.055);--region:rgba(35,37,44,.045);
+  --t1:#23252C;--t2:#6E7280;--t3:#72767F;--danger:#C8362C;--success:#248A3D;--knob:#FFFFFF;
+  --shadow:0 8px 24px rgba(20,21,26,.08),0 0 0 .5px rgba(35,37,44,.09);
+  --font:-apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+  width:1240px;box-sizing:border-box;padding:32px 40px 48px;background:var(--canvas);color:var(--t1);font-family:var(--font);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;gap:28px
+}
+.root[data-theme="dark"]{
+  --accent:#7B8CDE;--onAccent:#14151A;--accentSoft:rgba(123,140,222,.16);
+  --canvas:#212228;--panel:#2B2D34;
+  --hair:rgba(255,255,255,.10);--hairSoft:rgba(255,255,255,.06);--region:rgba(255,255,255,.05);
+  --t1:#E8EAF0;--t2:#A3A8B5;--t3:#9DA1AC;--danger:#E06058;--success:#30D158;--knob:#E8EAF0;
+  --shadow:0 8px 24px rgba(0,0,0,.34),0 0 0 .5px rgba(255,255,255,.10);color-scheme:dark
+}
+.root[data-lang="zh"] .en{display:none}
+.root[data-lang="en"] .zh{display:none}
+*{box-sizing:border-box}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:18px;font-weight:600;margin:0}
+.sub{font-size:12.5px;color:var(--t2);margin:4px 0 0;max-width:80ch;line-height:18px}
+.ctl{display:flex;gap:8px;flex-wrap:wrap}
+.ctl button{font:inherit;font-size:12px;font-weight:600;height:28px;padding:0 10px;border-radius:9px;border:.5px solid var(--hair);background:var(--panel);color:var(--t1);cursor:pointer}
+.ctl button[aria-pressed="true"]{background:var(--accent);color:var(--onAccent);border-color:transparent}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px;align-items:start}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.cap{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+/* 选项页：照搬 src/entrypoints/options/style.css */
+.fl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:var(--t3)}
+.fl.section{margin-top:8px}
+.keys{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);padding:18px 24px;display:flex;flex-direction:column}
+.kr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:.5px solid var(--hairSoft);font-size:13px}
+.kr:last-child{border-bottom:0}
+.kr > span{color:var(--t2)}
+.old{}
+.k{display:inline-block;font-size:12px;line-height:18px;padding:0 6px;border-radius:5px;background:var(--panel);border:.5px solid var(--hair);color:var(--t1);margin:0 1px}
+/* 本票新增：翻译小节 */
+.tr{align-items:flex-start;flex-wrap:nowrap}
+.lab{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lab label,.lab .lt{font-size:13px;color:var(--t1)}
+.desc{font-size:12px;line-height:18px;color:var(--t2);max-width:46ch}
+.selw{position:relative;flex:none;display:flex}
+.sel{appearance:none;-webkit-appearance:none;min-width:220px;height:30px;border-radius:9px;background:var(--region);border:.5px solid var(--hairSoft);padding:0 28px 0 10px;font:inherit;font-size:13px;color:var(--t1)}
+.sel:disabled{color:var(--t3)}
+.chev{position:absolute;right:9px;top:9px;display:flex;color:var(--t2);pointer-events:none}
+.sw{flex:none;width:38px;height:22px;border-radius:11px;border:0;padding:2px;background:var(--hair);display:flex;justify-content:flex-start;cursor:pointer}
+.sw[aria-checked="true"]{background:var(--accent);justify-content:flex-end}
+.sw:disabled{opacity:.5;cursor:default}
+.sw i{display:block;width:18px;height:18px;border-radius:9px;background:var(--knob);box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.inset{background:var(--region);border-radius:10px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--t2);margin-top:6px;margin-bottom:6px}
+.inset b{color:var(--t1);font-weight:600}
+.dim .lab label,.dim .lab .lt{color:var(--t3)}
+.callout{display:flex;gap:8px;align-items:flex-start;background:var(--region);border-radius:10px;padding:10px 12px;font-size:12px;line-height:18px;color:var(--t1);margin:6px 0}
+.callout .ic{flex:none;display:flex;color:var(--t2);margin-top:1px}
+.opts{font-size:12px;line-height:18px;color:var(--t2);margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px}
+.opts li b{color:var(--t1);font-weight:600}
+</style>
+</helmet>
+<div class="root" data-theme="{{theme}}" data-lang="{{lang}}">
+<header>
+<div>
+<h1><span class="zh">选项页：新增「翻译」小节（ALAG-27）</span><span class="en">Settings: new “Translation” section (ALAG-27)</span></h1>
+<p class="sub"><span class="zh">放在「保存方式」下面。两项设置：目标语言（默认跟随界面语言）、保存时总是翻译（默认关）。下方一段固定说明写清本机翻译和第一次下载模型。「保存方式」里两行说明随开关更新。</span><span class="en">Placed below “Ways to save”. Two settings: target language (defaults to the interface language) and Always translate when saving (off by default). A fixed note below explains on-device translation and the first model download. Two lines in “Ways to save” update with the switch.</span></p>
+</div>
+<div class="ctl">
+<button type="button" aria-pressed="{{isLight}}" onClick="{{setLight}}">浅色 Light</button>
+<button type="button" aria-pressed="{{isDark}}" onClick="{{setDark}}">深色 Dark</button>
+<button type="button" aria-pressed="{{isZh}}" onClick="{{setZh}}">中文</button>
+<button type="button" aria-pressed="{{isEn}}" onClick="{{setEn}}">English</button>
+</div>
+</header>
+
+<div class="cols">
+
+<div class="col">
+<div class="cap"><span class="zh">A · 支持本机翻译（开关可点，看「保存方式」前两行的变化；「右键菜单」那行不改）</span><span class="en">A · ON-DEVICE TRANSLATION AVAILABLE (TOGGLE TO SEE THE FIRST TWO “WAYS TO SAVE” LINES CHANGE; RIGHT-CLICK LINE UNCHANGED)</span></div>
+
+<div class="fl section"><span class="zh">保存方式</span><span class="en">WAYS TO SAVE</span></div>
+<div class="keys">
+<div class="kr"><span style="color: var(--t1)"><span class="zh">点工具栏图标</span><span class="en">Click the toolbar icon</span></span><span><sc-if value="{{autoOn}}" hint-placeholder-val="{{ false }}"><span class="zh">保存当前页并翻译，打开面板补标题、标签和批注</span><span class="en">Save and translate this page, and open the panel to edit title, tags and note</span></sc-if><sc-if value="{{autoOff}}" hint-placeholder-val="{{ true }}"><span class="zh">保存当前页，并打开面板补标题、标签和批注</span><span class="en">Save this page and open the panel to edit title, tags and note</span></sc-if></span></div>
+<div class="kr"><div><span class="zh">快捷键 </span><span class="en">Shortcut </span><span class="k">⌥</span><span class="k">⇧</span><span class="k">S</span></div><span><sc-if value="{{autoOn}}" hint-placeholder-val="{{ false }}"><span class="zh">直接保存并翻译当前页，右下角出提示</span><span class="en">Save and translate this page directly; a notice appears at the bottom right</span></sc-if><sc-if value="{{autoOff}}" hint-placeholder-val="{{ true }}"><span class="zh">直接保存当前页，右下角出提示</span><span class="en">Save this page directly; a notice appears at the bottom right</span></sc-if></span></div>
+<div class="kr old"><span style="color: var(--t1)"><span class="zh">右键菜单</span><span class="en">Right-click menu</span></span><span><span class="zh">当前页面、链接、图片、音视频，或选中的文字</span><span class="en">This page, a link, an image, audio or video, or selected text</span></span></div>
+</div>
+
+<div class="fl section"><span class="zh">翻译</span><span class="en">TRANSLATION</span></div>
+<div class="keys">
+<div class="kr tr">
+<div class="lab"><label for="optLang"><span class="zh">目标语言</span><span class="en">Target language</span></label><span class="desc"><span class="zh">面板里可以按篇改。</span><span class="en">You can change it per clip in the panel.</span></span></div>
+<span class="selw"><select id="optLang" class="sel"><option selected="selected">{{followLabel}}</option><option>简体中文</option><option>繁體中文</option><option>English</option><option>日本語</option><option>한국어</option><option>Français</option><option>Deutsch</option><option>Español</option></select><span class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></span>
+</div>
+<div class="kr tr">
+<div class="lab"><span class="lt" id="autoLab"><span class="zh">保存时总是翻译</span><span class="en">Always translate when saving</span></span><span class="desc"><span class="zh">文章和 X 长文存好后自动加上译文，工具栏图标和快捷键都按这个设置。关着时，可以在面板里点「翻译」，或在网页空白处右键选「存入 Alayo Get 并翻译成…」。</span><span class="en">Articles and X long posts get a translation right after saving, from the toolbar icon or the shortcut. When off, click Translate in the panel, or right-click the page and choose “Save to Alayo Get and translate to…”.</span></span></div>
+<button type="button" class="sw" role="switch" aria-checked="{{autoChecked}}" aria-labelledby="autoLab" onClick="{{toggleAuto}}"><i></i></button>
+</div>
+<div class="inset"><span class="zh"><b>翻译在本机完成，文字不会发给任何服务。</b>第一次翻译某种语言时，Chrome 会从 Google 下载这个语言的翻译模型（约 80 MB），之后不用联网。</span><span class="en"><b>Translation runs on this device. Your text isn’t sent to any service.</b> The first time you translate a language, Chrome downloads its translation model from Google (about 80 MB). After that, no connection is needed.</span></div>
+</div>
+
+<div class="cap" style="margin-top: 8px"><span class="zh">目标语言下拉框的选项</span><span class="en">TARGET LANGUAGE OPTIONS</span></div>
+<ul class="opts">
+<li><span class="zh"><b>跟随界面语言（简体中文）</b>：默认。界面是英文时显示「Same as interface (English)」。存的是「跟随」，界面语言变了目标跟着变。</span><span class="en"><b>Same as interface (English)</b>: default; shows “跟随界面语言（简体中文）” in a Chinese UI. Stored as “follow”, so the target changes with the interface language.</span></li>
+<li><span class="zh"><b>8 种语言</b>：各用本语言写名称，中英界面一样——简体中文、繁體中文、English、日本語、한국어、Français、Deutsch、Español。</span><span class="en"><b>8 languages</b>, each named in its own language, same in both UIs: 简体中文, 繁體中文, English, 日本語, 한국어, Français, Deutsch, Español.</span></li>
+</ul>
+</div>
+
+<div class="col">
+<div class="cap"><span class="zh">B · 浏览器不支持本机翻译</span><span class="en">B · BROWSER CAN’T TRANSLATE ON DEVICE</span></div>
+
+<div class="fl section"><span class="zh">翻译</span><span class="en">TRANSLATION</span></div>
+<div class="keys">
+<div class="callout"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></span><span><span class="zh">这个浏览器不能本机翻译，需要 Chrome 138 或更新版本。保存和其他功能照常使用。</span><span class="en">This browser can’t translate on device. Requires Chrome 138 or later. Saving and everything else still work.</span></span></div>
+<div class="kr tr dim">
+<div class="lab"><label for="optLangB"><span class="zh">目标语言</span><span class="en">Target language</span></label></div>
+<span class="selw"><select id="optLangB" class="sel" disabled="disabled"><option selected="selected">{{followLabel}}</option></select><span class="chev" style="color: var(--t3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></span>
+</div>
+<div class="kr tr dim">
+<div class="lab"><span class="lt" id="autoLabB"><span class="zh">保存时总是翻译</span><span class="en">Always translate when saving</span></span></div>
+<button type="button" class="sw" role="switch" aria-checked="false" aria-labelledby="autoLabB" disabled="disabled"><i></i></button>
+</div>
+</div>
+<p class="desc" style="margin: 0; max-width: none"><span class="zh">此时面板翻译块灰掉（面板稿 I），右键不创建「并翻译」一项，「保存方式」两行说明保持现状。以前开着「总是翻译」的设置保留，只是不生效。</span><span class="en">In this case the panel block is disabled (panel state I), the right-click “and translate” item isn’t created, and the “Ways to save” lines stay as they are. A previously enabled “Always translate” setting is kept but has no effect.</span></p>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { theme: 'light', lang: 'zh', auto: false };
+  }
+  renderVals() {
+    const s = this.state;
+    return {
+      theme: s.theme,
+      lang: s.lang,
+      isLight: s.theme === 'light' ? 'true' : 'false',
+      isDark: s.theme === 'dark' ? 'true' : 'false',
+      isZh: s.lang === 'zh' ? 'true' : 'false',
+      isEn: s.lang === 'en' ? 'true' : 'false',
+      followLabel: s.lang === 'zh' ? '跟随界面语言（简体中文）' : 'Same as interface (English)',
+      autoOn: s.auto,
+      autoOff: !s.auto,
+      autoChecked: s.auto ? 'true' : 'false',
+      toggleAuto: () => this.setState({ auto: !this.state.auto }),
+      setLight: () => this.setState({ theme: 'light' }),
+      setDark: () => this.setState({ theme: 'dark' }),
+      setZh: () => this.setState({ lang: 'zh' }),
+      setEn: () => this.setState({ lang: 'en' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -143,3 +143,85 @@ button:focus-visible {
   line-height: 16px;
   color: var(--t2);
 }
+
+/* 翻译行（ALAG-27 设计稿 Toast.dc.html）：细分隔线下一行图标＋文字＋右侧数字或按钮 */
+.trs {
+  border-top: 0.5px solid var(--hairSoft);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.trl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.trl .ticon {
+  flex: none;
+  display: flex;
+  color: var(--t2);
+}
+
+.trl .ticon.success {
+  color: var(--success);
+}
+
+.trl .ticon.err {
+  color: var(--danger);
+}
+
+.trl b {
+  font-weight: 600;
+}
+
+.trl .num,
+.num {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trl .err,
+.err {
+  color: var(--danger);
+}
+
+.trd {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--t2);
+}
+
+.trm {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 14px;
+  color: var(--t2);
+  overflow-wrap: anywhere;
+}
+
+.bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hair);
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.ts.wrap {
+  white-space: normal;
+}

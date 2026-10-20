@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClipSummary, EditFields, PanelState, Preview, SavedEntry } from '@/shared/types';
 import { icon } from '../icons';
-import { renderPanel, type PanelActions } from './render';
+import { renderPanel, updateTranslationBlock, type PanelActions, type PanelTranslation } from './render';
 import type { LostEdit } from '@/shared/types';
 import { CJK, useLocale } from '../../../tests/setup/i18n';
 
@@ -479,5 +479,155 @@ describe('写回失败可见、草稿可恢复（ALAG-20）', () => {
       expect(text).not.toMatch(CJK);
       expect(text).toContain('Couldn’t open this clip');
     }
+  });
+});
+
+describe('面板翻译块（ALAG-27）', () => {
+  const translation = { supported: true, settings: { target: 'auto' as const, always: false } };
+
+  function renderTranslated(state: PanelState, extra: Partial<PanelState> = {}) {
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    const actions = makeActions();
+    renderPanel(root, { state: { ...state, ...extra } as PanelState, folderName: 'Alayo Get', translation }, actions);
+    return { root, actions };
+  }
+
+  it('saved 的 web 剪藏显示翻译块，在批注框之后', () => {
+    const { root } = renderTranslated({ state: 'saved', clip, tagSuggestions: [] });
+    const note = root.querySelector<HTMLTextAreaElement>('#f-note');
+    expect(note).not.toBeNull();
+    const block = root.querySelector<HTMLElement>('.tr');
+    expect(block).not.toBeNull();
+    expect(block?.getAttribute('data-kind')).toBe('idle');
+    expect(note?.closest('.field')?.nextElementSibling).toBe(block);
+    expect(root.textContent).toContain('翻译成');
+    expect(root.textContent).toContain('只改这一篇；默认语言在设置里改。');
+  });
+
+  it('X 长文剪藏显示；complete 的 view 显示译完状态', () => {
+    const { root } = renderTranslated(
+      { state: 'saved', clip: { ...clip, medium: 'x', x: { form: 'article', posts: 1, partial: null } }, tagSuggestions: [] },
+      {},
+    );
+    expect(root.querySelector('.tr')).not.toBeNull();
+    const done = renderTranslated(
+      { state: 'saved', clip, tagSuggestions: [] },
+      {},
+    );
+    done.root.remove();
+    const root2 = document.createElement('div');
+    document.body.append(root2);
+    renderPanel(
+      root2,
+      {
+        state: { state: 'saved', clip, tagSuggestions: [] },
+        folderName: 'Alayo Get',
+        translation: { ...translation, view: { phase: 'finished', target: 'zh', outcome: { status: 'complete', applied: 3, total: 3, source: 'en' } } },
+      },
+      makeActions(),
+    );
+    expect(root2.textContent).toContain('已加上简体中文译文');
+  });
+
+  it('fallback、duplicate、quote、媒体剪藏不显示翻译块', () => {
+    const fallback = renderTranslated({ state: 'fallback', clip: { ...clip, extract: 'fallback', medium: 'link' }, tagSuggestions: [] });
+    expect(fallback.root.querySelector('.tr')).toBeNull();
+
+    const duplicate = renderTranslated({ state: 'duplicate', preview, previous });
+    expect(duplicate.root.querySelector('.tr')).toBeNull();
+
+    const quote = renderTranslated({
+      state: 'saved',
+      clip: { ...clip, medium: 'quote', quote: { fileId: 'F', entry: 1, anchor: 'a', fragment: true, recreated: false } },
+      tagSuggestions: [],
+    });
+    expect(quote.root.querySelector('.tr')).toBeNull();
+
+    const image = renderTranslated({
+      state: 'saved',
+      clip: { ...clip, medium: 'image', media: { kind: 'image', bytes: 1024 } },
+      tagSuggestions: [],
+    });
+    expect(image.root.querySelector('.tr')).toBeNull();
+  });
+
+  it('翻译块在恢复块之前', () => {
+    const lost: LostEdit = {
+      id: 'L1',
+      clip,
+      fields: { note: 'x' },
+      error: { name: 'NotFoundError', message: 'gone' },
+      at: '2026-10-08T00:00:00.000Z',
+    };
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    renderPanel(root, { state: { state: 'saved', clip, tagSuggestions: [] }, folderName: 'Alayo Get', translation, lostEdits: [lost] }, makeActions());
+    const block = root.querySelector('.tr');
+    const lostBlock = root.querySelector('.lost');
+    expect(block).not.toBeNull();
+    expect(lostBlock).not.toBeNull();
+    expect(block?.compareDocumentPosition(lostBlock as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+});
+
+
+describe('翻译块局部更新（ALAG-27 续修 1）', () => {
+  const translation: PanelTranslation = { supported: true, settings: { target: 'auto', always: false } };
+
+  function mountSaved() {
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    const actions = makeActions();
+    renderPanel(root, { state: { state: 'saved', clip, tagSuggestions: [] }, folderName: 'Alayo Get', translation }, actions);
+    return { root, actions };
+  }
+
+  it('只重画翻译块：标题输入框仍有焦点、值不变，块显示新的进度', () => {
+    const { root, actions } = mountSaved();
+    const title = root.querySelector<HTMLInputElement>('#f-title');
+    if (!title) throw new Error('没有标题输入框');
+    title.focus();
+    title.value = '用户正在输入的新标题';
+    title.dispatchEvent(new Event('input'));
+    const before = root.querySelector('[data-translation-block]');
+    expect(before).not.toBeNull();
+
+    const ok = updateTranslationBlock(root, { ...translation, view: { phase: 'running', target: 'zh', done: 5, total: 40 } }, actions);
+    expect(ok).toBe(true);
+    expect(document.activeElement).toBe(title);
+    expect(title.value).toBe('用户正在输入的新标题');
+    expect(root.querySelector('[data-translation-block]')).not.toBe(before);
+    expect(root.querySelector('.tr .num')?.textContent).toBe('5 / 40 段');
+    expect(root.querySelector('.tr')?.getAttribute('data-kind')).toBe('running');
+  });
+
+  it('焦点在块里的下拉框时，替换后落在新块的下拉框上', () => {
+    const { root, actions } = mountSaved();
+    const select = root.querySelector<HTMLSelectElement>('.tr select');
+    if (!select) throw new Error('没有下拉框');
+    select.focus();
+    select.value = 'ja';
+    select.dispatchEvent(new Event('change'));
+
+    updateTranslationBlock(root, { ...translation, selectedTarget: 'ja' }, actions);
+    const next = root.querySelector<HTMLSelectElement>('.tr select');
+    expect(document.activeElement).toBe(next);
+    expect(next?.value).toBe('ja');
+  });
+
+  it('当前状态是 duplicate（没有翻译块）：返回 false，DOM 不变', () => {
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    const actions = makeActions();
+    renderPanel(
+      root,
+      { state: { state: 'duplicate', preview, previous }, folderName: 'Alayo Get', translation },
+      actions,
+    );
+    const before = root.innerHTML;
+    expect(updateTranslationBlock(root, { ...translation, view: { phase: 'running', target: 'zh', done: 1, total: 2 } }, actions)).toBe(false);
+    expect(root.innerHTML).toBe(before);
+    expect(root.querySelector('[data-translation-block]')).toBeNull();
   });
 });
